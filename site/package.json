@@ -1,0 +1,26 @@
+{
+  "name": "@maybloom-tech/stack-site",
+  "version": "0.0.0",
+  "description": "The maybloom stack: documentation site rendering docs/.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "typecheck": "astro check"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.3",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/inter-tight": "^5.2.7",
+    "@fontsource/source-serif-4": "^5.2.9",
+    "astro": "^6.3.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,17 @@
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
+
+// EXPO_PUBLIC_ vars are inlined at build time and visible to the bundle.
+// Override per-environment via .env or EAS build profiles.
+export const API_URL =
+  process.env.EXPO_PUBLIC___APP_SLUG_UPPER___API_URL ?? "http://localhost:3000";
+
+const transport = createConnectTransport({
+  baseUrl: API_URL,
+});
+
+// One typed Connect client for the whole app. Import this anywhere you need
+// to call the backend; React Query hooks under data/queries wrap it for
+// caching and lifecycle.
+export const client = createClient(__APP_NAME__Service, transport);

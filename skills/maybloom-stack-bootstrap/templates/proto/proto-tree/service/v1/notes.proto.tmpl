@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package __APP_SLUG__.service.v1;
+
+import "__APP_SLUG__/resources/v1/notes.proto";
+
+message CreateNoteRequest {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}
+
+message CreateNoteResponse {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}
+
+message GetNoteRequest {
+  string id = 1;
+}
+
+message GetNoteResponse {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}
+
+message ListNotesRequest {}
+
+message ListNotesResponse {
+  repeated __APP_SLUG__.resources.v1.Note notes = 1;
+}
+
+message UpdateNoteRequest {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}
+
+message UpdateNoteResponse {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}
+
+message DeleteNoteRequest {
+  string id = 1;
+}
+
+message DeleteNoteResponse {}

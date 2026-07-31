@@ -1,0 +1,24 @@
+import { create } from "@bufbuild/protobuf";
+import { NoteSchema } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+import { client } from "./client";
+
+// Domain API thin wrappers around the Connect client. Keep them shapeless —
+// React Query hooks above this layer are where caching/lifecycle live.
+
+export async function listNotes() {
+  const response = await client.listNotes({});
+  return response.notes;
+}
+
+export async function createNote(input: { title: string; body: string }) {
+  const note = create(NoteSchema, {
+    title: input.title,
+    body: input.body,
+  });
+  const response = await client.createNote({ note });
+  return response.note;
+}
+
+export async function deleteNote(id: string) {
+  await client.deleteNote({ id });
+}

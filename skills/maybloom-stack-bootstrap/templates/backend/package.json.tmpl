@@ -1,0 +1,37 @@
+{
+  "name": "__ORG_SCOPE__/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "dev": "tsx watch src/main.ts",
+    "start": "pnpm build && node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "catalog:",
+    "@connectrpc/connect": "catalog:",
+    "@connectrpc/connect-fastify": "catalog:",
+    "@connectrpc/connect-node": "catalog:",
+    "@electric-sql/pglite": "^0.4.4",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/env": "^5.0.3",
+    "__ORG_SCOPE__/protocol-buffers": "workspace:*",
+    "@sinclair/typebox": "^0.34.45",
+    "drizzle-orm": "^0.45.1",
+    "fastify": "^5.6.2",
+    "fastify-plugin": "^5.0.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.8",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,94 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '~/layouts/Layout.astro';
+
+const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data.order);
+---
+<Layout>
+  <main>
+    <section class="hero frame">
+      <p class="eyebrow"><span class="num">01</span> A stack for seasonal software</p>
+      <h1 class="serif">
+        One contract, <em>two backends</em>,<br />and a system you can tend for decades.
+      </h1>
+      <p class="lede">
+        The maybloom stack is a schema-first monorepo framework. Protocol Buffers
+        define every boundary, code generation owns the edges, and people write
+        the three layers in the middle. The backend is TypeScript by default and
+        Go when the workload asks for it; the interface is one Expo app; the
+        public surfaces are static Astro sites.
+      </p>
+      <pre class="pipeline" aria-label="The stack pipeline">proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
+                                                          ↓
+                                                api / queries / screen</pre>
+      <a class="cta" href="/docs/overview">Read the docs</a>
+    </section>
+
+    <section class="frame docs-index">
+      <p class="eyebrow"><span class="num">02</span> The documents</p>
+      <ol class="doc-list">
+        {docs.map((doc) => (
+          <li>
+            <a href={`/docs/${doc.id}`}>
+              <span class="doc-num">{String(doc.data.order).padStart(2, '0')}</span>
+              <span class="doc-title serif">{doc.data.title}</span>
+              <span class="doc-desc">{doc.data.description}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .hero { padding: 84px 32px 30px; }
+  .hero h1 {
+    margin-top: 20px;
+    font-weight: 400; font-size: clamp(34px, 4.6vw, 56px);
+    line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .lede {
+    margin-top: 26px; max-width: 640px;
+    font-size: 18px; line-height: 1.6; color: var(--ink-2);
+  }
+  .pipeline {
+    margin: 40px 0 0; padding: 22px 26px;
+    background: var(--code-bg); color: #d6e2da;
+    border: 1px solid var(--line-soft); border-radius: 12px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.7;
+    overflow-x: auto;
+  }
+  .cta {
+    display: inline-block; margin-top: 34px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 999px; padding: 11px 22px;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .cta:hover { background: var(--accent); color: var(--bg); }
+
+  .docs-index { padding-top: 74px; }
+  .doc-list { margin-top: 26px; padding: 0; list-style: none; }
+  .doc-list li { border-top: 1px solid var(--line-soft); }
+  .doc-list li:last-child { border-bottom: 1px solid var(--line-soft); }
+  .doc-list a {
+    display: grid; grid-template-columns: 52px 240px 1fr;
+    align-items: baseline; gap: 18px; padding: 18px 6px;
+    transition: background 0.15s ease;
+  }
+  .doc-list a:hover { background: var(--accent-tint); }
+  .doc-num {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
+  }
+  .doc-title { font-size: 20px; font-weight: 500; }
+  .doc-desc { font-size: 14.5px; color: var(--ink-3); }
+
+  @media (max-width: 720px) {
+    .hero { padding-top: 56px; }
+    .doc-list a { grid-template-columns: 40px 1fr; }
+    .doc-desc { grid-column: 2; }
+  }
+</style>

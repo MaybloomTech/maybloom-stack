@@ -1,0 +1,31 @@
+FROM node:24-alpine AS build
+
+RUN corepack enable
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.json ./
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/protocol-buffers/package.json packages/protocol-buffers/package.json
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+COPY buf.yaml buf.gen.yaml ./
+COPY proto proto
+COPY packages/backend packages/backend
+COPY packages/protocol-buffers packages/protocol-buffers
+
+RUN pnpm proto:gen
+RUN pnpm --filter __ORG_SCOPE__/protocol-buffers build
+RUN pnpm --filter __ORG_SCOPE__/backend build
+
+RUN pnpm deploy --filter __ORG_SCOPE__/backend --prod /deploy
+
+FROM node:24-alpine AS runner
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=build /deploy /app
+
+EXPOSE 3000
+CMD ["node", "dist/main.js"]

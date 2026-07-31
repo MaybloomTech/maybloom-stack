@@ -1,0 +1,85 @@
+---
+import { getCollection, render } from 'astro:content';
+import Layout from '~/layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('stack');
+  return docs.map((doc) => ({ params: { slug: doc.id }, props: { doc } }));
+}
+
+const { doc } = Astro.props;
+const { Content } = await render(doc);
+
+const all = (await getCollection('stack')).sort((a, b) => a.data.order - b.data.order);
+const idx = all.findIndex((d) => d.id === doc.id);
+const prev = idx > 0 ? all[idx - 1] : undefined;
+const next = idx < all.length - 1 ? all[idx + 1] : undefined;
+---
+<Layout title={doc.data.title} description={doc.data.description}>
+  <div class="frame docs-frame">
+    <nav class="side" aria-label="Stack documents">
+      {all.map((d) => (
+        <a href={`/docs/${d.id}`} class:list={{ active: d.id === doc.id }}>
+          <span class="n">{String(d.data.order).padStart(2, '0')}</span>
+          {d.data.title}
+        </a>
+      ))}
+    </nav>
+
+    <div class="doc-col">
+      <article class="prose">
+        <Content />
+      </article>
+
+      <nav class="pager" aria-label="Previous and next document">
+        {prev ? (
+          <a class="pager-link" href={`/docs/${prev.id}`}>← {prev.data.title}</a>
+        ) : (
+          <span />
+        )}
+        {next && <a class="pager-link next" href={`/docs/${next.id}`}>{next.data.title} →</a>}
+      </nav>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .docs-frame {
+    display: grid; grid-template-columns: 220px minmax(0, 720px);
+    gap: 56px; padding-top: 52px;
+  }
+  .side {
+    display: flex; flex-direction: column; gap: 2px;
+    align-self: start; position: sticky; top: 92px;
+  }
+  .side a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 7px 12px; border-radius: 8px;
+    font-size: 14px; color: var(--ink-2);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .side a:hover { color: var(--ink); background: var(--accent-tint); }
+  .side a.active { color: var(--accent); background: var(--accent-tint); font-weight: 500; }
+  .side .n { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .side a.active .n { color: var(--accent); }
+
+  .pager {
+    display: flex; justify-content: space-between; gap: 16px;
+    margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .pager-link {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+    letter-spacing: 0.04em; color: var(--accent);
+  }
+  .pager-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .pager-link.next { text-align: right; }
+
+  @media (max-width: 860px) {
+    .docs-frame { grid-template-columns: 1fr; gap: 30px; padding-top: 34px; }
+    .side {
+      position: static; flex-direction: row; flex-wrap: wrap; gap: 6px;
+    }
+    .side a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; font-size: 13px; }
+    .side a.active { border-color: var(--accent); }
+  }
+</style>

@@ -1,0 +1,97 @@
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Button,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Stack } from "expo-router";
+import {
+  useCreateNote,
+  useDeleteNote,
+  useNotes,
+} from "../src/data/queries/useNotes";
+
+export default function Home() {
+  const { data: notes, isLoading, error } = useNotes();
+  const createNote = useCreateNote();
+  const deleteNote = useDeleteNote();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+
+  const submit = async () => {
+    if (!title.trim()) return;
+    await createNote.mutateAsync({ title, body });
+    setTitle("");
+    setBody("");
+  };
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ title: "__APP_NAME__" }} />
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Title"
+          value={title}
+          onChangeText={setTitle}
+        />
+        <TextInput
+          style={[styles.input, styles.body]}
+          placeholder="Body"
+          value={body}
+          onChangeText={setBody}
+          multiline
+        />
+        <Button title="Add note" onPress={submit} />
+      </View>
+      {isLoading ? (
+        <ActivityIndicator />
+      ) : error ? (
+        <Text style={styles.error}>Failed to load: {String(error)}</Text>
+      ) : (
+        <FlatList
+          data={notes}
+          keyExtractor={(n) => n.id}
+          renderItem={({ item }) => (
+            <View style={styles.note}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title}>{item.title}</Text>
+                {item.body ? <Text>{item.body}</Text> : null}
+              </View>
+              <Button
+                title="Delete"
+                onPress={() => deleteNote.mutate(item.id)}
+              />
+            </View>
+          )}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, gap: 16 },
+  form: { gap: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 4,
+    padding: 8,
+  },
+  body: { minHeight: 60 },
+  note: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  title: { fontWeight: "600" },
+  error: { color: "red" },
+});

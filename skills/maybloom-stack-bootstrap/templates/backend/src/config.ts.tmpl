@@ -1,0 +1,29 @@
+import { type Static, Type } from "@sinclair/typebox";
+
+export enum Environment {
+  LOCAL = "local",
+  DEVELOPMENT = "development",
+  STAGING = "staging",
+  PRODUCTION = "production",
+}
+
+// All runtime configuration is defined here as a Typebox schema. @fastify/env
+// loads .env + process.env, validates against this schema, and exposes the
+// result as `server.config`. Add new vars here with sensible defaults rather
+// than reading process.env directly elsewhere — this keeps config a single
+// source of truth and gives you typed access throughout the codebase.
+export const configSchema = Type.Object({
+  HOST: Type.String({ default: "0.0.0.0" }),
+  PORT: Type.Integer({ default: 3000 }),
+  LOG_LEVEL: Type.String({ default: "info" }),
+  ENVIRONMENT: Type.Enum(Environment, { default: Environment.LOCAL }),
+  // Three URL schemes are auto-detected by db/config.ts:
+  //   pglite://PATH        — embedded Postgres (file-backed, dev default)
+  //   pglite-memory://     — in-memory PGlite (tests)
+  //   postgresql://...     — real Postgres (prod / docker-compose)
+  DATABASE_URL: Type.String({
+    default: "pglite://./.dev-db/__APP_SLUG__",
+  }),
+});
+
+export type Config = Static<typeof configSchema>;

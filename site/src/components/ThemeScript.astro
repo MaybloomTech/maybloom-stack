@@ -1,0 +1,35 @@
+---
+// Studio / Terminal toggle. The no-flash initial set happens inline in
+// Layout's <head>; this wires the header button and syncs its glyph + label
+// to the active theme (the label/glyph show the theme you can switch TO).
+---
+<script>
+  const SUN =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7L17 17M7 7L5.3 5.3"/></svg>';
+  const MOON =
+    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"/></svg>';
+
+  const root = document.documentElement;
+  const glyph = document.getElementById('themeGlyph');
+  const label = document.getElementById('themeLabel');
+  const btn = document.getElementById('themeToggle');
+
+  function apply(theme: string) {
+    root.setAttribute('data-theme', theme);
+    if (glyph) glyph.innerHTML = theme === 'studio' ? MOON : SUN;
+    if (label) label.textContent = theme === 'studio' ? 'Terminal' : 'Studio';
+    try {
+      localStorage.setItem('mb_stack_theme', theme);
+    } catch (e) {}
+  }
+
+  let saved = 'studio';
+  try {
+    saved = localStorage.getItem('mb_stack_theme') || 'studio';
+  } catch (e) {}
+  apply(saved);
+
+  btn?.addEventListener('click', () => {
+    apply(root.getAttribute('data-theme') === 'studio' ? 'terminal' : 'studio');
+  });
+</script>

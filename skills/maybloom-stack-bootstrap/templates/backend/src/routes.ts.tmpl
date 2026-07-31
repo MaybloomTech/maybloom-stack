@@ -1,0 +1,8 @@
+import type { FastifyPluginAsync } from "fastify";
+
+// Aggregator for non-Connect HTTP routes. Connect-RPC handlers are registered
+// separately in main.ts via fastifyConnectPlugin. Use this file for things
+// like /health, file uploads, or webhooks that need raw HTTP semantics.
+export const routes: FastifyPluginAsync = async (app) => {
+  app.get("/", async () => ({ service: "__APP_SLUG__-backend" }));
+};

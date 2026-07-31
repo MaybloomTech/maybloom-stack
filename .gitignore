@@ -1,0 +1,9 @@
+# Deliberately narrow: a broad `.env.*` pattern would swallow the
+# `.env.example.tmpl` files the bootstrap skill ships as templates.
+node_modules/
+dist/
+.astro/
+.env
+.env.local
+.DS_Store
+*.log

@@ -1,0 +1,67 @@
+import { Code, ConnectError } from "@connectrpc/connect";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import type {
+  CreateNoteRequest,
+  UpdateNoteRequest,
+} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/notes_pb";
+import { notes } from "db/schema";
+import { server } from "server";
+import {
+  noteRowToProto,
+  noteToInsert,
+  noteToUpdate,
+} from "core/notes/adapter";
+
+// Stores hold the actual business logic for a resource. Handlers should be
+// thin wrappers around store functions: handlers extract auth context and
+// shape the proto response, stores do the real work.
+
+export async function createNote(request: CreateNoteRequest) {
+  const input = request.note;
+  if (!input) {
+    throw new ConnectError("Note is required", Code.InvalidArgument);
+  }
+  const id = input.id || randomUUID();
+  const [row] = await server.db
+    .insert(notes)
+    .values(noteToInsert(input, id))
+    .returning();
+  return noteRowToProto(row);
+}
+
+export async function updateNote(request: UpdateNoteRequest) {
+  const input = request.note;
+  if (!input?.id) {
+    throw new ConnectError("Note id is required", Code.InvalidArgument);
+  }
+  const [row] = await server.db
+    .update(notes)
+    .set({
+      ...noteToUpdate(input),
+      updatedAt: new Date(),
+    })
+    .where(eq(notes.id, input.id))
+    .returning();
+  if (!row) {
+    throw new ConnectError("Note not found", Code.NotFound);
+  }
+  return noteRowToProto(row);
+}
+
+export async function getNote(id: string) {
+  const [row] = await server.db.select().from(notes).where(eq(notes.id, id));
+  if (!row) {
+    throw new ConnectError("Note not found", Code.NotFound);
+  }
+  return noteRowToProto(row);
+}
+
+export async function listNotes() {
+  const rows = await server.db.select().from(notes);
+  return rows.map(noteRowToProto);
+}
+
+export async function deleteNote(id: string) {
+  await server.db.delete(notes).where(eq(notes.id, id));
+}

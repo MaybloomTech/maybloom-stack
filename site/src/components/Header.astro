@@ -1,0 +1,57 @@
+---
+// Site chrome: wordmark, one nav link, theme toggle. The wordmark follows the
+// family pattern (serif italic + moss dot) with a mono suffix naming the site.
+---
+<header class="site">
+  <div class="frame nav-inner">
+    <a class="wordmark" href="/">
+      <span class="mb">maybloom</span><span class="dot"></span><span class="suffix">stack</span>
+    </a>
+    <nav class="nav-right">
+      <a class="nav-link" href="/docs/overview">Docs</a>
+      <button id="themeToggle" class="theme-btn" type="button" aria-label="Switch theme">
+        <span id="themeGlyph" class="glyph"></span>
+        <span id="themeLabel">Terminal</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<style>
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .wordmark { display: inline-flex; align-items: baseline; font-size: 20px; letter-spacing: -0.01em; }
+  .wordmark .mb { font-family: "Source Serif 4", serif; font-style: italic; font-weight: 500; color: var(--ink); }
+  .wordmark .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--dot); align-self: center; margin: 0 8px 0 5px;
+  }
+  .wordmark .suffix {
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-2);
+  }
+  .nav-right { display: flex; align-items: center; gap: 18px; }
+  .nav-link {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-2);
+  }
+  .nav-link:hover { color: var(--accent); }
+  .theme-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3);
+    background: none; border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .glyph { display: inline-flex; }
+</style>

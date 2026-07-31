@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package __APP_SLUG__.service.v1;
+
+import "__APP_SLUG__/service/v1/notes.proto";
+
+// The single Connect-RPC service for __APP_NAME__. Add new RPC methods here as
+// you grow; keep request/response messages in sibling files (one per resource).
+service __APP_NAME__Service {
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+  rpc UpdateNote(UpdateNoteRequest) returns (UpdateNoteResponse);
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+  rpc DeleteNote(DeleteNoteRequest) returns (DeleteNoteResponse);
+}

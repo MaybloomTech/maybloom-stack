@@ -1,0 +1,41 @@
+import { createContextValues, type ServiceImpl } from "@connectrpc/connect";
+import { fastifyConnectPlugin } from "@connectrpc/connect-fastify";
+import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
+import { routes } from "routes";
+import { kRequestId } from "context";
+import { bootstrapServer } from "server";
+import { createNote } from "handlers/createNote";
+import { updateNote } from "handlers/updateNote";
+import { getNote } from "handlers/getNote";
+import { listNotes } from "handlers/listNotes";
+import { deleteNote } from "handlers/deleteNote";
+
+bootstrapServer(async (app) => {
+  // Map every RPC declared in service.proto to a handler. Adding a new RPC is
+  // a four-step dance: declare it in the proto, regen, write a handler, and
+  // wire it in here. The TypeScript compiler will refuse to build until the
+  // shape of this object matches the service definition.
+  const __APP_SLUG__Service: ServiceImpl<typeof __APP_NAME__Service> = {
+    createNote,
+    updateNote,
+    getNote,
+    listNotes,
+    deleteNote,
+  };
+
+  await app.register(fastifyConnectPlugin, {
+    routes: (router) => {
+      router.service(__APP_NAME__Service, __APP_SLUG__Service);
+    },
+    contextValues: (req) => {
+      const contextValues = createContextValues();
+      const requestId = req.headers["x-request-id"];
+      if (typeof requestId === "string") {
+        contextValues.set(kRequestId, requestId);
+      }
+      return contextValues;
+    },
+  });
+
+  await app.register(routes);
+});

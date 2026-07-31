@@ -1,0 +1,53 @@
+import { create } from "@bufbuild/protobuf";
+import {
+  NoteSchema,
+  type Note,
+} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+import { notes } from "db/schema";
+import { toDate, toTimestamp } from "core/utils/timestamps";
+
+// Adapters bridge proto messages and DB rows. They live next to each resource
+// in core/<resource>/adapter.ts. Three rules:
+//   1. proto enums map to DB strings — define the mapping here, not in stores.
+//   2. empty proto strings ("") map to NULL in the DB; preserve that asymmetry.
+//   3. timestamps go through core/utils/timestamps to handle proto Timestamp
+//      <-> JS Date safely.
+export type NoteRow = typeof notes.$inferSelect;
+export type NewNoteRow = typeof notes.$inferInsert;
+
+function emptyStringToNull(value: string): string | null {
+  return value.trim() === "" ? null : value;
+}
+
+function normalizeTimestamp(value?: Parameters<typeof toDate>[0]): Date | null {
+  return toDate(value) ?? null;
+}
+
+export function noteRowToProto(row: NoteRow): Note {
+  return create(NoteSchema, {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    createdBy: row.createdBy ?? "",
+    createdAt: toTimestamp(row.createdAt),
+    updatedAt: toTimestamp(row.updatedAt),
+  });
+}
+
+export function noteToInsert(note: Note, id: string): NewNoteRow {
+  return {
+    id,
+    title: note.title,
+    body: note.body,
+    createdBy: emptyStringToNull(note.createdBy),
+    updatedAt: normalizeTimestamp(note.updatedAt),
+  };
+}
+
+export function noteToUpdate(note: Note): Partial<NewNoteRow> {
+  return {
+    title: note.title,
+    body: note.body,
+    updatedAt: normalizeTimestamp(note.updatedAt),
+  };
+}

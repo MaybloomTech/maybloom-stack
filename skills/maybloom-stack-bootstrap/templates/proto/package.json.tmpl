@@ -1,0 +1,29 @@
+{
+  "name": "__ORG_SCOPE__/protocol-buffers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./__APP_SLUG__/*": {
+      "types": "./dist/__APP_SLUG__/*.d.ts",
+      "import": "./dist/__APP_SLUG__/*.js",
+      "require": "./dist/__APP_SLUG__/*.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "catalog:",
+    "@connectrpc/connect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "__ORG_SCOPE__/__APP_SLUG__",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:backend": "pnpm --filter __ORG_SCOPE__/backend dev",
+    "dev:interface": "pnpm --filter __ORG_SCOPE__/interface start",
+    "build:web": "pnpm --filter __ORG_SCOPE__/interface build:web",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm lint:proto && pnpm lint:ts",
+    "lint:proto": "buf lint",
+    "lint:ts": "biome lint packages",
+    "lint:ts:fix": "biome lint packages --write",
+    "postinstall": "pnpm proto:gen && pnpm build",
+    "proto:gen": "buf generate --clean",
+    "docker:backend:build": "docker build -f packages/backend/Dockerfile -t __APP_SLUG__-backend .",
+    "docker:backend:run": "docker run --rm -p 3000:3000 __APP_SLUG__-backend"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@biomejs/biome": "catalog:",
+    "@bufbuild/buf": "catalog:",
+    "@bufbuild/protoc-gen-es": "catalog:",
+    "@bufbuild/protobuf": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": "^24"
+  },
+  "packageManager": "pnpm@10.26.2"
+}
