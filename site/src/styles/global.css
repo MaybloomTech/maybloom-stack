@@ -1,10 +1,16 @@
 /* ============================================================
    THE MAYBLOOM STACK — documentation site
-   Shares the family design language (serif display, mono
-   eyebrows, hairline rules, Studio/Terminal themes) with its
-   own compact, text-first skin. Cross-cutting layer only:
-   tokens, base, type, frame, prose. Component styles live in
-   each component's scoped <style> block.
+   Shares the family design language (serif display, hairline
+   rules, Studio/Terminal themes) with its own compact,
+   text-first skin. Cross-cutting layer only: tokens, base,
+   type, frame, prose. Component styles live in each
+   component's scoped <style> block.
+
+   2026-07-31: de-tell pass, following the tech-site's — mono
+   is reserved for machine output (code blocks and the skill
+   tree diagram), labels are sentence-case sans, the accent
+   marks links and CTAs only, and section numbering is gone
+   where it was decoration rather than reading order.
    ============================================================ */
 
 /* ---- STUDIO (light) ---- */
@@ -63,14 +69,12 @@ a { color: inherit; text-decoration: none; }
 /* ---- type primitives ---- */
 .serif { font-family: "Source Serif 4", Georgia, serif; }
 .eyebrow {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-3);
 }
-.eyebrow .num { color: var(--accent); }
 
 /* ---- layout frame ---- */
 .frame { max-width: 1140px; margin: 0 auto; padding: 0 32px; }
@@ -80,8 +84,7 @@ a { color: inherit; text-decoration: none; }
 .site-footer { margin-top: 96px; padding-bottom: 44px; }
 .site-footer p {
   padding-top: 22px;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px; letter-spacing: 0.04em; color: var(--ink-3);
+  font-size: 13.5px; color: var(--ink-3);
 }
 .site-footer a { color: var(--accent); }
 .site-footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -115,12 +118,16 @@ a { color: inherit; text-decoration: none; }
 .prose li + li { margin-top: 0.45em; }
 .prose blockquote {
   margin: 1.2em 0; padding: 2px 0 2px 18px;
-  border-left: 2px solid var(--accent); color: var(--ink-2);
+  border-left: 2px solid var(--line); color: var(--ink-2);
 }
 
+/* Mono earns its place here: these are literal identifiers and
+   commands, not label texture. The tint is neutral so the accent
+   stays reserved for links. */
 .prose code {
   font-family: "IBM Plex Mono", monospace; font-size: 0.86em;
-  background: var(--accent-tint); border-radius: 4px; padding: 0.12em 0.35em;
+  background: var(--bg-soft); border: 1px solid var(--line-soft);
+  border-radius: 4px; padding: 0.08em 0.32em;
 }
 .prose pre {
   background: var(--code-bg) !important;
@@ -128,15 +135,14 @@ a { color: inherit; text-decoration: none; }
   overflow-x: auto; font-size: 13.5px; line-height: 1.55;
   border: 1px solid var(--line-soft);
 }
-.prose pre code { background: none; padding: 0; font-size: inherit; }
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
 .prose table {
   width: 100%; border-collapse: collapse; font-size: 14.5px;
   display: block; overflow-x: auto;
 }
 .prose th {
-  font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
-  letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3);
+  font-size: 13.5px; font-weight: 500; color: var(--ink-3);
   text-align: left; padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line);
 }
 .prose td {

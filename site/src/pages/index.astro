@@ -8,17 +8,14 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
 <Layout>
   <main>
     <section class="hero frame">
-      <p class="eyebrow"><span class="num">01</span> A stack for seasonal software</p>
+      <p class="eyebrow">A stack for seasonal software</p>
       <h1 class="serif">
-        One contract, <em>many paths</em>,<br />and a system you can tend for decades.
+        One contract, many paths, and a system you can tend for decades.
       </h1>
-      <p class="lede">
-        The maybloom stack is a schema-first monorepo framework. Protocol Buffers
-        define every boundary, code generation owns the edges, and people write
-        the three layers in the middle. The backend is TypeScript by default and
-        Go when the workload asks for it; the interface is one Expo app; the
-        public surfaces are static Astro sites.
-      </p>
+      {/* Deliberately one unbroken line. Wrapping prose in the template makes
+          the source look like it dictates the rendered breaks; on one line
+          there is nothing for the rendered breaks to mirror. */}
+      <p class="lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is TypeScript by default and Go when the workload asks for it; the interface is one Expo app; the public surfaces are static Astro sites.</p>
       <img
         class="tree"
         src={skillTree.src}
@@ -30,12 +27,14 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
     </section>
 
     <section class="frame docs-index">
-      <p class="eyebrow"><span class="num">02</span> The documents</p>
+      <p class="eyebrow">The documents</p>
       <ol class="doc-list">
         {docs.map((doc) => (
           <li>
             <a href={`/docs/${doc.id}`}>
-              <span class="doc-num">{String(doc.data.order).padStart(2, '0')}</span>
+              {/* The numeral is reading order, not decoration: the set is
+                  written to be read front to back, and the pager follows it. */}
+              <span class="doc-num">{doc.data.order}</span>
               <span class="doc-title serif">{doc.data.title}</span>
               <span class="doc-desc">{doc.data.description}</span>
             </a>
@@ -53,10 +52,14 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
     font-weight: 400; font-size: clamp(34px, 4.6vw, 56px);
     line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance;
   }
-  .hero h1 em { font-style: italic; color: var(--accent); }
+  /* No measure of its own: the lede runs the width of the hero, the same
+     width as the headline above it and the diagram below. Long lines need a
+     longer return sweep, hence the extra leading; `pretty` keeps the last
+     line from falling to a single orphaned word. */
   .lede {
-    margin-top: 26px; max-width: 640px;
-    font-size: 18px; line-height: 1.6; color: var(--ink-2);
+    margin-top: 26px;
+    font-size: 18px; line-height: 1.7; color: var(--ink-2);
+    text-wrap: pretty;
   }
   .tree {
     display: block; margin: 40px 0 0; width: 100%; height: auto;
@@ -64,8 +67,7 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
   }
   .cta {
     display: inline-block; margin-top: 34px;
-    font-family: "IBM Plex Mono", monospace; font-size: 13px;
-    letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 14.5px; font-weight: 500;
     color: var(--accent); border: 1px solid var(--accent);
     border-radius: 999px; padding: 11px 22px;
     transition: background 0.2s ease, color 0.2s ease;
@@ -77,20 +79,18 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
   .doc-list li { border-top: 1px solid var(--line-soft); }
   .doc-list li:last-child { border-bottom: 1px solid var(--line-soft); }
   .doc-list a {
-    display: grid; grid-template-columns: 52px 240px 1fr;
+    display: grid; grid-template-columns: 28px 240px 1fr;
     align-items: baseline; gap: 18px; padding: 18px 6px;
     transition: background 0.15s ease;
   }
   .doc-list a:hover { background: var(--accent-tint); }
-  .doc-num {
-    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
-  }
+  .doc-num { font-size: 14px; color: var(--ink-3); }
   .doc-title { font-size: 20px; font-weight: 500; }
   .doc-desc { font-size: 14.5px; color: var(--ink-3); }
 
   @media (max-width: 720px) {
     .hero { padding-top: 56px; }
-    .doc-list a { grid-template-columns: 40px 1fr; }
+    .doc-list a { grid-template-columns: 24px 1fr; }
     .doc-desc { grid-column: 2; }
   }
 </style>
