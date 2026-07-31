@@ -45,6 +45,8 @@ path — permitted, supported by the core, just not yet blueprinted.
 [Choosing a runtime](./choosing.md) covers the validated paths; its last
 section covers the open ones.
 
+![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python and swiftui waiting as dashed open paths](./assets/skill-tree.svg)
+
 Even inside a validated path, the decisions are not locked. The
 blueprints record the current best answer — still experimental, revised
 as the systems they describe meet new constraints and integrate new

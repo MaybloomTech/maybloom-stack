@@ -145,3 +145,8 @@ a { color: inherit; text-decoration: none; }
 }
 .prose td code { white-space: nowrap; }
 .prose hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+
+.prose img {
+  display: block; max-width: 100%; height: auto;
+  border-radius: 10px; border: 1px solid var(--line-soft);
+}

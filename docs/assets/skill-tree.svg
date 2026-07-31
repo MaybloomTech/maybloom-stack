@@ -1,0 +1,129 @@
+<svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="st-title st-desc">
+  <title id="st-title">The maybloom skill tree</title>
+  <desc id="st-desc">The contract (protobuf + Connect-RPC) sits at the root. Two limbs rise from it: servers and clients. Validated paths glow green — the TypeScript backend (the default), the Expo interface shipping to iOS, Android and web, and Astro for static public surfaces. The Go backend is amber: validating. Kotlin, python and swiftui wait as dashed open paths.</desc>
+  <style>
+    text { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+           paint-order: stroke; stroke: #14181a; stroke-width: 3.5px; stroke-linejoin: round; }
+    .title { font-size: 14px; letter-spacing: .18em; fill: #e7ece8; }
+    .subtitle { font-size: 11.5px; letter-spacing: .04em; fill: rgba(231,236,232,.55); }
+    .legend { font-size: 10.5px; letter-spacing: .06em; fill: rgba(231,236,232,.55); }
+    .gate { font-size: 10px; letter-spacing: .16em; fill: rgba(231,236,232,.45); }
+    .name { font-size: 13px; fill: #e7ece8; }
+    .name-dim { font-size: 12px; fill: rgba(231,236,232,.5); }
+    .sub { font-size: 10.5px; fill: rgba(231,236,232,.45); }
+    .tag-amber { font-size: 9px; letter-spacing: .12em; fill: #d9a94f; }
+    .chip { font-size: 8.5px; letter-spacing: .1em; fill: #74dabb; }
+    .core-label { font-size: 11px; letter-spacing: .22em; fill: #74dabb; }
+    .platform { font-size: 9.5px; fill: rgba(231,236,232,.5); }
+  </style>
+  <defs>
+    <pattern id="dotgrid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="rgba(231,236,232,0.035)"/>
+    </pattern>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- panel -->
+  <rect x="1" y="1" width="958" height="618" rx="14" fill="#14181a" stroke="rgba(231,236,232,0.1)"/>
+  <rect x="1" y="1" width="958" height="618" rx="14" fill="url(#dotgrid)"/>
+
+  <!-- header -->
+  <text class="title" x="44" y="58">THE MAYBLOOM SKILL TREE</text>
+  <text class="subtitle" x="44" y="80">the core holds still · the paths keep opening</text>
+  <circle cx="640" cy="54" r="5" fill="#57c9a6"/>
+  <text class="legend" x="652" y="58">validated</text>
+  <circle cx="746" cy="54" r="5" fill="none" stroke="#d9a94f" stroke-width="1.4"/>
+  <path d="M 746 49 A 5 5 0 0 1 746 59 Z" fill="#d9a94f"/>
+  <text class="legend" x="758" y="58">validating</text>
+  <circle cx="856" cy="54" r="5" fill="none" stroke="rgba(231,236,232,.4)" stroke-width="1.2" stroke-dasharray="2 2.5"/>
+  <text class="legend" x="868" y="58">open</text>
+  <line x1="44" y1="96" x2="916" y2="96" stroke="rgba(231,236,232,0.08)"/>
+
+  <!-- connectors: core -> gates -->
+  <g stroke="#57c9a6" stroke-width="1.6" fill="none" opacity="0.5" stroke-linecap="round">
+    <path d="M 447 492 Q 380 472 330 455"/>
+    <path d="M 513 490 Q 580 468 637 444"/>
+  </g>
+
+  <!-- connectors: gates -> validated leaves -->
+  <g stroke="#57c9a6" stroke-width="1.4" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M 312 439 Q 235 415 178 380"/>
+    <path d="M 644 429 Q 638 365 640 299"/>
+    <path d="M 654 439 Q 750 420 818 376"/>
+  </g>
+  <!-- gate -> validating leaf (Go) -->
+  <path d="M 318 438 Q 348 355 353 289" stroke="#d9a94f" stroke-width="1.4" fill="none" opacity="0.55" stroke-dasharray="6 4" stroke-linecap="round"/>
+
+  <!-- connectors: gates -> open leaves (dotted) -->
+  <g stroke="rgba(231,236,232,0.3)" stroke-width="1.2" fill="none" stroke-dasharray="1.5 5" stroke-linecap="round">
+    <path d="M 308 440 Q 210 345 156 247"/>
+    <path d="M 314 438 Q 270 300 271 181"/>
+    <path d="M 653 432 Q 740 340 786 241"/>
+  </g>
+  <!-- expo -> platform dots -->
+  <g stroke="#57c9a6" stroke-width="1.2" fill="none" opacity="0.5" stroke-linecap="round">
+    <path d="M 631 276 Q 600 247 586 223"/>
+    <path d="M 640 272 L 640 207"/>
+    <path d="M 649 276 Q 680 247 694 223"/>
+  </g>
+
+  <!-- gates -->
+  <g fill="#14181a" stroke="rgba(231,236,232,0.4)" stroke-width="1.2">
+    <path d="M 320 440 l 7 7 l -7 7 l -7 -7 Z"/>
+    <path d="M 645 430 l 7 7 l -7 7 l -7 -7 Z"/>
+  </g>
+  <text class="gate" x="320" y="472" text-anchor="middle">SERVERS</text>
+  <text class="gate" x="645" y="464" text-anchor="middle">CLIENTS</text>
+
+  <!-- validated leaf: TypeScript (default) -->
+  <circle cx="165" cy="372" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
+  <circle cx="165" cy="372" r="4.5" fill="#74dabb" filter="url(#glow)"/>
+  <text class="name" x="187" y="368">TypeScript</text>
+  <text class="sub" x="187" y="385">fastify · drizzle · pglite</text>
+  <rect x="187" y="393" width="56" height="15" rx="3" fill="none" stroke="rgba(116,218,187,0.5)" stroke-width="0.8"/>
+  <text class="chip" x="215" y="403.5" text-anchor="middle">DEFAULT</text>
+
+  <!-- validating leaf: Go -->
+  <circle cx="355" cy="275" r="12" fill="rgba(217,169,79,0.1)" stroke="#d9a94f" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <path d="M 355 267.5 A 7.5 7.5 0 0 1 355 282.5 Z" fill="#d9a94f" opacity="0.85"/>
+  <text class="name" x="377" y="271">Go</text>
+  <text class="sub" x="377" y="288">connect-go · sqlc · pgx</text>
+  <text class="tag-amber" x="377" y="305">VALIDATING</text>
+
+  <!-- validated leaf: Expo -->
+  <circle cx="640" cy="285" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
+  <circle cx="640" cy="285" r="4.5" fill="#74dabb" filter="url(#glow)"/>
+  <text class="name" x="618" y="281" text-anchor="end">Expo</text>
+  <text class="sub" x="618" y="298" text-anchor="end">router · react query</text>
+  <!-- platform dots -->
+  <circle cx="584" cy="217" r="4" fill="#57c9a6" opacity="0.9"/>
+  <circle cx="640" cy="201" r="4" fill="#57c9a6" opacity="0.9"/>
+  <circle cx="696" cy="217" r="4" fill="#57c9a6" opacity="0.9"/>
+  <text class="platform" x="584" y="203" text-anchor="middle">ios</text>
+  <text class="platform" x="640" y="187" text-anchor="middle">android</text>
+  <text class="platform" x="696" y="203" text-anchor="middle">web</text>
+
+  <!-- validated leaf: Astro -->
+  <circle cx="830" cy="370" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
+  <circle cx="830" cy="370" r="4.5" fill="#74dabb" filter="url(#glow)"/>
+  <text class="name" x="806" y="366" text-anchor="end">Astro</text>
+  <text class="sub" x="806" y="383" text-anchor="end">static public surfaces</text>
+
+  <!-- open leaves -->
+  <circle cx="150" cy="235" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="name-dim" x="168" y="239">kotlin</text>
+  <circle cx="270" cy="170" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="name-dim" x="288" y="174">python</text>
+  <circle cx="790" cy="230" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="name-dim" x="808" y="234">swiftui</text>
+
+  <!-- the core -->
+  <path d="M 480 466 l 39.8 23 v 46 l -39.8 23 l -39.8 -23 v -46 Z" fill="#0d1210" stroke="#57c9a6" stroke-width="1.8" filter="url(#glow)"/>
+  <path d="M 480 476 l 31.2 18 v 36 l -31.2 18 l -31.2 -18 v -36 Z" fill="none" stroke="rgba(116,218,187,0.25)" stroke-width="1"/>
+  <text class="core-label" x="480" y="517" text-anchor="middle">CORE</text>
+  <text class="name" x="480" y="585" text-anchor="middle">THE CONTRACT</text>
+  <text class="sub" x="480" y="602" text-anchor="middle">protobuf · connect-rpc · generated edges</text>
+</svg>
