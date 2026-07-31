@@ -23,3 +23,21 @@ jobs:
       - uses: wagoid/commitlint-github-action@v6
         with:
           configFile: commitlint.config.mjs
+
+  # The repo squash-merges with the PR title as the commit subject, so the
+  # title is what actually lands on main — lint it with the same commitlint
+  # config the commits job uses.
+  pr-title:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint PR title with commitlint
+        env:
+          # Untrusted input: always through an env var, never interpolated
+          # into the script.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          npm install --no-save --no-audit --no-fund \
+            @commitlint/cli@19 @commitlint/config-conventional@19
+          printf '%s\n' "$PR_TITLE" | npx commitlint
