@@ -9,7 +9,9 @@ order: 2
 The contract layer is the part of the stack that makes everything else
 replaceable. Protos are the only hand-written source for types that cross a
 process boundary; every language target is generated from them with
-[Buf](https://buf.build).
+[Buf](https://buf.build). This layer is the stack's core: the other
+documents describe validated implementations built around it, and every
+one of them can be swapped in a way the contract cannot.
 
 ## Layout
 

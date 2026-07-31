@@ -7,24 +7,60 @@ The maybloom stack's agent skills. This directory is their source of truth;
 |---|---|
 | `maybloom-stack-bootstrap/` | Scaffold a new stack monorepo (templates + script) |
 | `maybloom-stack-add-resource/` | Add a resource end-to-end through every layer |
-| `maybloom-stack-shared/` | Cross-cutting references loaded by the others |
+| `maybloom-stack-shared/` | Cross-cutting references loaded by the others: the language-neutral core, proto conventions, gotchas, tx patterns, the Go backend path |
 
 The three directories must stay siblings: they reference each other by
 relative path (`../maybloom-stack-shared/references/...`).
 
 ## Install
 
-Claude Code discovers skills in `~/.claude/skills/`. Symlink them from a clone
-of this repo so the installed copy and the repo stay one copy:
+The repo doubles as a Claude Code [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces):
+`.claude-plugin/marketplace.json` at the repo root publishes one
+`maybloom-stack` plugin whose `skills/` directory is this one. From inside
+Claude Code:
 
-```bash
-for s in maybloom-stack-bootstrap maybloom-stack-add-resource maybloom-stack-shared; do
-  ln -sfn "$(pwd)/skills/$s" ~/.claude/skills/"$s"
-done
+```
+/plugin marketplace add MaybloomTech/maybloom-stack
+/plugin install maybloom-stack@maybloom-stack
 ```
 
-Run it from the repo root. `git pull` then updates the installed skills, and
-edits made while using them land in git rather than in a copy nobody reviews.
+That installs the whole family in one step — the two triggering skills
+plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
+files, so the `../maybloom-stack-shared/references/...` links keep
+resolving on the installed copy. Installed skills are namespaced
+(`maybloom-stack:maybloom-stack-bootstrap`). Pull new releases with
+`/plugin marketplace update maybloom-stack`.
+
+To pin a whole team to the skills, commit this to a project's
+`.claude/settings.json` instead of installing by hand:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "maybloom-stack": {
+      "source": { "source": "github", "repo": "MaybloomTech/maybloom-stack" }
+    }
+  },
+  "enabledPlugins": { "maybloom-stack@maybloom-stack": true }
+}
+```
+
+If you previously installed via symlinks into `~/.claude/skills/`, remove
+those links before installing the plugin, or every skill shows up twice.
+
+### Working on the skills themselves
+
+Add your clone as a local marketplace so the installed copy comes from the
+working tree and edits land in git rather than in a copy nobody reviews:
+
+```
+/plugin marketplace add ~/workspace/maybloom-stack
+/plugin install maybloom-stack@maybloom-stack
+```
+
+After editing, `/plugin marketplace update maybloom-stack` re-syncs the
+installed copy from the clone; `/reload-plugins` applies it without
+restarting the session.
 
 ## Editing rules
 

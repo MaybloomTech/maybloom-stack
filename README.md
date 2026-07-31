@@ -1,10 +1,18 @@
 # The Maybloom Stack
 
-A schema-first monorepo stack for small, durable product systems. Protocol
-Buffers define every boundary, code generation owns the edges, and people
-write the three layers in the middle. The backend is TypeScript by default and
-Go when the workload asks for it, the interface is one Expo app across iOS,
-Android, and web, and the public surfaces are static Astro sites.
+A schema-first monorepo stack for small, durable product systems. Its core
+is one decision: every type that crosses a process boundary is defined in
+Protocol Buffers and served over Connect-RPC, so both sides of the wire are
+generated, typed, and evolve together — a client knows every resource, RPC,
+and field a service offers from generated code alone, in whichever language
+either side is written.
+
+Around that core the stack documents its validated paths: a TypeScript
+backend on Fastify (the default), a Go backend on connect-go, one Expo
+interface across iOS, Android, and web, and static Astro sites for the
+public surfaces. These are defaults of experience, not requirements —
+Connect speaks many languages, and the stack is built to keep opening new
+paths as they are walked and written down.
 
 ```
 proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
@@ -34,6 +42,7 @@ Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**.
 | `docs/` | The canonical definition. Source of truth for everything else. |
 | `site/` | The Astro site that renders `docs/` unchanged. |
 | `skills/` | Agent skills that apply the conventions to a real codebase. |
+| `.claude-plugin/` | Marketplace + plugin manifests that make the skills installable via `/plugin`. |
 
 ## Using the skills
 
@@ -42,19 +51,21 @@ conventions transfer to codebases that have already drifted and templates do
 not. Three skills exist today: `maybloom-stack-bootstrap` scaffolds a whole
 monorepo with one worked example resource, `maybloom-stack-add-resource` adds
 the Nth resource end-to-end through every layer, and `maybloom-stack-shared`
-holds the cross-cutting references the other two load.
+holds the cross-cutting references the other two load — including the
+language-neutral core reference that lets the skills work with client or
+server technologies beyond the validated defaults.
 
-Claude Code discovers skills in `~/.claude/skills/`. From a clone of this
-repo:
+The repo is itself a Claude Code plugin marketplace, so installing the
+skills is two commands inside Claude Code:
 
-```bash
-for s in maybloom-stack-bootstrap maybloom-stack-add-resource maybloom-stack-shared; do
-  ln -sfn "$(pwd)/skills/$s" ~/.claude/skills/"$s"
-done
+```
+/plugin marketplace add MaybloomTech/maybloom-stack
+/plugin install maybloom-stack@maybloom-stack
 ```
 
-Symlinks rather than copies, so `git pull` updates the installed skills. See
-[`skills/README.md`](./skills/README.md) for the details.
+`/plugin marketplace update maybloom-stack` pulls new releases. See
+[`skills/README.md`](./skills/README.md) for team-wide pinning via
+`.claude/settings.json` and the contributor flow.
 
 ## Running the site
 
@@ -70,6 +81,11 @@ The TypeScript backend, interface, and sites blueprints describe systems
 running in production today. The Go blueprint is a design grounded in current
 Go practice, and the first Go service will validate it. Anything still
 speculative says so in the document that covers it.
+
+All of it is living documentation. The decisions inside a validated path are
+the current best answer, not locked ones — they keep changing as the systems
+they describe meet new constraints and technologies. Only the contract core
+holds still.
 
 The stack was extracted from a working private product, which is not
 published. [Open-sourcing](./docs/open-sourcing.md) explains what that means

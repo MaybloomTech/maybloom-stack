@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-bootstrap
-description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo with Protocol Buffers + Connect-RPC + Fastify + Drizzle + PGlite on the backend and Expo Router + React Query on the interface. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Fastify + Expo project", or "start a Connect-RPC backend with an Expo client". Use this even when the user names a different stack ("proto + Fastify + Expo") if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after `pnpm install`.
+description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo with Protocol Buffers + Connect-RPC + Fastify + Drizzle + PGlite on the backend and Expo Router + React Query on the interface. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Fastify + Expo project", or "start a Connect-RPC backend with an Expo client". Use this even when the user names a different stack ("proto + Fastify + Expo") if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after `pnpm install`. The scaffolded backend and interface are the stack's validated defaults (TypeScript, Expo); use this skill even when the user wants the Go backend or another Connect-RPC client/server technology — the contract-and-codegen monorepo core is the same, and the user's choices are then built from the shared blueprint and core references, never improvised.
 ---
 
 # maybloom-stack-bootstrap
@@ -23,6 +23,29 @@ user can run the full loop end-to-end before adding their own resources.
   their actual resources, hand off to the add-resource skill once per
   resource — do not try to extend this scaffold's `Note` plumbing into
   bespoke resources by hand.
+
+The backend this skill scaffolds is the TypeScript one (Fastify + Drizzle
++ PGlite). The stack also defines a Go backend (connect-go + sqlc + pgx)
+as a peer behind the same contract; there is no Go scaffolder yet — don't
+improvise one. If the user wants a Go service, the per-layer blueprint is
+`../maybloom-stack-shared/references/backend-go.md`: build the `go/`
+module by hand following its layout and patterns, and use add-resource
+for the resources.
+
+The same logic extends past Go, because the stack's core is the contract,
+not the frameworks around it (see
+`../maybloom-stack-shared/references/core.md`). The scaffolded TypeScript
+backend and Expo interface are validated defaults; when the user has no
+stated preference, scaffold them without ceremony. When the user *does*
+want a different client or server technology — another Connect-RPC
+language, a different UI framework, code sources of their own they want
+to keep using — don't turn them away and don't force the defaults:
+scaffold the monorepo anyway (the proto module and Buf codegen wiring are
+the part every path shares), keep the packages that fit, and follow the
+open-path protocol in `core.md` for the rest. The scaffolded packages
+remain useful as live exemplars of the layer seams even when the user
+replaces them. Suggest recording their choices in the project's
+`CLAUDE.md` so later sessions inherit them.
 
 ## Interview
 

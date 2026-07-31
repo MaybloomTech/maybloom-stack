@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-add-resource
-description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard five-RPC CRUD surface (Create / Update / Get / List / Delete) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo already following its conventions). Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` (when it exists; until then, use the load+replace and read-modify-write patterns documented in maybloom-stack-shared/references/tx-patterns.md), or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc` (when it exists; until then, follow the request/response conventions in this skill but skip the schema/migration/CRUD-handler steps). When in doubt, prefer the narrower skill.
+description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard five-RPC CRUD surface (Create / Update / Get / List / Delete) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` (when it exists; until then, use the load+replace and read-modify-write patterns documented in maybloom-stack-shared/references/tx-patterns.md), or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc` (when it exists; until then, follow the request/response conventions in this skill but skip the schema/migration/CRUD-handler steps). When in doubt, prefer the narrower skill.
 ---
 
 # maybloom-stack-add-resource
@@ -9,16 +9,58 @@ Add one **brand-new top-level resource** end-to-end through every layer of
 the maybloom stack:
 
 ```
-proto      →  schema   →  adapter  →  store  →  handlers  →  main.ts
+proto      →  schema   →  adapter  →  store  →  handlers  →  wiring
                                                                 ↓
                                                         api/queries/screen
 ```
 
-Each layer has one canonical pattern, documented in `references/`. Read the
-reference for the layer you're working on, then write the file. Don't skip
-ahead — later layers reference types from earlier ones, and trying to write
-the handler before the proto exists will produce import errors that mask the
-real shape mismatch.
+Each layer has one canonical pattern — documented in this skill's
+`references/` for the TypeScript backend and in the shared
+`../maybloom-stack-shared/references/backend-go.md` for the Go backend.
+Read the pattern for the layer you're working on, then write the file.
+Don't skip ahead — later layers reference types from earlier ones, and
+trying to write the handler before the proto exists will produce import
+errors that mask the real shape mismatch.
+
+Canonical does not mean locked. The references record the validated
+pattern as it currently stands; where the project has deliberately
+deviated — a different file layout, a different cache layer, its own
+naming — imitate the project and keep only the core rules from
+`../maybloom-stack-shared/references/core.md`. A skill run that
+"corrects" a working convention back to the reference is doing damage,
+not maintenance.
+
+## Which implementation?
+
+The pipeline is implementation-neutral; steps 2–6 differ only in where
+the files live and which generator runs. Detect the target before
+starting:
+
+- **`packages/backend/` with `drizzle.config.ts`** → TypeScript backend
+  (validated). The layer references in this skill's `references/` show
+  this path directly.
+- **`go/` with `sqlc.yaml` and `db/migrations/`** → Go backend
+  (validated). Read
+  `../maybloom-stack-shared/references/backend-go.md` first: it maps every
+  step below to its Go location and pattern (goose migration instead of a
+  Drizzle schema, sqlc query files, adapter/store/handlers in Go, no
+  manual wiring step) and ends with the Go verification checklist. Steps 1
+  (proto) and 7 (interface) are identical on both paths.
+- **Both present** → ask the user which service owns the resource. Backend
+  choice is per-service, never per-RPC.
+- **Something else** — the server is in another Connect-RPC language, or
+  the user names a framework the references don't cover → open path. Read
+  `../maybloom-stack-shared/references/core.md`: it separates the rules
+  that still bind (the contract, the layer seams, generated edges) from
+  the validated-path preferences that don't, and its open-path protocol
+  makes the project's own code the exemplar the way `references/` is for
+  TypeScript. The sequence below still applies step for step; only the
+  per-step file locations and generators come from the project instead
+  of a reference.
+
+The same logic covers the client in step 7: if it isn't the Expo
+interface, keep the api → cache → screens tiers from `core.md` and
+imitate the project's existing client code.
 
 ## When this skill is the wrong tool
 
@@ -39,7 +81,7 @@ the correct tool:
   request/response shape conventions in `references/proto.md` and
   `references/handlers.md`, but skip the schema/migration and CRUD-handler
   steps — you only need the proto request/response, the store function,
-  the handler, and the main.ts wiring.
+  the handler, and (on the TypeScript backend) the main.ts wiring.
 
 Always-applicable references that the layer-by-layer docs in this skill
 cross-link:
@@ -52,22 +94,32 @@ cross-link:
 - `../maybloom-stack-shared/references/tx-patterns.md` —
   multi-step transaction shapes when a store function does more than a
   single insert/update.
+- `../maybloom-stack-shared/references/backend-go.md` —
+  the per-layer patterns when the target service is the Go backend
+  (see "Which implementation?" above).
+- `../maybloom-stack-shared/references/core.md` —
+  the language-neutral core rules and the open-path protocol, when the
+  project's client or server isn't a validated implementation.
 
 ## Inputs you need from the user
 
 - **Resource name (PascalCase singular)** — e.g. `Book`. Becomes the proto
   message, the schema variable (plural: `books`), the type names, the path
   segment under `core/`, and the file names under `handlers/`.
-- **Fields** — name, type, optionality. Map to proto field types and Drizzle
+- **Fields** — name, type, optionality. Map to proto field types and DB
   column types. If unsure, ask: keep proto and schema field types aligned
-  (string ↔ text, int32 ↔ integer, bool ↔ boolean, timestamp ↔ timestamp).
+  (string ↔ text, int32 ↔ integer, bool ↔ boolean, timestamp ↔
+  timestamptz).
 - **RPC surface** — default to the standard five (`Create`, `Update`, `Get`,
   `List`, `Delete`). Skip whichever the user doesn't need; add list filters,
   reactions, etc. as they describe.
 - **Whether the resource is user-owned** — affects the handler. If yes,
-  the handler reads `kUserId` from context and forces it onto the proto
-  before passing to the store, like `createNote.ts` in the bootstrap
-  scaffold does.
+  the handler reads the session user from the request context and forces
+  it onto the proto before it reaches the store. `createNote.ts` in the
+  bootstrap scaffold shows the TypeScript shape (`kUserId` context key);
+  the create-handler pattern in
+  `../maybloom-stack-shared/references/backend-go.md` shows the Go shape
+  (interceptor-populated context).
 
 ## Variables in the templates
 
@@ -88,12 +140,21 @@ inspecting the existing repo — don't ask the user.
 ## Sequence
 
 Work through the layers in order. After each one, the project should still
-typecheck (it won't pass tests until everything is wired, but `pnpm typecheck`
-is the cheapest quick-feedback signal).
+compile — it won't pass tests until everything is wired, but the cheapest
+quick-feedback signal is `pnpm typecheck` on the TypeScript backend and
+`go build ./...` on the Go backend.
+
+Steps 2–6 name the two validated backend paths explicitly; follow the one
+you detected in "Which implementation?" and ignore the other. Don't
+translate the TypeScript instructions into Go by analogy — the Go path
+has its own reference with its own file locations and generators. On an
+open path, walk the same steps with `core.md` naming what each layer must
+do and the project's existing code showing how it does it.
 
 ### 1. Proto
 
-Read `references/proto.md`. Write two new files and edit one:
+Identical on both backends. Read `references/proto.md`. Write two new
+files and edit one:
 
 - New: `proto/<APP_SLUG>/resources/v1/<resources>.proto` — the data model.
 - New: `proto/<APP_SLUG>/service/v1/<resources>.proto` — request/response
@@ -107,12 +168,16 @@ Then regenerate:
 pnpm proto:gen
 ```
 
-This populates `packages/protocol-buffers/src/<APP_SLUG>/...`. Don't edit
+This populates `packages/protocol-buffers/src/<APP_SLUG>/...` and, when
+the repo has a Go service, `go/gen/<APP_SLUG>/...` (if the Go output is
+missing, `buf.gen.yaml` lacks the Go plugins — see the "Codegen" section
+of `../maybloom-stack-shared/references/backend-go.md`). Don't edit
 generated files.
 
 ### 2. Schema + migration
 
-Read `references/schema.md`. Add a `pgTable("<resources>", ...)` block to
+**TypeScript** — read `references/schema.md`. Add a
+`pgTable("<resources>", ...)` block to
 `packages/backend/src/db/schema.ts`. Then generate the migration:
 
 ```bash
@@ -124,9 +189,22 @@ columns or constraints the user didn't ask for (e.g. it dropped an
 unrelated column because the dev DB drifted), hand-edit the SQL or roll
 back the schema change before continuing.
 
+**Go** — read the "Migration (goose)" and "Queries (sqlc)" sections of
+`../maybloom-stack-shared/references/backend-go.md`. Write the goose
+migration in `go/db/migrations/` by hand (migrations *are* the schema —
+there is no generator output to review) and the CRUD query file in
+`go/db/queries/<resources>.sql`, then:
+
+```bash
+cd go && go tool sqlc generate
+```
+
+sqlc validates every query against the schema and writes the row structs
+and `Querier` methods into `internal/store/storedb/`.
+
 ### 3. Adapter
 
-Read `references/adapter.md`. Create
+**TypeScript** — read `references/adapter.md`. Create
 `packages/backend/src/core/<resources>/adapter.ts`. The adapter:
 
 - exports `<Resource>Row` and `New<Resource>Row` types from the schema
@@ -137,9 +215,16 @@ Read `references/adapter.md`. Create
 - handles enum mapping, timestamp conversion via `core/utils/timestamps`,
   and empty-string-to-null normalization
 
+**Go** — read the "Adapter" section of `backend-go.md` (same shared
+file). Create `go/internal/store/<resources>_adapter.go`: pure functions
+between the sqlc row structs and proto messages, with `pgtype` carrying
+the NULL side of the empty-string normalization and `timestamppb` the
+timestamps. Same rules either way: the adapter is the only place both
+shapes are known, and it does no I/O.
+
 ### 4. Store
 
-Read `references/store.md`. Create
+**TypeScript** — read `references/store.md`. Create
 `packages/backend/src/core/<resources>/store.ts`. One exported async
 function per RPC: `create<Resource>`, `update<Resource>`, `get<Resource>`,
 `list<Resources>`, `delete<Resource>`. Each takes the proto request type
@@ -150,10 +235,16 @@ in `server.db.transaction(async (tx) => ...)` and pass `tx` to anything
 that needs it. The full shape is in
 `../maybloom-stack-shared/references/tx-patterns.md`.
 
+**Go** — read the "Store" section of `backend-go.md`. Create
+`go/internal/store/<resources>.go`: one method per RPC, accepting and
+returning proto messages, speaking Connect error codes directly. Wrap
+multi-table mutations in `RunInTx` and pass the `tx` to every query —
+the transaction shapes in `tx-patterns.md` apply unchanged.
+
 ### 5. Handlers
 
-Read `references/handlers.md`. Create one file per RPC under
-`packages/backend/src/handlers/`. Each handler:
+**TypeScript** — read `references/handlers.md`. Create one file per RPC
+under `packages/backend/src/handlers/`. Each handler:
 
 - imports the service definition and the response `*Schema` from generated
   proto
@@ -163,9 +254,15 @@ Read `references/handlers.md`. Create one file per RPC under
   and forces it onto the proto; for read/delete it's usually a one-line
   call to the store
 
-### 6. Wire up in `main.ts`
+**Go** — read the "Handlers" section of `backend-go.md`. Add one method
+per RPC to the service struct in `go/internal/server/<resource>.go`,
+satisfying the generated `<APP_NAME>ServiceHandler` interface. User-owned
+create/update reads the user ID the auth interceptor put on the context;
+read/delete is usually a one-line call to the store.
 
-Read `references/main-wiring.md`. Edit
+### 6. Wiring
+
+**TypeScript** — read `references/main-wiring.md`. Edit
 `packages/backend/src/main.ts`:
 
 - Add imports for each new handler.
@@ -176,9 +273,16 @@ the proto service has a corresponding entry. Use that as your check.
 
 Run `pnpm --filter <ORG_SCOPE>/backend typecheck` to confirm.
 
+**Go** — nothing to edit: the mux already registers the service handler,
+and the generated interface grew with the proto. Run `go build ./...` —
+the compiler lists every missing method by name, which is the same
+exhaustiveness check the ServiceImpl object gives TypeScript.
+
 ### 7. Interface: api wrapper, hooks, screen
 
-Read `references/interface.md`. Three files:
+Identical on both backends — the interface talks to the generated Connect
+client and cannot tell which language serves it. Read
+`references/interface.md`. Three files:
 
 - `packages/interface/src/data/api/<resources>.ts` — thin functions that
   call `client.<method>(...)` and return the proto messages directly.
@@ -194,7 +298,12 @@ the data layer — the user will request the UI separately.
 
 ## Verification before claiming done
 
-Walk through this checklist with the user:
+Walk through this checklist with the user (TypeScript backend — the Go
+equivalent is the checklist at the end of
+`../maybloom-stack-shared/references/backend-go.md`; on an open path,
+translate it: codegen ran, the data layer validates against the schema,
+the build passes, the service boots and migrates, every RPC exercised
+end-to-end):
 
 1. `pnpm proto:gen` ran cleanly and created files under
    `packages/protocol-buffers/src/<APP_SLUG>/resources/v1/<resources>_pb.ts`
@@ -230,4 +339,7 @@ Pitfalls specific to this skill's "fresh top-level resource" job:
 For the project-wide gotchas (Drizzle's interactive rename prompt; proto
 field-number reuse policy; empty-string-vs-NULL semantics) see
 `../maybloom-stack-shared/references/gotchas.md` and
-`../maybloom-stack-shared/references/proto-conventions.md`.
+`../maybloom-stack-shared/references/proto-conventions.md`. Go-specific
+pitfalls (sqlc reads the schema from the migrations directory; `pgtype`
+`Valid` flags; goose's append-only rule) are in the gotchas section of
+`../maybloom-stack-shared/references/backend-go.md`.

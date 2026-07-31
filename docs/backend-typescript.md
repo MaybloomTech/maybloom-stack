@@ -11,6 +11,11 @@ the HTTP server, Connect-RPC for the service surface, Drizzle ORM over
 PostgreSQL for persistence, and PGlite as an embedded dev database so the
 whole system runs from a clone with no external services.
 
+Like every validated path, this blueprint is a living document: it
+records what has worked in production so far, not decisions locked for
+good. When a real constraint contradicts a rule here, the rule is the
+part under review — only the contract core is fixed.
+
 The bootstrap skill scaffolds this blueprint complete, with a working
 example resource wired through every layer.
 
