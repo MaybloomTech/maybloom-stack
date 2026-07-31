@@ -6,6 +6,9 @@ on:
 
 permissions:
   contents: read
+  # The action lists the PR's commits through the API; without this the
+  # token gets "Resource not accessible by integration".
+  pull-requests: read
 
 jobs:
   commitlint:
