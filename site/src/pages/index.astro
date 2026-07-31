@@ -12,14 +12,10 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
       <h1 class="serif">
         One contract, many paths, and a system you can tend for decades.
       </h1>
-      {/* One logical line per sentence. Hard-wrapping prose in the template
-          makes the source look like it dictates the rendered breaks — it does
-          not, but at a matching measure the two coincide and read as a bug. */}
-      <p class="lede">
-        The maybloom stack is a schema-first monorepo framework.
-        Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle.
-        The backend is TypeScript by default and Go when the workload asks for it; the interface is one Expo app; the public surfaces are static Astro sites.
-      </p>
+      {/* Deliberately one unbroken line. Wrapping prose in the template makes
+          the source look like it dictates the rendered breaks; on one line
+          there is nothing for the rendered breaks to mirror. */}
+      <p class="lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is TypeScript by default and Go when the workload asks for it; the interface is one Expo app; the public surfaces are static Astro sites.</p>
       <img
         class="tree"
         src={skillTree.src}
@@ -56,12 +52,13 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
     font-weight: 400; font-size: clamp(34px, 4.6vw, 56px);
     line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance;
   }
-  /* Same measure as the docs prose column, so the hero and the pages it
-     introduces set text to the same width. `pretty` keeps the last line
-     from falling to a single orphaned word. */
+  /* No measure of its own: the lede runs the width of the hero, the same
+     width as the headline above it and the diagram below. Long lines need a
+     longer return sweep, hence the extra leading; `pretty` keeps the last
+     line from falling to a single orphaned word. */
   .lede {
-    margin-top: 26px; max-width: 720px;
-    font-size: 18px; line-height: 1.6; color: var(--ink-2);
+    margin-top: 26px;
+    font-size: 18px; line-height: 1.7; color: var(--ink-2);
     text-wrap: pretty;
   }
   .tree {
