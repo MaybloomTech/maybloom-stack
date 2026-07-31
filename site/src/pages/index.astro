@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Layout from '~/layouts/Layout.astro';
+import skillTree from '../../../docs/assets/skill-tree.svg';
 
 const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data.order);
 ---
@@ -18,9 +19,13 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
         Go when the workload asks for it; the interface is one Expo app; the
         public surfaces are static Astro sites.
       </p>
-      <pre class="pipeline" aria-label="The stack pipeline">proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
-                                                          ↓
-                                                api / queries / screen</pre>
+      <img
+        class="tree"
+        src={skillTree.src}
+        width={skillTree.width}
+        height={skillTree.height}
+        alt="The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python and swiftui waiting as dashed open paths"
+      />
       <a class="cta" href="/docs/overview">Read the docs</a>
     </section>
 
@@ -53,12 +58,9 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
     margin-top: 26px; max-width: 640px;
     font-size: 18px; line-height: 1.6; color: var(--ink-2);
   }
-  .pipeline {
-    margin: 40px 0 0; padding: 22px 26px;
-    background: var(--code-bg); color: #d6e2da;
+  .tree {
+    display: block; margin: 40px 0 0; width: 100%; height: auto;
     border: 1px solid var(--line-soft); border-radius: 12px;
-    font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.7;
-    overflow-x: auto;
   }
   .cta {
     display: inline-block; margin-top: 34px;
