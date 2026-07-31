@@ -11,7 +11,9 @@ handler → store → adapter vocabulary, the same generated-edges philosophy,
 implemented with the current Go idiom. It exists for workloads where a
 single static binary, a small memory footprint, and Go's concurrency model
 earn their keep. The criteria for choosing it live in
-[Choosing a runtime](./choosing.md).
+[Choosing a runtime](./choosing.md). It is also the youngest validated
+path — blueprinted from study, awaiting its first production service —
+and therefore the part of these documents most likely to change.
 
 This blueprint is grounded in two sources: the modern Go service consensus
 (stdlib `net/http`, sqlc, pgx, goose, slog) and a close reading of

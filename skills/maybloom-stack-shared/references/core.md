@@ -139,5 +139,15 @@ framework), don't refuse and don't force the defaults. Proceed:
 | Monorepo | contract at the root, consumed by every package | pnpm workspace, biome, the catalog |
 | Naming | one service per backend; resources PascalCase singular in proto | "interface", file layout, camelCase plural tables |
 
+The right-hand column is not just swappable — it is experimental. The
+validated defaults record what has worked so far and keep changing as the
+paths are walked further; treat them as the strongest available
+suggestion, never as law. When the project or its user has a settled
+different answer — an existing convention, a discovered constraint, a
+stated preference — the different answer wins, on validated paths exactly
+as on open ones. Suggest recording the deviation in the project's
+`CLAUDE.md` the same way open-path choices are recorded, so it reads as a
+decision rather than drift.
+
 When in doubt, ask: does breaking this rule change what crosses the wire,
 or only how one side is built? The wire is core. The sides are paths.

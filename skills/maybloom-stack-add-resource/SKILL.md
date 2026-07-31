@@ -22,6 +22,14 @@ Don't skip ahead — later layers reference types from earlier ones, and
 trying to write the handler before the proto exists will produce import
 errors that mask the real shape mismatch.
 
+Canonical does not mean locked. The references record the validated
+pattern as it currently stands; where the project has deliberately
+deviated — a different file layout, a different cache layer, its own
+naming — imitate the project and keep only the core rules from
+`../maybloom-stack-shared/references/core.md`. A skill run that
+"corrects" a working convention back to the reference is doing damage,
+not maintenance.
+
 ## Which implementation?
 
 The pipeline is implementation-neutral; steps 2–6 differ only in where

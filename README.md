@@ -82,6 +82,11 @@ running in production today. The Go blueprint is a design grounded in current
 Go practice, and the first Go service will validate it. Anything still
 speculative says so in the document that covers it.
 
+All of it is living documentation. The decisions inside a validated path are
+the current best answer, not locked ones — they keep changing as the systems
+they describe meet new constraints and technologies. Only the contract core
+holds still.
+
 The stack was extracted from a working private product, which is not
 published. [Open-sourcing](./docs/open-sourcing.md) explains what that means
 for the docs you are reading.

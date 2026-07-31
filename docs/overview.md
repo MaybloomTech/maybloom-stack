@@ -45,6 +45,12 @@ path — permitted, supported by the core, just not yet blueprinted.
 [Choosing a runtime](./choosing.md) covers the validated paths; its last
 section covers the open ones.
 
+Even inside a validated path, the decisions are not locked. The
+blueprints record the current best answer — still experimental, revised
+as the systems they describe meet new constraints and integrate new
+technologies — and only the core holds still while they move. Expect
+these documents to keep changing; that is the stack working as intended.
+
 ## The pipeline
 
 Every feature moves through the same pipeline, and each stage has exactly one
