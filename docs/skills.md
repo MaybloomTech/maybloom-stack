@@ -19,7 +19,7 @@ situation, rather than a generator that stamps one shape.
 |---|---|---|
 | `maybloom-stack-bootstrap` | New monorepo, run once per project | 50 full file templates + a scaffold script |
 | `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
-| `maybloom-stack-shared` | Cross-cutting reference: the language-neutral core, gotchas, proto conventions, transaction patterns, the Go backend path | Prose, loaded by the others |
+| `maybloom-stack-shared` | Reference library: the language-neutral core, gotchas, proto conventions, transaction patterns, and one file per validated path (the Go backend, the Astro site) | Prose, loaded by the others |
 | `maybloom-stack-extend-resource` | Fields and sub-tables on an existing resource | Planned |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC | Planned |
 | `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Planned, follows the [Go blueprint](./backend-go.md) |
@@ -44,6 +44,35 @@ exhaustiveness check), so the skill operates on a connect-go service
 without reading any codebase outside the skill tree. What remains planned
 is only the Go *scaffolder* — `maybloom-stack-bootstrap-go`, which will
 stamp the `go/` module the way bootstrap stamps the monorepo.
+
+## Skills are tasks, references are paths
+
+The family has two axes and keeps them separate. A **skill** is a task —
+bootstrap a monorepo, add a resource, add an RPC — and is written to be
+path-neutral, branching to the right reference at the point of use. A
+**reference** is a path: one leaf of the skill tree, such as the Go
+backend or the Astro site.
+
+The alternative organisation, one skill per path, costs a skill for every
+task the path supports (`add-resource-go`, `add-resource-kotlin`, and so
+on) and grows quadratically as the tree opens. Keeping paths in references
+means a new leaf costs one file, and every skill that already exists picks
+it up.
+
+That gives the tree a definition rather than a vibe:
+
+> A leaf is **validated** only when a reference exists that lets the skills
+> work that path without reading a codebase the reader has no access to.
+> **Validating** means these docs blueprint it and the first real service
+> is still proving it. **Open** means the core permits it and the
+> open-path protocol is how it gets reached.
+
+The picture is hand-drawn, so it is checked rather than trusted:
+`docs/assets/skill-tree.json` carries the data behind it and a CI job
+fails when the tree, the manifest, and the reference files disagree —
+when a leaf is drawn solid with nothing behind it, or a reference is added
+that nobody put on the tree. Adding a path is three steps that fail loudly
+if you stop after one: write the reference, add the leaf, draw it.
 
 ## Open paths and preferences
 

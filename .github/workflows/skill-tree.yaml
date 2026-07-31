@@ -1,0 +1,21 @@
+name: Skill tree
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Validate skill tree coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The tree is a claim about what the skills can do without reading an
+      # outside codebase. This fails when the picture, the manifest, and the
+      # reference files stop agreeing.
+      - name: Check the tree against the skills
+        run: python3 scripts/check-skill-tree.py
