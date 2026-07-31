@@ -20,7 +20,7 @@ const next = idx < all.length - 1 ? all[idx + 1] : undefined;
     <nav class="side" aria-label="Stack documents">
       {all.map((d) => (
         <a href={`/docs/${d.id}`} class:list={{ active: d.id === doc.id }}>
-          <span class="n">{String(d.data.order).padStart(2, '0')}</span>
+          <span class="n">{d.data.order}</span>
           {d.data.title}
         </a>
       ))}
@@ -53,24 +53,20 @@ const next = idx < all.length - 1 ? all[idx + 1] : undefined;
     align-self: start; position: sticky; top: 92px;
   }
   .side a {
-    display: flex; align-items: baseline; gap: 10px;
-    padding: 7px 12px; border-radius: 8px;
+    display: grid; grid-template-columns: 14px 1fr; align-items: baseline;
+    gap: 10px; padding: 7px 12px; border-radius: 8px;
     font-size: 14px; color: var(--ink-2);
     transition: background 0.15s ease, color 0.15s ease;
   }
   .side a:hover { color: var(--ink); background: var(--accent-tint); }
   .side a.active { color: var(--accent); background: var(--accent-tint); font-weight: 500; }
-  .side .n { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
-  .side a.active .n { color: var(--accent); }
+  .side .n { font-size: 13px; color: var(--ink-3); }
 
   .pager {
     display: flex; justify-content: space-between; gap: 16px;
     margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
   }
-  .pager-link {
-    font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
-    letter-spacing: 0.04em; color: var(--accent);
-  }
+  .pager-link { font-size: 14.5px; font-weight: 500; color: var(--accent); }
   .pager-link:hover { text-decoration: underline; text-underline-offset: 3px; }
   .pager-link.next { text-align: right; }
 
@@ -79,7 +75,10 @@ const next = idx < all.length - 1 ? all[idx + 1] : undefined;
     .side {
       position: static; flex-direction: row; flex-wrap: wrap; gap: 6px;
     }
-    .side a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; font-size: 13px; }
+    .side a {
+      display: flex; gap: 8px; border: 1px solid var(--line);
+      border-radius: 999px; padding: 6px 13px; font-size: 13px;
+    }
     .side a.active { border-color: var(--accent); }
   }
 </style>
