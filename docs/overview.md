@@ -18,6 +18,33 @@ Fastify backend, an Expo interface, and static Astro sites in one pnpm
 workspace. This document set generalizes it, adds a Go backend blueprint as a
 peer of the TypeScript one, and defines when to reach for each runtime.
 
+## The core and the paths
+
+The stack has a small core and an expanding set of paths.
+
+The **core** is the contract: every type that crosses a process boundary is
+defined in Protocol Buffers, served over Connect-RPC, and generated into
+whichever languages the system speaks. That one decision is what the stack
+actually *is*. It means a client knows, from generated code alone, every
+resource, every RPC, and every field at its disposal when talking to a
+service. It means a backend and a client evolve in one monorepo, in one
+change, with wire compatibility governed by written rules instead of
+memory. And it means the implementation on either side of the wire is
+genuinely replaceable — Connect has official implementations in several
+languages and speaks gRPC and gRPC-Web besides, so any of them can serve
+or consume the same contract.
+
+The **paths** are the implementations this document set describes in depth:
+a TypeScript backend on Fastify, a Go backend on connect-go, an Expo
+interface, static Astro sites. They are validated paths — documented
+because each has been built and run for real, not because it is required.
+The defaults are defaults of experience, and the set grows like a skill
+tree: a new language or framework joins the documented stack when someone
+walks it far enough to write down what works. Until then it is an open
+path — permitted, supported by the core, just not yet blueprinted.
+[Choosing a runtime](./choosing.md) covers the validated paths; its last
+section covers the open ones.
+
 ## The pipeline
 
 Every feature moves through the same pipeline, and each stage has exactly one
@@ -106,8 +133,10 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
 
 Naming that the stack treats as vocabulary, everywhere:
 
-- The client package is the **interface**. The word frontend does not appear
-  in code, docs, or copy.
+- The client package is the **interface** — the stack's word for the human
+  side of the system, chosen over "frontend" because the client is not a
+  front to the backend. Projects adopting the stack may keep their own
+  name for it; these docs use interface throughout.
 - Backend layers are **handler → store → adapter**, and files live where the
   skills expect them: `src/handlers/`, `src/core/<resource>/store.ts`,
   `src/core/<resource>/adapter.ts` in TypeScript; `internal/server/`,

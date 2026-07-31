@@ -18,11 +18,11 @@ situation, rather than a generator that stamps one shape.
 | Skill | Job | Style |
 |---|---|---|
 | `maybloom-stack-bootstrap` | New monorepo, run once per project | 50 full file templates + a scaffold script |
-| `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer | Instructions + per-layer references |
-| `maybloom-stack-shared` | Cross-cutting reference: gotchas, proto conventions, transaction patterns | Prose, loaded by the others |
+| `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
+| `maybloom-stack-shared` | Cross-cutting reference: the language-neutral core, gotchas, proto conventions, transaction patterns, the Go backend path | Prose, loaded by the others |
 | `maybloom-stack-extend-resource` | Fields and sub-tables on an existing resource | Planned |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC | Planned |
-| `maybloom-stack-bootstrap-go` | A Go service in an existing stack repo | Planned, follows the [Go blueprint](./backend-go.md) |
+| `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Planned, follows the [Go blueprint](./backend-go.md) |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so `pnpm install` ends with a running CRUD loop. The
@@ -35,6 +35,35 @@ order (proto, schema, adapter, store, handlers, wiring, interface) with a
 reference document per layer, and relies on the compiler as the checklist:
 the service implementation object refuses to compile until every declared
 RPC has a handler.
+
+Add-resource is also backend-neutral. The pipeline it walks is the same
+whether the service is TypeScript or Go; the shared reference
+`backend-go.md` carries the Go per-layer patterns (goose migration, sqlc
+queries, Go adapter/store/handlers, the generated handler interface as the
+exhaustiveness check), so the skill operates on a connect-go service
+without reading any codebase outside the skill tree. What remains planned
+is only the Go *scaffolder* — `maybloom-stack-bootstrap-go`, which will
+stamp the `go/` module the way bootstrap stamps the monorepo.
+
+## Open paths and preferences
+
+The skills distinguish the stack's core from its validated paths, the way
+[the overview](./overview.md) does. The shared reference `core.md` carries
+the language-neutral rules — the contract conventions, the layer
+vocabulary on both sides of the wire, what is core and what is merely the
+default — so the skills can operate on implementations these docs don't
+blueprint yet. On an open path, the project's own code plays the role the
+per-layer references play on a validated one: the skills read it, imitate
+its idiom for everything the core doesn't govern, and enforce only the
+contract.
+
+Preferences are meant to accumulate. When a user states or demonstrates a
+choice — a client framework, a server language, code sources they want to
+keep using — the skills suggest recording it in the project's `CLAUDE.md`
+so future sessions inherit the decision instead of re-asking. And when an
+open path has been walked far enough, its patterns graduate: first into a
+reference file in the project, eventually into these docs and skills.
+That is the skill tree opening up.
 
 ## Why skills instead of a CLI
 
@@ -57,9 +86,14 @@ must match the docs. Skill releases follow doc changes, never lead them.
 
 The skills live in `skills/` at the repo root, versioned and reviewed like
 any other part of the stack, and published under the same license as these
-documents. Operator machines symlink them into `~/.claude/skills/` (the
-setup command is in `skills/README.md`), so the installed copy and the repo
-are one copy.
+documents. They install as a Claude Code plugin: the repo doubles as a
+plugin marketplace (`.claude-plugin/marketplace.json`), so
+`/plugin marketplace add MaybloomTech/maybloom-stack` followed by
+`/plugin install maybloom-stack@maybloom-stack` puts the whole family —
+including the shared references the skills load by relative path — on a
+machine, and `/plugin marketplace update` pulls releases. The exact
+commands, the team-pinning settings, and the contributor flow (a clone
+added as a local marketplace) are in `skills/README.md`.
 
 A skill that tells the agent to go read code the reader has no access to is
 a defect rather than a shortcut, for the reason described in

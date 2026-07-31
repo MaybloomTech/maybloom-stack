@@ -104,3 +104,28 @@ transport is identical. This means:
 - Anything is being built "in both languages to compare": the contract
   already guarantees the swap is possible later; build it once, in the
   default.
+
+## Open paths
+
+The runtimes above are the validated paths — documented because they have
+been built and run for real. They are not the boundary of the stack. The
+core travels further: Connect has official implementations for Go,
+TypeScript/JavaScript, Swift, and Kotlin, with more maturing, and a
+Connect server also speaks gRPC and gRPC-Web, so any language with gRPC
+support can join the contract. A SwiftUI client, a Kotlin service, a
+Python worker — each consumes the same protos and looks, to the rest of
+the system, exactly like a validated implementation.
+
+Choosing an open path means carrying the core and writing the blueprint
+as you go: the contract rules from [Contracts](./contracts.md), the layer
+vocabulary (a thin transport seam, business logic behind it, pure
+translation between wire shapes and stored shapes), and generated edges
+that are never committed. The skills support this explicitly — on an
+implementation these docs don't blueprint, they fall back to a
+language-neutral core reference and take the project's existing code as
+the exemplar to imitate.
+
+A path stops being open the day it has been walked far enough to
+document; that is how the stack grows. The Go backend is partway through
+that passage — blueprinted from study, awaiting its first production
+service — and the next path will enter the same way.

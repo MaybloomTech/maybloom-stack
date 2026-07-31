@@ -12,6 +12,16 @@ and the generated Connect client owns the wire. The package is called the
 interface everywhere, because it is the human side of the system rather than
 a "front" to the backend.
 
+Neither the word nor the framework is the load-bearing part. What the
+stack's core guarantees is that any client, in any language Connect or
+gRPC-Web reaches, starts from generated code that already knows every
+resource, RPC, and field the service offers. Expo is the validated
+implementation because one codebase ships to Android, iOS, and the web;
+the shape documented here — typed wrappers over the generated client, a
+server-state cache, screens on top — transfers to other frameworks, and
+the skills carry a language-neutral version of it for projects that
+choose differently.
+
 The bootstrap skill scaffolds this blueprint with a working example screen
 wired to the example resource.
 

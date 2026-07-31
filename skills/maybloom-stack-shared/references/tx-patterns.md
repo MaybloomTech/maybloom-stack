@@ -1,8 +1,11 @@
 # Transaction patterns
 
-Multi-step mutations on the backend run inside a Drizzle transaction so
-that a partial failure leaves no half-written state. This file
-collects the recurring shapes.
+Multi-step mutations on the backend run inside a transaction so that a
+partial failure leaves no half-written state. This file collects the
+recurring shapes, illustrated with the TypeScript backend (Drizzle). On
+the Go backend the same shapes run inside `RunInTx` with the sqlc
+`Querier` — see the "Store" section of `backend-go.md` in this directory
+for the Go mechanics; the ordering rules below carry over unchanged.
 
 ## Ground rules
 

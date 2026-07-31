@@ -1,0 +1,13 @@
+{
+  "name": "maybloom-stack",
+  "owner": {
+    "name": "MaybloomTech"
+  },
+  "plugins": [
+    {
+      "name": "maybloom-stack",
+      "source": ".",
+      "description": "Agent skills for the maybloom stack: bootstrap a proto-first Connect-RPC monorepo and add resources end-to-end through every layer. Validated TypeScript and Go paths ship in full; a language-neutral core reference supports any other Connect-RPC implementation."
+    }
+  ]
+}

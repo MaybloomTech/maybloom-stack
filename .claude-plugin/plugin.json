@@ -1,0 +1,13 @@
+{
+  "name": "maybloom-stack",
+  "displayName": "Maybloom Stack",
+  "version": "0.1.0",
+  "description": "Skills for building on the maybloom stack: monorepos whose core is a Protocol Buffers + Connect-RPC contract with generated, typed edges on both sides of the wire. Validated paths include TypeScript (Fastify + Drizzle + PGlite) and Go (connect-go + sqlc + pgx) backends and an Expo Router interface; a shared core reference supports any other Connect-RPC language the user prefers.",
+  "author": {
+    "name": "MaybloomTech"
+  },
+  "homepage": "https://stack.maybloom.tech",
+  "repository": "https://github.com/MaybloomTech/maybloom-stack",
+  "license": "Apache-2.0",
+  "keywords": ["maybloom", "connect-rpc", "protobuf", "fastify", "drizzle", "expo", "go", "sqlc"]
+}

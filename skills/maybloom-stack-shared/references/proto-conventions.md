@@ -4,6 +4,12 @@ Stack-specific rules for editing `.proto` files. Generic protobuf style
 (field naming, etc.) follows Google's standard guide; this file covers
 only what's distinctive about *this* stack.
 
+The rules here are contract-level: they bind the TypeScript and Go
+backends identically. Code illustrations use the TypeScript backend
+(Drizzle, Connect-ES); `backend-go.md` in this directory shows the Go
+shapes for the same rules (`pgtype` for the NULL side of the string
+convention, the generated handler interface for the one-service rule).
+
 ## Field number policy: reuse vs reserve
 
 See `gotchas.md` for the full rationale. The short version:
