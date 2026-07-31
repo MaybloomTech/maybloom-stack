@@ -16,12 +16,6 @@ paths as they are walked and written down.
 
 ![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python and swiftui waiting as dashed open paths](./docs/assets/skill-tree.svg)
 
-```
-proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
-                                                  ↓
-                                        api / queries / screen
-```
-
 Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**.
 
 ## The documents

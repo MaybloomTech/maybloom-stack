@@ -45,9 +45,6 @@ To pin a whole team to the skills, commit this to a project's
 }
 ```
 
-If you previously installed via symlinks into `~/.claude/skills/`, remove
-those links before installing the plugin, or every skill shows up twice.
-
 ### Working on the skills themselves
 
 Add your clone as a local marketplace so the installed copy comes from the
