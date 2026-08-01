@@ -28,7 +28,7 @@ The backend this skill scaffolds is the TypeScript one (Fastify + Drizzle
 + PGlite). The stack also defines a Go backend (connect-go + sqlc + pgx)
 as a peer behind the same contract; there is no Go scaffolder yet — don't
 improvise one. If the user wants a Go service, the per-layer blueprint is
-`../maybloom-stack-shared/references/backend-go.md`: build the `go/`
+`../maybloom-stack-shared/references/paths/backend-go/README.md`: build the `go/`
 module by hand following its layout and patterns, and use add-resource
 for the resources.
 

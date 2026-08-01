@@ -90,7 +90,7 @@ export async function delete<Resource>(id: string) {
   recipe (load before-row → mutate → recompute derived state → emit events
   → replace M:N children → reload aggregates), see the
   "Read-modify-write with derived state" section of
-  `../../maybloom-stack-shared/references/tx-patterns.md`.
+  `../../tx-patterns.md`.
 - **`updatedAt: new Date()`** on every update — set it server-side, not
   client-side. The adapter ignores `proto.updated_at` for updates because
   of this.
