@@ -4,6 +4,7 @@
     "what keeps it honest. A leaf is validated only when a reference exists that",
     "lets the skills work that path without reading an outside codebase, and",
     "scripts/check-skill-tree.py fails the build when the two disagree.",
+    "One leaf, one directory under pathsDir, entered through its README.md.",
     "Adding a leaf means: write the reference, add it here, draw it in the SVG."
   ],
   "statuses": {
@@ -11,6 +12,7 @@
     "validating": "Blueprinted in the docs, first real service still proving it. Drawn amber.",
     "open": "Permitted by the core, not blueprinted. Reached through the open-path protocol in core.md. Drawn dashed."
   },
+  "pathsDir": "skills/maybloom-stack-shared/references/paths",
   "crossCutting": [
     "skills/maybloom-stack-shared/references/core.md",
     "skills/maybloom-stack-shared/references/gotchas.md",
@@ -24,13 +26,7 @@
       "limb": "servers",
       "status": "validated",
       "doc": "docs/backend-typescript.md",
-      "references": [
-        "skills/maybloom-stack-add-resource/references/schema.md",
-        "skills/maybloom-stack-add-resource/references/adapter.md",
-        "skills/maybloom-stack-add-resource/references/store.md",
-        "skills/maybloom-stack-add-resource/references/handlers.md",
-        "skills/maybloom-stack-add-resource/references/main-wiring.md"
-      ]
+      "path": "backend-typescript"
     },
     {
       "id": "go",
@@ -38,7 +34,7 @@
       "limb": "servers",
       "status": "validating",
       "doc": "docs/backend-go.md",
-      "references": ["skills/maybloom-stack-shared/references/backend-go.md"]
+      "path": "backend-go"
     },
     {
       "id": "expo",
@@ -46,7 +42,7 @@
       "limb": "clients",
       "status": "validated",
       "doc": "docs/interface.md",
-      "references": ["skills/maybloom-stack-add-resource/references/interface.md"]
+      "path": "client-expo"
     },
     {
       "id": "astro",
@@ -54,7 +50,7 @@
       "limb": "clients",
       "status": "validated",
       "doc": "docs/sites.md",
-      "references": ["skills/maybloom-stack-shared/references/client-astro.md"]
+      "path": "client-astro"
     },
     { "id": "kotlin", "label": "kotlin", "limb": "servers", "status": "open" },
     { "id": "python", "label": "python", "limb": "servers", "status": "open" },

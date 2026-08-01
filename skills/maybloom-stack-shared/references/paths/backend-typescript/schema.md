@@ -100,6 +100,6 @@ hand-edit the SQL file if needed.
 
 If `db:generate` *hangs* without producing output, drizzle-kit is
 sitting on a rename-vs-create prompt. See
-`../../maybloom-stack-shared/references/gotchas.md` for the
+`../../gotchas.md` for the
 precise workaround — it's not "always pipe newlines," only when the
 generator actually hangs.

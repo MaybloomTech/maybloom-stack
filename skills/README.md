@@ -7,7 +7,7 @@ The maybloom stack's agent skills. This directory is their source of truth;
 |---|---|
 | `maybloom-stack-bootstrap/` | Scaffold a new stack monorepo (templates + script) |
 | `maybloom-stack-add-resource/` | Add a resource end-to-end through every layer |
-| `maybloom-stack-shared/` | References loaded by the others: the language-neutral core, proto conventions, gotchas, tx patterns, and the path references (Go backend, Astro sites) |
+| `maybloom-stack-shared/` | References loaded by the others: cross-cutting files (the language-neutral core, proto conventions, gotchas, tx patterns) and one directory per path under `references/paths/` |
 
 The three directories must stay siblings: they reference each other by
 relative path (`../maybloom-stack-shared/references/...`).
@@ -19,11 +19,14 @@ The two axes are deliberately separate:
 - A **skill** is a *task* — bootstrap a monorepo, add a resource, add an
   RPC. Skills are path-neutral and branch to the right reference at the
   point of use.
-- A **reference** is a *path* — one leaf of the skill tree. The Go
-  backend, the Astro site, the Expo interface.
+- A **reference** is a *path* — one leaf of the skill tree, and one
+  directory under `maybloom-stack-shared/references/paths/`. The Go
+  backend, the TypeScript backend, the Expo interface, the Astro site.
 
-So a new leaf costs one reference file, and every skill that already
-exists picks it up.
+So a new leaf costs one directory, and every skill that already exists
+picks it up. Paths live in the shared library rather than inside the skill
+that happens to use them first, so a second task skill reaches a pattern
+by reading a reference rather than by reaching into a sibling's folder.
 
 ## The tree has to stay honest
 
@@ -38,12 +41,13 @@ about coverage, so it is checked rather than trusted:
 
 [`docs/assets/skill-tree.json`](../docs/assets/skill-tree.json) holds that
 data and `scripts/check-skill-tree.py` enforces it in CI: every validated
-leaf must declare reference files that exist, every leaf must be drawn in
-the SVG the way its status says, and every path reference in
-`maybloom-stack-shared/references/` must belong to a leaf or be declared
-cross-cutting. Adding a path is therefore three steps that fail loudly if
-you stop after one: write the reference, add the leaf to the manifest,
-draw it on the tree.
+leaf must declare a reference directory that exists and is entered through
+a `README.md`, every leaf must be drawn in the SVG the way its status
+says, every directory under `references/paths/` must belong to a leaf, and
+every file left at the top of `references/` must be declared cross-cutting.
+Adding a path is therefore three steps that fail loudly if you stop after
+one: write the reference, add the leaf to the manifest, draw it on the
+tree.
 
 ## Install
 

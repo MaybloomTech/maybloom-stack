@@ -19,7 +19,7 @@ situation, rather than a generator that stamps one shape.
 |---|---|---|
 | `maybloom-stack-bootstrap` | New monorepo, run once per project | 50 full file templates + a scaffold script |
 | `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
-| `maybloom-stack-shared` | Reference library: the language-neutral core, gotchas, proto conventions, transaction patterns, and one file per validated path (the Go backend, the Astro site) | Prose, loaded by the others |
+| `maybloom-stack-shared` | Reference library: cross-cutting files (the language-neutral core, gotchas, proto conventions, transaction patterns) plus one directory per validated path | Prose, loaded by the others |
 | `maybloom-stack-extend-resource` | Fields and sub-tables on an existing resource | Planned |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC | Planned |
 | `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Planned, follows the [Go blueprint](./backend-go.md) |
@@ -50,9 +50,16 @@ stamp the `go/` module the way bootstrap stamps the monorepo.
 The family has two axes and keeps them separate. A **skill** is a task —
 bootstrap a monorepo, add a resource, add an RPC — and is written to be
 path-neutral, branching to the right reference at the point of use. A
-**reference** is a path: one leaf of the skill tree, such as the Go
-backend or the Astro site. A new leaf therefore costs one reference file,
-and every skill that already exists picks it up.
+**reference** is a path: one leaf of the skill tree, and one directory in
+the shared library — the TypeScript backend, the Go backend, the Expo
+interface, the Astro site. A new leaf therefore costs one directory, and
+every skill that already exists picks it up.
+
+Paths live in the shared library rather than inside whichever skill used
+them first. That is why add-resource carries only the recipe for the task
+it performs, while the per-layer patterns for a backend sit under
+`references/paths/`: the next task skill reaches them by reading a
+reference rather than by reaching into another skill's folder.
 
 That gives the tree a definition rather than a vibe:
 
