@@ -47,9 +47,12 @@ conventions transfer to codebases that have already drifted and templates do
 not. Three skills exist today: `maybloom-stack-bootstrap` scaffolds a whole
 monorepo with one worked example resource, `maybloom-stack-add-resource` adds
 the Nth resource end-to-end through every layer, and `maybloom-stack-shared`
-holds the cross-cutting references the other two load — including the
-language-neutral core reference that lets the skills work with client or
-server technologies beyond the validated defaults.
+holds the references the other two load — the language-neutral core that
+lets the skills work with client or server technologies beyond the
+validated defaults, plus one file per validated path. Skills are tasks and
+references are paths, so a new leaf on the tree costs one reference file,
+and a CI check keeps the picture from claiming coverage the references
+don't have.
 
 The repo is itself a Claude Code plugin marketplace, so installing the
 skills is two commands inside Claude Code:

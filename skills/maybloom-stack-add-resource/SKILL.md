@@ -58,9 +58,20 @@ starting:
   per-step file locations and generators come from the project instead
   of a reference.
 
-The same logic covers the client in step 7: if it isn't the Expo
-interface, keep the api → cache → screens tiers from `core.md` and
-imitate the project's existing client code.
+The same logic covers the client in step 7:
+
+- **The Expo interface** (validated) → `references/interface.md`, as step 7
+  below describes.
+- **An Astro site** (`packages/<name>-site`, validated) →
+  `../maybloom-stack-shared/references/client-astro.md`. Read it before
+  touching a site. A site may ignore the contract entirely, or read it at
+  build time to decide what it renders — generated documentation of the
+  service, examples compiled against the generated client — and the two
+  call for different work: the first often needs no change at all, and the
+  second usually picks the new resource up by regenerating rather than by
+  anything you write.
+- **Anything else** → keep the api → cache → screens tiers from `core.md`
+  and imitate the project's existing client code.
 
 ## When this skill is the wrong tool
 

@@ -1,0 +1,63 @@
+{
+  "note": [
+    "The data behind skill-tree.svg. The picture is hand-authored; this file is",
+    "what keeps it honest. A leaf is validated only when a reference exists that",
+    "lets the skills work that path without reading an outside codebase, and",
+    "scripts/check-skill-tree.py fails the build when the two disagree.",
+    "Adding a leaf means: write the reference, add it here, draw it in the SVG."
+  ],
+  "statuses": {
+    "validated": "Built and run for real, and carried by a reference the skills load. Drawn solid.",
+    "validating": "Blueprinted in the docs, first real service still proving it. Drawn amber.",
+    "open": "Permitted by the core, not blueprinted. Reached through the open-path protocol in core.md. Drawn dashed."
+  },
+  "crossCutting": [
+    "skills/maybloom-stack-shared/references/core.md",
+    "skills/maybloom-stack-shared/references/gotchas.md",
+    "skills/maybloom-stack-shared/references/proto-conventions.md",
+    "skills/maybloom-stack-shared/references/tx-patterns.md"
+  ],
+  "leaves": [
+    {
+      "id": "typescript",
+      "label": "TypeScript",
+      "limb": "servers",
+      "status": "validated",
+      "doc": "docs/backend-typescript.md",
+      "references": [
+        "skills/maybloom-stack-add-resource/references/schema.md",
+        "skills/maybloom-stack-add-resource/references/adapter.md",
+        "skills/maybloom-stack-add-resource/references/store.md",
+        "skills/maybloom-stack-add-resource/references/handlers.md",
+        "skills/maybloom-stack-add-resource/references/main-wiring.md"
+      ]
+    },
+    {
+      "id": "go",
+      "label": "Go",
+      "limb": "servers",
+      "status": "validating",
+      "doc": "docs/backend-go.md",
+      "references": ["skills/maybloom-stack-shared/references/backend-go.md"]
+    },
+    {
+      "id": "expo",
+      "label": "Expo",
+      "limb": "clients",
+      "status": "validated",
+      "doc": "docs/interface.md",
+      "references": ["skills/maybloom-stack-add-resource/references/interface.md"]
+    },
+    {
+      "id": "astro",
+      "label": "Astro",
+      "limb": "clients",
+      "status": "validated",
+      "doc": "docs/sites.md",
+      "references": ["skills/maybloom-stack-shared/references/client-astro.md"]
+    },
+    { "id": "kotlin", "label": "kotlin", "limb": "servers", "status": "open" },
+    { "id": "python", "label": "python", "limb": "servers", "status": "open" },
+    { "id": "swiftui", "label": "swiftui", "limb": "clients", "status": "open" }
+  ]
+}
