@@ -194,7 +194,7 @@ func tsOrNil(t pgtype.Timestamptz) *timestamppb.Timestamp {
 The empty-string-vs-NULL semantics are contract-wide, not per-language:
 proto strings have no NULL, so NULL columns become `""` on the way out and
 `""` becomes NULL on the way in *only* where the column is nullable. See
-`proto-conventions.md` in this directory.
+`../../proto-conventions.md`.
 
 ## Store
 

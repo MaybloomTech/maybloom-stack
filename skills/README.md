@@ -6,11 +6,16 @@ The maybloom stack's agent skills. This directory is their source of truth;
 | Directory | Job |
 |---|---|
 | `maybloom-stack-bootstrap/` | Scaffold a new stack monorepo (templates + script) |
+| `maybloom-stack-bootstrap-go/` | Stand up a Go service in a repo that already has the contract |
 | `maybloom-stack-add-resource/` | Add a resource end-to-end through every layer |
+| `maybloom-stack-extend-resource/` | Change a resource that already exists: fields, child tables, links |
+| `maybloom-stack-add-rpc/` | Add one non-CRUD operation |
 | `maybloom-stack-shared/` | References loaded by the others: cross-cutting files (the language-neutral core, proto conventions, gotchas, tx patterns) and one directory per path under `references/paths/` |
 
-The three directories must stay siblings: they reference each other by
-relative path (`../maybloom-stack-shared/references/...`).
+The directories must stay siblings: they reference each other by
+relative path (`../maybloom-stack-shared/references/...`), and
+`scripts/check-skill-tree.py` fails when one of those links stops
+resolving.
 
 ## Skills are tasks, references are paths
 

@@ -23,14 +23,20 @@ user can run the full loop end-to-end before adding their own resources.
   their actual resources, hand off to the add-resource skill once per
   resource — do not try to extend this scaffold's `Note` plumbing into
   bespoke resources by hand.
+- **`maybloom-stack-extend-resource`** for new fields or child tables on a
+  resource that exists, and **`maybloom-stack-add-rpc`** for one new
+  operation. Both are narrower than add-resource; prefer them when they
+  fit.
+- **`maybloom-stack-bootstrap-go`** to add a Go service to the repo this
+  skill created.
 
 The backend this skill scaffolds is the TypeScript one (Fastify + Drizzle
 + PGlite). The stack also defines a Go backend (connect-go + sqlc + pgx)
-as a peer behind the same contract; there is no Go scaffolder yet — don't
-improvise one. If the user wants a Go service, the per-layer blueprint is
-`../maybloom-stack-shared/references/paths/backend-go/README.md`: build the `go/`
-module by hand following its layout and patterns, and use add-resource
-for the resources.
+as a peer behind the same contract. If the user wants a Go service,
+scaffold the monorepo here first — the proto module and Buf codegen wiring
+are what every path shares — then hand off to
+`maybloom-stack-bootstrap-go`, which stands up the `go/` module against
+the contract this skill just created.
 
 The same logic extends past Go, because the stack's core is the contract,
 not the frameworks around it (see
