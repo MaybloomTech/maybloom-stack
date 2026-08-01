@@ -7,11 +7,29 @@ import "google/protobuf/timestamp.proto";
 // A free-form note authored by a user. The example resource shipped with the
 // __APP_NAME__ stack — keep it as a reference until you've added a real one,
 // then feel free to delete.
+//
+// The comments on these fields are not decoration. They travel with the
+// contract into every generated language, and the docs site renders them, so
+// a rule about a field can be written once here and reach everyone who
+// consumes it.
 message Note {
+  // Server-assigned identifier. Clients leave this empty when creating.
   string id = 1;
+
+  // Short human-readable label. Required; the store rejects an empty title.
   string title = 2;
+
+  // The note itself. May be empty — a title-only note is a valid note.
   string body = 3;
+
+  // The user who created it, taken from the authenticated request rather
+  // than from the client's word for it.
   string created_by = 4;
+
+  // Set once, by the server, at creation.
   google.protobuf.Timestamp created_at = 5;
+
+  // Absent until the first edit. `optional` is what makes "never edited"
+  // distinguishable from "edited at the epoch".
   optional google.protobuf.Timestamp updated_at = 6;
 }

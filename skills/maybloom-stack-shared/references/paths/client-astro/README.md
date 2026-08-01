@@ -87,6 +87,10 @@ the order to try them:
    page cannot describe a contract that no longer exists — a change that
    would make the documentation wrong breaks the build instead of
    publishing something false.
+
+   `maybloom-stack-bootstrap` scaffolds a working example of this as
+   `packages/docs-site`. Read it before building one from scratch; the
+   mechanics are in *Rendering the contract* below.
 3. **Generated clients in examples** — sample code on the page is written
    against the generated client and typechecked or exercised with the rest
    of the site. Examples cannot drift from the contract, because they stop
@@ -109,6 +113,43 @@ deploys — is not a site. Say so plainly and route the work to an interface
 screen or a backend route. Do not add a runtime fetch to a static site to
 dodge that boundary; it is the boundary that keeps the rest of these
 conventions true.
+
+## Rendering the contract
+
+The mechanics of case 2, because two of them are easy to get wrong and one
+of them only fails at build time.
+
+**Read the descriptor set, not the generated code.** Proto comments survive
+into generated TypeScript only as JSDoc, which nothing can read at runtime.
+`buf build --as-file-descriptor-set` keeps them in `SourceCodeInfo`, so the
+descriptor set is the only source that carries both the shape and the
+prose. Generate it into a gitignored directory the way every other edge is
+generated:
+
+```
+buf build --as-file-descriptor-set -o packages/<name>-site/src/generated/descriptor.json
+```
+
+**Import it, don't read it from disk.** `new URL("./x", import.meta.url)`
+points at the *bundled chunk* once the site is built, not at the source
+file, so a filesystem read works in dev and then fails during the build
+with a confusing ENOENT. A plain `import descriptor from
+"./generated/descriptor.json"` is resolved at bundle time and cannot drift.
+Parse it with `fromJson(FileDescriptorSetSchema, ...)` from protobuf-es.
+
+**Comments come from paths into the descriptor.** `SourceCodeInfo` locates
+each comment by a path: `[4, i]` is the i-th message, `[4, i, 2, j]` its
+j-th field, `[6, i]` the i-th service, `[6, i, 2, j]` its j-th method. Index
+the locations into a map keyed by the joined path and look each element up
+as you walk. Those numbers are field numbers in `descriptor.proto` itself,
+so they are as stable as the wire format.
+
+Filter to the repo's own package prefix, or the pages will document
+`google.protobuf.Timestamp` alongside the resources.
+
+An RPC or field with no comment should render as visibly undocumented
+rather than blank: the fix belongs in the proto, where every other consumer
+of the contract sees it too.
 
 ## What a site does when a resource is added
 

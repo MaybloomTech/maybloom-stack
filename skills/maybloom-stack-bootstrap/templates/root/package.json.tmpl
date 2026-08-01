@@ -6,16 +6,21 @@
     "build": "pnpm -r build",
     "dev:backend": "pnpm --filter __ORG_SCOPE__/backend dev",
     "dev:interface": "pnpm --filter __ORG_SCOPE__/interface start",
+    "dev:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site dev",
     "build:web": "pnpm --filter __ORG_SCOPE__/interface build:web",
+    "build:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm lint:proto && pnpm lint:ts",
     "lint:proto": "buf lint",
     "lint:ts": "biome lint packages",
     "lint:ts:fix": "biome lint packages --write",
-    "postinstall": "pnpm proto:gen && pnpm build",
+    "postinstall": "pnpm proto:gen && pnpm proto:descriptor && pnpm build",
     "proto:gen": "buf generate --clean",
+    "proto:descriptor": "buf build --as-file-descriptor-set -o packages/docs-site/src/generated/descriptor.json",
     "docker:backend:build": "docker build -f packages/backend/Dockerfile -t __APP_SLUG__-backend .",
-    "docker:backend:run": "docker run --rm -p 3000:3000 __APP_SLUG__-backend"
+    "docker:backend:run": "docker run --rm -p 3000:3000 __APP_SLUG__-backend",
+    "docker:docs-site:build": "docker build -f packages/docs-site/Dockerfile -t __APP_SLUG__-docs-site .",
+    "docker:docs-site:run": "docker run --rm -p 8080:80 __APP_SLUG__-docs-site"
   },
   "type": "module",
   "devDependencies": {

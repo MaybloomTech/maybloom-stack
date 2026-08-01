@@ -1,19 +1,27 @@
 ---
 name: maybloom-stack-bootstrap
-description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo with Protocol Buffers + Connect-RPC + Fastify + Drizzle + PGlite on the backend and Expo Router + React Query on the interface. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Fastify + Expo project", or "start a Connect-RPC backend with an Expo client". Use this even when the user names a different stack ("proto + Fastify + Expo") if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after `pnpm install`. The scaffolded backend and interface are the stack's validated defaults (TypeScript, Expo); use this skill even when the user wants the Go backend or another Connect-RPC client/server technology — the contract-and-codegen monorepo core is the same, and the user's choices are then built from the shared blueprint and core references, never improvised.
+description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo with Protocol Buffers + Connect-RPC + Fastify + Drizzle + PGlite on the backend and Expo Router + React Query on the interface. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Fastify + Expo project", or "start a Connect-RPC backend with an Expo client". Use this even when the user names a different stack ("proto + Fastify + Expo") if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after `pnpm install`, plus a static Astro docs site that renders the contract's own reference from the protos at build time. The scaffolded backend and interface are the stack's validated defaults (TypeScript, Expo); use this skill even when the user wants the Go backend or another Connect-RPC client/server technology — the contract-and-codegen monorepo core is the same, and the user's choices are then built from the shared blueprint and core references, never improvised.
 ---
 
 # maybloom-stack-bootstrap
 
 Bootstrap a fresh monorepo on the maybloom stack: a pnpm workspace with
-three packages — Protocol Buffers (Buf +
-Connect-ES generated TypeScript), backend (Fastify + Connect-RPC + Drizzle ORM
-with a PGlite dev DB and a Postgres prod DB), and interface (Expo Router +
-React Query + Connect Web client).
+four packages — Protocol Buffers (Buf + Connect-ES generated TypeScript),
+backend (Fastify + Connect-RPC + Drizzle ORM with a PGlite dev DB and a
+Postgres prod DB), interface (Expo Router + React Query + Connect Web
+client), and a docs site (Astro, static) that renders the contract itself.
 
 The skill ships a single example resource — a `Note` (id, title, body,
 created_by, timestamps) — wired through every layer. After scaffolding the
 user can run the full loop end-to-end before adding their own resources.
+
+The docs site is the worked example on the client side that the interface
+isn't: it never calls the service. It compiles the protos to a descriptor
+set at build time and renders what it finds — the service, its RPCs, and a
+page per message listing every field with the comment from the proto. That
+is a page protobuf decided the contents of, served as static files, and it
+is why the proto comments in the scaffold are written as documentation
+rather than notes to self.
 
 ## When to use this skill vs. its sibling
 
@@ -99,9 +107,11 @@ packages and spinning up dev servers.
    pnpm install
    ```
 
-   The `postinstall` script runs `pnpm proto:gen && pnpm build`, which
-   populates `packages/protocol-buffers/src/<slug>/...` from the proto
-   files and builds both packages.
+   The `postinstall` script runs
+   `pnpm proto:gen && pnpm proto:descriptor && pnpm build`, which populates
+   `packages/protocol-buffers/src/<slug>/...` from the proto files,
+   compiles the descriptor set the docs site renders, and builds the
+   packages.
 
 2. **Generate the initial DB migration.** The skill ships a Drizzle schema
    for `Note` but no migration file (those are environment-specific):
@@ -131,7 +141,19 @@ packages and spinning up dev servers.
    Open the Expo dev menu (web is fastest for verification). The home
    screen renders the example notes list with create + delete.
 
-5. **Initialize git.** The scaffolder doesn't `git init` — let the user
+5. **Run the docs site.** In another terminal:
+
+   ```bash
+   pnpm dev:docs-site
+   ```
+
+   It rebuilds the descriptor set from the protos and serves a reference
+   for the contract: the service and its RPCs, and a page per message with
+   every field, its number, and the comment from the proto. Nothing on it
+   is hand-written, which is the point — edit a comment in `proto/`,
+   refresh, and the page has changed.
+
+6. **Initialize git.** The scaffolder doesn't `git init` — let the user
    do that explicitly so they own the first commit.
 
 ## Reference: framework concepts the user is now responsible for
@@ -183,10 +205,16 @@ Specific to bootstrap:
 - **`docker-compose.yaml` defaults to user `postgres` / password
   `postgres`.** Fine for dev. Remind the user to swap for any deployment
   beyond a laptop.
-- **`pnpm install` runs `postinstall` which runs `proto:gen && build`.**
-  First install can take a minute. If `proto:gen` fails, check that
-  `node_modules/.bin/protoc-gen-es` exists — if not, run `pnpm install`
-  again or check the buf catalog versions.
+- **`pnpm install` runs `postinstall` which runs
+  `proto:gen && proto:descriptor && build`.** First install can take a
+  minute. If `proto:gen` fails, check that `node_modules/.bin/protoc-gen-es`
+  exists — if not, run `pnpm install` again or check the buf catalog
+  versions.
+- **The docs site won't build without its descriptor.**
+  `packages/docs-site/src/generated/descriptor.json` is generated and
+  gitignored, so a fresh clone needs `pnpm proto:descriptor` before
+  `pnpm build` — which `postinstall` already does in the right order. If
+  the site fails with a missing import, that step was skipped.
 
 Project-wide gotchas the user will hit *after* bootstrap (Drizzle's
 interactive rename prompt; proto field-number reuse vs `reserved`;
@@ -245,4 +273,15 @@ Point the user there once they're past the initial scaffold.
         │   └── queryClient.ts
         ├── app.json             # Expo metadata
         └── babel.config.js
+    └── docs-site/               # static site rendered from the contract
+        ├── src/
+        │   ├── contract.ts      # walks the descriptor set, extracts comments
+        │   ├── generated/       # descriptor.json (gitignored, from buf build)
+        │   ├── layouts/Layout.astro
+        │   ├── pages/
+        │   │   ├── index.astro          # service + RPC table, message index
+        │   │   └── messages/[name].astro # a page per message
+        │   └── styles/global.css
+        ├── astro.config.mjs     # static output
+        └── Dockerfile           # build → nginx, like every other surface
 ```

@@ -22,6 +22,7 @@ Layout mapping (templates → output):
   templates/proto/proto-tree/*           → <out>/proto/<APP_SLUG>/*
   templates/backend/*                    → <out>/packages/backend/*
   templates/interface/*                  → <out>/packages/interface/*
+  templates/site/*                       → <out>/packages/docs-site/*
 
 `.tmpl` files have placeholders substituted and the suffix dropped.
 Everything else is copied verbatim.
@@ -110,6 +111,9 @@ def scaffold(templates: Path, out: Path, subs: dict[str, str]) -> None:
     # Interface package.
     copy_tree(templates / "interface", out / "packages" / "interface", subs)
 
+    # Docs site: the worked example of a static site built from the contract.
+    copy_tree(templates / "site", out / "packages" / "docs-site", subs)
+
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -133,6 +137,7 @@ def main(argv: list[str]) -> int:
     print("  pnpm install   # runs proto:gen + build via postinstall")
     print("  pnpm dev:backend")
     print("  pnpm dev:interface   # in another terminal")
+    print("  pnpm dev:docs-site   # the contract, rendered from the protos")
     return 0
 
 
