@@ -17,7 +17,7 @@ situation, rather than a generator that stamps one shape.
 
 | Skill | Job | Style |
 |---|---|---|
-| `maybloom-stack-bootstrap` | New monorepo, run once per project | 50 full file templates + a scaffold script |
+| `maybloom-stack-bootstrap` | New monorepo, run once per project | 60 full file templates + a scaffold script |
 | `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
 | `maybloom-stack-shared` | Reference library: cross-cutting files (the language-neutral core, gotchas, proto conventions, transaction patterns) plus one directory per validated path | Prose, loaded by the others |
 | `maybloom-stack-extend-resource` | Fields, child tables, and links on an existing resource | Instructions; leans on the shared wire and transaction references |
@@ -29,6 +29,14 @@ through every layer, so `pnpm install` ends with a running CRUD loop. The
 example resource is a teaching specimen: its files carry comments explaining
 the pattern they demonstrate, and add-resource treats them as the live
 exemplar to imitate.
+
+It also ships a docs site, which is the teaching specimen for the other
+kind of client — one that never calls the service. It compiles the protos
+to a descriptor set at build time and renders what it finds: the service,
+its RPCs, and a page per message with every field, its number, and the
+comment written in the proto. A static page whose contents protobuf
+decided, and the reason the scaffold's proto comments are written as
+documentation rather than as notes to self.
 
 Add-resource is deliberately not a code generator. It walks the pipeline in
 order (proto, schema, adapter, store, handlers, wiring, interface) with a

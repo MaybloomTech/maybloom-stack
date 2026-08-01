@@ -1,0 +1,58 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { loadContract } from "../contract";
+
+const { services, messages } = loadContract();
+---
+
+<Layout title="The contract">
+  <h1>The contract</h1>
+  <p class="lede">
+    Everything on this page was read from the protos at build time. Nothing
+    here is written by hand, so it cannot describe a service that no longer
+    looks like this — the build would have to change first.
+  </p>
+
+  {services.map((service) => (
+    <section>
+      <h2 id={service.name}>{service.name}</h2>
+      <p class="qualified">{service.fullName}</p>
+      {service.comment && <p>{service.comment}</p>}
+
+      <table>
+        <thead>
+          <tr><th>RPC</th><th>Request</th><th>Response</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          {service.methods.map((method) => (
+            <tr>
+              <td><code>{method.name}</code></td>
+              <td><code>{method.input}</code></td>
+              <td><code>{method.output}</code></td>
+              <td>{method.comment || <span class="undocumented">undocumented</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))}
+
+  <section>
+    <h2 id="messages">Messages</h2>
+    <ul class="message-list">
+      {messages.map((message) => (
+        <li>
+          <a href={`/messages/${message.name}/`}>{message.name}</a>
+          <span>{message.fields.length} field{message.fields.length === 1 ? "" : "s"}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <p class="footnote">
+    An RPC or a field showing as <span class="undocumented">undocumented</span>
+    means the proto has no comment on it. Write the comment in the proto rather
+    than here: this page is generated, and the comment is what every other
+    reader of the contract sees too.
+  </p>
+</Layout>

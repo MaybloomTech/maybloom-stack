@@ -7,9 +7,20 @@ import "__APP_SLUG__/service/v1/notes.proto";
 // The single Connect-RPC service for __APP_NAME__. Add new RPC methods here as
 // you grow; keep request/response messages in sibling files (one per resource).
 service __APP_NAME__Service {
+  // Create a note. The server assigns the id and created_at, and takes
+  // created_by from the authenticated request.
   rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+
+  // Replace a note. The request carries the whole resource, so a field left
+  // empty is written as empty rather than ignored.
   rpc UpdateNote(UpdateNoteRequest) returns (UpdateNoteResponse);
+
+  // Fetch one note by id. Returns NOT_FOUND if it does not exist.
   rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
+
+  // Every note, newest first.
   rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+
+  // Delete a note by id. Returns NOT_FOUND if it was not there to delete.
   rpc DeleteNote(DeleteNoteRequest) returns (DeleteNoteResponse);
 }

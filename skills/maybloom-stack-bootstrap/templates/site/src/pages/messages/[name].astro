@@ -1,0 +1,49 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { loadContract } from "../../contract";
+
+// One page per message in the contract. getStaticPaths runs at build time, so
+// adding a resource to the protos adds a page here with no code change.
+export function getStaticPaths() {
+  const { messages } = loadContract();
+  return messages.map((message) => ({
+    params: { name: message.name },
+    props: { message },
+  }));
+}
+
+const { message } = Astro.props;
+---
+
+<Layout title={message.name}>
+  <p class="back"><a href="/">← the contract</a></p>
+  <h1>{message.name}</h1>
+  <p class="qualified">{message.fullName}</p>
+  {message.comment && <p class="lede">{message.comment}</p>}
+
+  <table>
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>#</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      {message.fields.map((field) => (
+        <tr>
+          <td><code>{field.name}</code></td>
+          <td>
+            <code>{field.type}</code>
+            {field.repeated && <span class="tag">repeated</span>}
+            {field.optional && <span class="tag">optional</span>}
+          </td>
+          <td class="num">{field.number}</td>
+          <td>{field.comment || <span class="undocumented">undocumented</span>}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="footnote">
+    The number is the field's identity on the wire. It is assigned once and
+    never reused, even after a field is deleted — an old client would decode
+    the new field as the old one and be confidently wrong.
+  </p>
+</Layout>

@@ -1,0 +1,65 @@
+# docs-site
+
+Generated documentation for the __APP_NAME__ contract. Every page on this
+site is read from the protos at build time; none of it is hand-written.
+
+## Why this exists
+
+It is the worked example of a site that uses the contract as **content**.
+The page is static — nginx serving files, no server, no runtime fetch — and
+protobuf is what decided what it displays. That combination is why sites sit
+on the client limb of the stack rather than off to one side.
+
+The property worth having is not that the docs are automatic. It is that
+they *cannot* be wrong: if a resource loses a field, this site does not
+quietly keep describing it, because there is nothing here to keep. The build
+regenerates from the same descriptor the backend and the interface generate
+from.
+
+## How it works
+
+```
+proto/            hand-written protos
+   │  buf build --as-file-descriptor-set
+   ▼
+src/generated/descriptor.json      (gitignored, regenerated)
+   │  src/contract.ts walks it
+   ▼
+src/pages/*.astro                   renders services, RPCs, messages, fields
+```
+
+`src/contract.ts` reads the descriptor set rather than the generated
+TypeScript for one reason: proto comments survive into generated code only as
+JSDoc, which nothing can read at runtime. `buf build` keeps them in
+SourceCodeInfo. That is what makes the comments in your `.proto` files
+load-bearing — they are the prose on these pages.
+
+## Running it
+
+From the repo root:
+
+```bash
+pnpm dev:docs-site      # regenerates the descriptor, then serves
+pnpm build:docs-site    # static files into packages/docs-site/dist
+```
+
+The descriptor is regenerated first by both scripts, so editing a proto and
+refreshing is the whole loop.
+
+## Making it yours
+
+This is a teaching specimen, like the `Note` resource. Some directions it
+usually grows in:
+
+- **Group by resource** rather than listing every message flat, once the
+  contract has more than a handful.
+- **Show examples that compile.** Sample client code written against the
+  generated client and typechecked with the site cannot go stale, which is
+  the same guarantee the field tables have.
+- **Render enums and nested messages**, which `contract.ts` currently skips
+  in favour of staying readable.
+- **Give it a real design.** The CSS here is deliberately plain; inherit the
+  family design language when this becomes a surface people are sent to.
+
+If you would rather not publish your contract at all, delete the package —
+nothing else depends on it.

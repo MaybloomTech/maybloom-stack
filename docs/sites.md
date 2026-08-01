@@ -73,6 +73,13 @@ contract moves.
 A site may also call a service at build time for data that is settled by
 then, such as a public catalogue, and bake the result into the output.
 
+`maybloom-stack-bootstrap` scaffolds a working example of the first kind:
+a `docs-site` package that renders the contract's own reference from a
+descriptor set produced by `buf build`. It reads the descriptor rather than
+the generated TypeScript because proto comments survive into generated code
+only as JSDoc, which nothing can read at runtime — so the comments a team
+writes on their fields are the prose on the published page.
+
 None of this softens the boundary above. The distinction is *when* the
 contract is read, not whether: at build time a site is still a pile of
 files, and the moment a page needs the wire at runtime it has become an

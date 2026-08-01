@@ -1,0 +1,171 @@
+/**
+ * The contract, read at build time.
+ *
+ * This is the whole point of the docs site: nothing here is hand-written
+ * documentation. `buf build` compiles the protos into a FileDescriptorSet,
+ * this module walks it, and the pages render what it finds. A field added to
+ * a proto shows up on the site with the next build; a field removed
+ * disappears. Documentation that cannot drift from the contract, because the
+ * contract is its only source.
+ *
+ * Why the descriptor set rather than the generated TypeScript: comments
+ * survive into generated code only as JSDoc, which is not readable at
+ * runtime. `buf build` keeps them in SourceCodeInfo, so the proto comments
+ * your team writes are the prose on the page. That is why field comments in
+ * the protos are load-bearing rather than decorative.
+ */
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { FileDescriptorSetSchema } from "@bufbuild/protobuf/wkt";
+
+// The descriptor is imported as a module rather than read from disk on
+// purpose: `import.meta.url` points at the bundled chunk once Astro has built
+// the page, not at this source file, so a filesystem read works in dev and
+// then fails during the build. An import is resolved at bundle time and can
+// never drift from where the file actually is.
+import descriptorJson from "./generated/descriptor.json";
+
+/** Only document this repo's own protos, not google.protobuf and friends. */
+const PACKAGE_PREFIX = "__APP_SLUG__.";
+
+export interface FieldDoc {
+  name: string;
+  number: number;
+  type: string;
+  repeated: boolean;
+  optional: boolean;
+  comment: string;
+}
+
+export interface MessageDoc {
+  name: string;
+  fullName: string;
+  comment: string;
+  fields: FieldDoc[];
+}
+
+export interface MethodDoc {
+  name: string;
+  input: string;
+  output: string;
+  comment: string;
+}
+
+export interface ServiceDoc {
+  name: string;
+  fullName: string;
+  comment: string;
+  methods: MethodDoc[];
+}
+
+export interface Contract {
+  services: ServiceDoc[];
+  messages: MessageDoc[];
+}
+
+// Scalar type codes from google/protobuf/descriptor.proto. Using the numbers
+// keeps this independent of how any particular runtime names the enum.
+const SCALAR_TYPES: Record<number, string> = {
+  1: "double",
+  2: "float",
+  3: "int64",
+  4: "uint64",
+  5: "int32",
+  6: "fixed64",
+  7: "fixed32",
+  8: "bool",
+  9: "string",
+  12: "bytes",
+  13: "uint32",
+  15: "sfixed32",
+  16: "sfixed64",
+  17: "sint32",
+  18: "sint64",
+};
+const TYPE_MESSAGE = 11;
+const TYPE_ENUM = 14;
+const LABEL_REPEATED = 3;
+
+// SourceCodeInfo locates every comment by a path into the descriptor:
+// [4, i] is the i-th message, [4, i, 2, j] its j-th field, [6, i] the i-th
+// service, [6, i, 2, j] its j-th method. Those field numbers come from
+// descriptor.proto itself and are as stable as the wire format.
+const MESSAGE = 4;
+const SERVICE = 6;
+const NESTED_FIELD = 2;
+const NESTED_METHOD = 2;
+
+function tidy(comment: string | undefined): string {
+  if (!comment) return "";
+  return comment
+    .split("\n")
+    .map((line) => line.replace(/^ /, ""))
+    .join("\n")
+    .trim();
+}
+
+/** Strip the package prefix so `orchard.resources.v1.Note` reads as `Note`. */
+function shortName(typeName: string): string {
+  return typeName.replace(/^\./, "").split(".").pop() ?? typeName;
+}
+
+export function loadContract(): Contract {
+  // TypeScript infers a precise literal type for the imported JSON, which is
+  // narrower than JsonValue rather than assignable to it, so the widening cast
+  // is deliberate: the shape is validated by fromJson at runtime anyway.
+  const set = fromJson(FileDescriptorSetSchema, descriptorJson as unknown as JsonValue);
+
+  const services: ServiceDoc[] = [];
+  const messages: MessageDoc[] = [];
+
+  for (const file of set.file) {
+    if (!file.package?.startsWith(PACKAGE_PREFIX)) continue;
+
+    const comments = new Map<string, string>();
+    for (const loc of file.sourceCodeInfo?.location ?? []) {
+      if (loc.leadingComments) {
+        comments.set(loc.path.join(","), tidy(loc.leadingComments));
+      }
+    }
+    const commentAt = (...path: number[]) => comments.get(path.join(",")) ?? "";
+
+    file.messageType.forEach((message, i) => {
+      messages.push({
+        name: message.name ?? "",
+        fullName: `${file.package}.${message.name}`,
+        comment: commentAt(MESSAGE, i),
+        fields: message.field.map((field, j) => ({
+          name: field.name ?? "",
+          number: field.number ?? 0,
+          type:
+            field.type === TYPE_MESSAGE || field.type === TYPE_ENUM
+              ? shortName(field.typeName ?? "")
+              : (SCALAR_TYPES[field.type ?? 0] ?? "unknown"),
+          repeated: field.label === LABEL_REPEATED,
+          // proto3Optional is what distinguishes "explicitly optional" from
+          // "has a zero value" — the same distinction the adapter honours
+          // when it maps empty strings to NULL.
+          optional: field.proto3Optional === true,
+          comment: commentAt(MESSAGE, i, NESTED_FIELD, j),
+        })),
+      });
+    });
+
+    file.service.forEach((service, i) => {
+      services.push({
+        name: service.name ?? "",
+        fullName: `${file.package}.${service.name}`,
+        comment: commentAt(SERVICE, i),
+        methods: service.method.map((method, j) => ({
+          name: method.name ?? "",
+          input: shortName(method.inputType ?? ""),
+          output: shortName(method.outputType ?? ""),
+          comment: commentAt(SERVICE, i, NESTED_METHOD, j),
+        })),
+      });
+    });
+  }
+
+  messages.sort((a, b) => a.name.localeCompare(b.name));
+  services.sort((a, b) => a.name.localeCompare(b.name));
+  return { services, messages };
+}

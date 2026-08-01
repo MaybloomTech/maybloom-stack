@@ -1,0 +1,184 @@
+/* Small on purpose. A generated reference wants to be legible and nothing
+   else; when this site grows a real identity, that is a design decision to
+   make deliberately rather than inherit from a scaffold. */
+
+:root {
+  --bg: #fbfbfa;
+  --ink: #1b1f1c;
+  --ink-2: rgba(27, 31, 28, 0.68);
+  --ink-3: rgba(27, 31, 28, 0.45);
+  --line: rgba(27, 31, 28, 0.12);
+  --accent: #1f6d5a;
+  --code-bg: rgba(27, 31, 28, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121613;
+    --ink: #e7ece8;
+    --ink-2: rgba(231, 236, 232, 0.68);
+    --ink-3: rgba(231, 236, 232, 0.45);
+    --line: rgba(231, 236, 232, 0.14);
+    --accent: #57c9a6;
+    --code-bg: rgba(231, 236, 232, 0.07);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+header,
+main,
+footer {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-top: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+header .wordmark {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+header span {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+main {
+  padding-top: 32px;
+  padding-bottom: 48px;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  margin: 0 0 6px;
+}
+h2 {
+  font-size: 21px;
+  margin: 40px 0 4px;
+}
+p {
+  margin: 0 0 14px;
+  color: var(--ink-2);
+}
+a {
+  color: var(--accent);
+}
+
+.lede {
+  font-size: 17px;
+  margin-bottom: 24px;
+}
+.qualified {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.back {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.footnote {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.undocumented {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+.tag {
+  margin-left: 6px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 8px;
+  display: block;
+  overflow-x: auto;
+}
+th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line);
+  padding: 6px 14px 6px 0;
+}
+td {
+  vertical-align: top;
+  font-size: 14.5px;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line);
+  padding: 9px 14px 9px 0;
+}
+td.num {
+  color: var(--ink-3);
+}
+
+.message-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.message-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.message-list span {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+footer {
+  padding-bottom: 40px;
+}
+footer p {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--ink-3);
+}

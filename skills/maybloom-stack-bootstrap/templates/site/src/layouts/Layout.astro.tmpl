@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title} · __APP_NAME__</title>
+    <meta
+      name="description"
+      content="Generated documentation for the __APP_NAME__ contract."
+    />
+  </head>
+  <body>
+    <header>
+      <a class="wordmark" href="/">__APP_NAME__</a>
+      <span>contract reference</span>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <p>
+        Generated from the protos at build time. Edit the comments in
+        <code>proto/</code>, not this page.
+      </p>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+# Build from the monorepo root: the site needs the protos and the workspace,
+# not just this package.
+#   docker build -f packages/docs-site/Dockerfile -t __APP_SLUG__-docs-site .
+FROM node:24-alpine AS build
+WORKDIR /app
+RUN corepack enable
+
+# The descriptor set the site renders is produced by buf from proto/, so the
+# protos have to be in the image even though nothing here imports them.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json buf.yaml buf.gen.yaml ./
+COPY proto ./proto
+COPY packages/protocol-buffers ./packages/protocol-buffers
+COPY packages/docs-site ./packages/docs-site
+RUN pnpm install --frozen-lockfile --filter __ORG_SCOPE__/docs-site...
+RUN pnpm proto:descriptor
+RUN pnpm --filter __ORG_SCOPE__/docs-site build
+
+FROM nginx:alpine
+COPY --from=build /app/packages/docs-site/dist /usr/share/nginx/html
+# Astro emits directory-style routes, so ask nginx to serve index.html for
+# them and to 404 rather than redirect on a genuine miss.
+RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location / {\n    try_files $uri $uri/index.html =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
+EXPOSE 80
