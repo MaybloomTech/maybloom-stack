@@ -64,10 +64,12 @@ The same logic covers the client in step 7:
   below describes.
 - **An Astro site** (`packages/<name>-site`, validated) →
   `../maybloom-stack-shared/references/client-astro.md`. Read it before
-  touching a site: the usual correct outcome of adding a resource is that
-  no site changes at all, and the reference draws the line between content
-  a site may bake in at build time and data that means the work belongs to
-  an interface screen instead.
+  touching a site. A site may ignore the contract entirely, or read it at
+  build time to decide what it renders — generated documentation of the
+  service, examples compiled against the generated client — and the two
+  call for different work: the first often needs no change at all, and the
+  second usually picks the new resource up by regenerating rather than by
+  anything you write.
 - **Anything else** → keep the api → cache → screens tiers from `core.md`
   and imitate the project's existing client code.
 

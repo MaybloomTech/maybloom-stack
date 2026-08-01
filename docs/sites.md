@@ -56,3 +56,26 @@ Marketing, documentation, writing, and any page whose content is known at
 build time. The moment a page needs per-user state, live data, or auth, it
 is an interface screen or a backend route instead. This boundary is what
 keeps the sites deployable as plain files forever.
+
+## Sites and the contract
+
+Most sites never touch the protos, and that is fine. The reason sites sit
+on the client limb of the stack rather than off to one side is that a
+static page can still be built *from* the contract: a site can read the
+generated code, or the descriptors behind it, at build time and render
+what it finds. Documentation of a service — every resource, every RPC,
+every field, with the comments the protos carry — is a page protobuf
+decided the contents of, served as plain files. Examples on that page can
+be written against the generated client and typechecked with the rest of
+the site, so they stop compiling rather than quietly going stale when the
+contract moves.
+
+A site may also call a service at build time for data that is settled by
+then, such as a public catalogue, and bake the result into the output.
+
+None of this softens the boundary above. The distinction is *when* the
+contract is read, not whether: at build time a site is still a pile of
+files, and the moment a page needs the wire at runtime it has become an
+interface screen. What the contract buys a site is the same thing it buys
+everywhere else — the page cannot describe a service that no longer looks
+like that, because the build breaks first.

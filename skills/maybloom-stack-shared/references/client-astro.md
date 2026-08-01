@@ -2,10 +2,12 @@
 
 Public surfaces that change at commit time are Astro packages: static
 output, no server, one package per site. They sit on the client limb of
-the skill tree next to the Expo interface, but they relate to the
-contract differently — most sites never touch it, and that is the point.
-This file defines the path so the skills can create and extend a site
-without reading any external codebase.
+the skill tree next to the Expo interface, but they relate to the contract
+differently: a site may ignore it entirely, or read it at build time to
+decide what it displays — documentation generated from the protos,
+examples compiled against the generated client — without ever calling a
+service at runtime. This file defines the path so the skills can create
+and extend a site without reading any external codebase.
 
 Sections: Detecting a site · Package shape · Conventions · Where the
 contract fits · What a site does when a resource is added · Verification
@@ -69,34 +71,59 @@ driven the same way from the repo root.
 
 ## Where the contract fits
 
-A site is a contract-*optional* client, which is what distinguishes it
-from the interface. Three cases, in the order to try them:
+A site is a contract-*optional* client. When it does use the contract, it
+most often uses it as **source material** rather than as a wire: the page
+is static, and protobuf is what decided what it displays. Four cases, in
+the order to try them:
 
-1. **No contract at all** — the common case. Marketing copy,
-   documentation, writing. The site imports nothing generated, and adding
-   a resource to the backend changes nothing here.
-2. **Build-time consumption** — the site needs data that a service owns
-   but that is settled at build time (a public catalogue, a changelog fed
-   from a resource). Import the generated client exactly as the interface
-   does, call it from a build-time module or a content loader, and let the
-   result bake into the output. The contract rules still apply in full:
-   generated code is never committed, and the site regenerates with
-   everyone else.
-3. **Anything live** — per-user state, auth, mutations, data that changes
-   between deploys. This is not a site. Say so plainly and route the work
-   to an interface screen or a backend route; the boundary is what keeps
-   the rest of the conventions true.
+1. **No contract at all** — the common case. Marketing copy, writing, an
+   about page. The site imports nothing generated, and adding a resource
+   to the backend changes nothing here.
+2. **The contract as content** — the site reads the generated code, or the
+   descriptors behind it, at build time and renders from it: API
+   documentation, a reference page listing every resource, RPC, and field
+   a service offers, an explorer, a record of how the wire surface has
+   moved. No service is called. This is the strongest form, because the
+   page cannot describe a contract that no longer exists — a change that
+   would make the documentation wrong breaks the build instead of
+   publishing something false.
+3. **Generated clients in examples** — sample code on the page is written
+   against the generated client and typechecked or exercised with the rest
+   of the site. Examples cannot drift from the contract, because they stop
+   compiling when it moves. Keep them in real source files that
+   `astro check` or a test covers and pull them into the page, rather than
+   as fenced blocks in prose that nothing verifies.
+4. **A service call at build time** — data a service owns that is settled
+   at build time (a public catalogue, a published index). Import the
+   generated client exactly as the interface does, call it from a
+   build-time module or a content loader, and let the result bake into the
+   output.
 
-Case 2 is the only reason a site appears on the client limb of the tree
-at all. Do not add a runtime fetch to a static site to avoid case 3 —
-that is the failure this boundary exists to prevent.
+In cases 2–4 the contract rules apply in full: generated code is never
+committed, the site regenerates with everyone else, and codegen runs
+before the site builds. A build that cannot reach the contract must fail
+loudly rather than emit an empty page.
+
+Anything else — per-user state, auth, mutations, data that changes between
+deploys — is not a site. Say so plainly and route the work to an interface
+screen or a backend route. Do not add a runtime fetch to a static site to
+dodge that boundary; it is the boundary that keeps the rest of these
+conventions true.
 
 ## What a site does when a resource is added
 
-Usually nothing, and saying so is the correct outcome of a skill run. A
-new backend resource does not imply a new page. Touch a site only when
-the user asks for a public surface for that resource, and then decide
-between the three cases above before writing anything.
+It depends on which case above the site is in, and answering "nothing" is
+often the correct outcome of a skill run.
+
+- **Cases 1 and 4**: usually nothing. A new backend resource does not
+  imply a new page. Touch the site only when the user asks for a public
+  surface for that resource.
+- **Cases 2 and 3**: nothing to write, but the page changes anyway — the
+  new resource appears in the generated code the site renders, so the work
+  is regenerating and rebuilding, not authoring. Check the built output
+  once: a resource that shows up in documentation with an empty or
+  placeholder description is a proto missing its field comments, and that
+  is worth fixing in the proto rather than papering over in the site.
 
 When a page *is* wanted, the work is ordinary Astro: a route under
 `src/pages/`, a collection entry if it is one of many, and a component if

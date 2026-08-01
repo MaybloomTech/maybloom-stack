@@ -14,8 +14,7 @@ relative path (`../maybloom-stack-shared/references/...`).
 
 ## Skills are tasks, references are paths
 
-The two axes are deliberately separate, and keeping them separate is what
-stops the family from multiplying:
+The two axes are deliberately separate:
 
 - A **skill** is a *task* — bootstrap a monorepo, add a resource, add an
   RPC. Skills are path-neutral and branch to the right reference at the
@@ -23,9 +22,8 @@ stops the family from multiplying:
 - A **reference** is a *path* — one leaf of the skill tree. The Go
   backend, the Astro site, the Expo interface.
 
-Organised the other way around, every new leaf would cost one skill per
-task (`add-resource-go`, `add-resource-kotlin`, …). Organised this way, a
-leaf costs exactly one file and every existing skill picks it up.
+So a new leaf costs one reference file, and every skill that already
+exists picks it up.
 
 ## The tree has to stay honest
 

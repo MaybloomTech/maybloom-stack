@@ -51,13 +51,8 @@ The family has two axes and keeps them separate. A **skill** is a task —
 bootstrap a monorepo, add a resource, add an RPC — and is written to be
 path-neutral, branching to the right reference at the point of use. A
 **reference** is a path: one leaf of the skill tree, such as the Go
-backend or the Astro site.
-
-The alternative organisation, one skill per path, costs a skill for every
-task the path supports (`add-resource-go`, `add-resource-kotlin`, and so
-on) and grows quadratically as the tree opens. Keeping paths in references
-means a new leaf costs one file, and every skill that already exists picks
-it up.
+backend or the Astro site. A new leaf therefore costs one reference file,
+and every skill that already exists picks it up.
 
 That gives the tree a definition rather than a vibe:
 
