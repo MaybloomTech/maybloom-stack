@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-add-resource
-description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard five-RPC CRUD surface (Create / Update / Get / List / Delete) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` (when it exists; until then, use the load+replace and read-modify-write patterns documented in maybloom-stack-shared/references/tx-patterns.md), or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc` (when it exists; until then, follow the request/response conventions in this skill but skip the schema/migration/CRUD-handler steps). When in doubt, prefer the narrower skill.
+description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard five-RPC CRUD surface (Create / Update / Get / List / Delete) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` — or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc`. When in doubt, prefer the narrower skill.
 ---
 
 # maybloom-stack-add-resource
@@ -86,18 +86,16 @@ the correct tool:
 
 - **Adding a field, child table, or many-to-many to an existing resource**
   (e.g. "add `editions[]` and `author_links[]` to Book"). Use
-  `maybloom-stack-extend-resource` once it exists. Until then, the
-  load+replace recipe lives in
-  `../maybloom-stack-shared/references/tx-patterns.md`
-  ("Load + replace for M:N children") and the read-modify-write shape lives
-  in the same file ("Read-modify-write with derived state").
+  `maybloom-stack-extend-resource`: the RPC surface doesn't change there,
+  and the work is concentrated in wire compatibility and migrating rows
+  that already exist.
 - **Adding a single non-CRUD RPC** (workflow RPCs like `CheckOutBook`;
   sub-resource list RPCs like `ListBookEvents`). Use
-  `maybloom-stack-add-rpc` once it exists. Until then, follow the
-  request/response shape conventions in `references/proto.md` and
-  `../maybloom-stack-shared/references/paths/backend-typescript/handlers.md`, but skip the schema/migration and CRUD-handler
-  steps — you only need the proto request/response, the store function,
-  the handler, and (on the TypeScript backend) the main.ts wiring.
+  `maybloom-stack-add-rpc`, which skips the schema and CRUD-handler steps
+  entirely.
+- **Standing up a Go service in a repo that has none.** Use
+  `maybloom-stack-bootstrap-go` first; come back here for the resources
+  once it runs.
 
 Always-applicable references that the layer-by-layer docs in this skill
 cross-link:

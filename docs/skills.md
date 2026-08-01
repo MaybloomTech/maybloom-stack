@@ -20,9 +20,9 @@ situation, rather than a generator that stamps one shape.
 | `maybloom-stack-bootstrap` | New monorepo, run once per project | 50 full file templates + a scaffold script |
 | `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
 | `maybloom-stack-shared` | Reference library: cross-cutting files (the language-neutral core, gotchas, proto conventions, transaction patterns) plus one directory per validated path | Prose, loaded by the others |
-| `maybloom-stack-extend-resource` | Fields and sub-tables on an existing resource | Planned |
-| `maybloom-stack-add-rpc` | A single non-CRUD RPC | Planned |
-| `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Planned, follows the [Go blueprint](./backend-go.md) |
+| `maybloom-stack-extend-resource` | Fields, child tables, and links on an existing resource | Instructions; leans on the shared wire and transaction references |
+| `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
+| `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Instructions + a module skeleton reference, following the [Go blueprint](./backend-go.md) |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so `pnpm install` ends with a running CRUD loop. The
@@ -37,13 +37,20 @@ the service implementation object refuses to compile until every declared
 RPC has a handler.
 
 Add-resource is also backend-neutral. The pipeline it walks is the same
-whether the service is TypeScript or Go; the shared reference
-`backend-go.md` carries the Go per-layer patterns (goose migration, sqlc
-queries, Go adapter/store/handlers, the generated handler interface as the
+whether the service is TypeScript or Go; the path reference for each
+backend carries the per-layer patterns (goose migration, sqlc queries, Go
+adapter/store/handlers, the generated handler interface as the
 exhaustiveness check), so the skill operates on a connect-go service
-without reading any codebase outside the skill tree. What remains planned
-is only the Go *scaffolder* — `maybloom-stack-bootstrap-go`, which will
-stamp the `go/` module the way bootstrap stamps the monorepo.
+without reading any codebase outside the skill tree.
+
+The other three skills split the work add-resource is the wrong shape for.
+Extend-resource changes a resource that already exists, where the RPC
+surface usually stays put and the risk moves to wire compatibility and to
+rows already in the database. Add-rpc adds one operation, which is the
+right home for a rule about who may do something — a state change guarded
+by an RPC can enforce it, a field the client writes cannot. Bootstrap-go
+stands up the `go/` module the way bootstrap stamps the monorepo, once per
+Go service, and hands back to add-resource for everything after.
 
 ## Skills are tasks, references are paths
 

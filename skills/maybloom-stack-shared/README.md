@@ -2,8 +2,10 @@
 
 Shared reference content for the maybloom-stack skill family. **Not a skill
 on its own** — there is no `SKILL.md` here, so it never triggers from a
-description match. The bootstrap, add-resource, extend-resource, and
-add-rpc skills point at files under `references/` by relative path (`../maybloom-stack-shared/references/...` from a sibling skill).
+description match. The bootstrap, bootstrap-go, add-resource,
+extend-resource, and add-rpc skills point at files under `references/` by
+relative path (`../maybloom-stack-shared/references/...` from a sibling
+skill).
 
 The directory has two halves. Files at the top of `references/` are
 **cross-cutting**: true on every implementation. Directories under
