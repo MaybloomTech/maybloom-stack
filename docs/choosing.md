@@ -87,9 +87,10 @@ transport is identical. This means:
 - A service can be rewritten in the other language RPC-by-RPC behind its
   unchanged contract, with the old and new implementations run side by side
   during the swap.
-- Adding a Go service to a TypeScript repo (or the reverse) touches
-  `buf.gen.yaml`, the new service's directory, and the compose file.
-  Nothing else moves.
+- Adding a Go service to a TypeScript repo (or the reverse) leaves the
+  contract layer alone: a new service package under `proto/<slug>/`, a
+  plugin block in `buf.gen.yaml`, the service's own directory. What else
+  moves is below, under *When one service becomes two*.
 
 ## Signals the choice was wrong
 
@@ -104,6 +105,65 @@ transport is identical. This means:
 - Anything is being built "in both languages to compare": the contract
   already guarantees the swap is possible later; build it once, in the
   default.
+
+## When one service becomes two
+
+Everything above assumes what the scaffold builds: one repo, one backend,
+one contract, one docs site. That assumption is load-bearing in more places
+than it looks, and it is cheaper to know which ones before a second service
+arrives than during.
+
+**The seam that holds.** The proto service is the unit, and it was chosen
+for this: a second backend gets its own service package under
+`proto/<slug>/`, shares `resources/v1` and `common/v1`, and the interface
+holds a second generated client over the same transport. The contract layer
+does not change shape. Each backend still keys its exhaustiveness check off
+one service type, which is the property that makes the split safe rather
+than merely possible.
+
+**What the second service pays.** The scaffold names things in the singular
+because the first service has no reason to carry a scheme for a second —
+the same rule that keeps a type out of `common/v1` until it has two
+consumers. So the cost lands on the service that arrives second:
+
+- `packages/backend` needs a name, which forces a naming scheme on both of
+  them. The root `package.json` passthroughs (`dev:backend`,
+  `docker:backend:*`) follow it.
+- The interface exports one client over one `baseUrl`. A second service is a
+  second transport and a second URL in the environment.
+- TypeScript output stays one `protocol-buffers` package for the whole repo,
+  so every client generates the entire contract surface rather than the part
+  it calls. That is fine at two services and is the first thing to revisit
+  if it reaches several.
+- The docs site picks up the new service without being asked: it filters on
+  the repo's proto package prefix, so a second service lands on the same
+  page. That is either exactly right or the earliest signal the team has
+  outgrown one site.
+
+**What the stack has no answer for yet.** Stated as open rather than
+filled in, because none of it has been run:
+
+- *One database, or one per service.* The compose file runs a single
+  Postgres, and in a mixed repo two different migration tools would point
+  at it. Two services owning tables in one schema is a coupling the
+  contract cannot protect. `maybloom-stack-bootstrap-go` asks about this at
+  interview time and prefers separate schemas or separate databases, but
+  that is a default, not a documented outcome.
+- *How Go packages a second service.* The layout in
+  [Overview](./overview.md) is one module per repo with a `cmd/` per binary.
+  It is a reasonable default and an untested one: a module per service buys
+  independent dependency graphs and costs a shared `gen/` tree and a
+  `go.work` file. Answer this by building it, not by reasoning about it.
+- *When docs and sites should split by team.* A per-team documentation site
+  is already cheap — another site package reading a different package
+  prefix — but nothing here knows when that is an improvement rather than
+  four sites nobody reads. Ownership splitting horizontally, across
+  services rather than across layers, is the condition to watch for.
+
+The honest position: the two-service shape is blueprinted, not walked.
+Treat this section the way *Open paths* below treats languages — the rules
+hold, and the first project to go through it writes down what it actually
+cost.
 
 ## Open paths
 
