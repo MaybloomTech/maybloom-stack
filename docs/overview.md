@@ -139,6 +139,11 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
   infra/                   compose + reverse proxy for the deploy target
 ```
 
+The shape is singular on purpose: one backend, one Go module, one docs
+site. A repo that grows a second service keeps the contract layer exactly
+as it is and pays for the split elsewhere — see
+[When one service becomes two](./choosing.md#when-one-service-becomes-two).
+
 Naming that the stack treats as vocabulary, everywhere:
 
 - The client package is the **interface** — the stack's word for the human
