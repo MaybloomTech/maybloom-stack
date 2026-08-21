@@ -77,7 +77,11 @@ This enforcement ladder is intended as a guideline. It does not limit the abilit
 
 ## Who the moderators are
 
-This project has one maintainer, so "Community Moderators" above currently means [@mikeki](https://github.com/mikeki). That is worth stating plainly rather than leaving the plural to imply a panel that does not exist. If you are reporting something that involves the maintainer and would rather not send it to them directly, say so in the report and a neutral third party will be brought in to handle it.
+This project has one maintainer, so "Community Moderators" above currently means [@mikeki](https://github.com/mikeki), and both reporting channels reach that same person. Saying so is not a formality: it means there is no internal appeal, and a report about the maintainer's own conduct would otherwise be a report sent to its subject.
+
+The honest position is that a single-maintainer project cannot investigate itself. What exists instead is external: GitHub accepts [reports of abuse](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam) about a user, an organization, or a repository from anyone, and acts on them under its own Community Guidelines and Terms of Service without this project's involvement or consent. If your report concerns the maintainer, that is the route that does not run through them.
+
+If a second moderator is ever appointed, they will be named here. An unnamed neutral party is not a process.
 
 ## Scope
 
