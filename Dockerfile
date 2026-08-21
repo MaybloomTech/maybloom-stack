@@ -3,8 +3,10 @@
 #   docker build -t maybloom-stack-site .
 #   docker run --rm -p 8080:80 maybloom-stack-site
 #
-# Nothing here assumes a particular host. Where the image gets pushed and how
-# it gets served are the operator's business, not the repository's.
+# CI builds this on every push to main and pushes it to
+# ghcr.io/maybloomtech/maybloom-stack, so a deployment can pull a tag rather
+# than build from source. Nothing here still assumes a particular host: how
+# the image is served, and on whose machine, remains the operator's business.
 FROM node:24-alpine AS build
 
 RUN corepack enable
