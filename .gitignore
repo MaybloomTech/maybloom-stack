@@ -7,3 +7,8 @@ dist/
 .env.local
 .DS_Store
 *.log
+
+# Tool scratch directories. These are written into automatically, so they
+# are ignored rather than merely untracked: an untracked directory is one
+# `git add -A` away from being published.
+.playwright-mcp/

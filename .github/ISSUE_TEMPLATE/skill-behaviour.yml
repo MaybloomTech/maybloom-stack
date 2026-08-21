@@ -1,0 +1,40 @@
+name: A skill did the wrong thing
+description: A maybloom-stack skill triggered when it shouldn't have, failed to trigger, or produced output that breaks the conventions.
+labels: ["skill"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Skills are read by an agent, so the two things that matter most are
+        what you asked for and what the agent then did.
+  - type: input
+    id: skill
+    attributes:
+      label: Which skill
+      placeholder: maybloom-stack-add-resource
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: What you asked
+      description: The prompt, as close to verbatim as you have it.
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What it did, and what you expected instead
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which kind of failure
+      options:
+        - It ran when a different skill should have
+        - It did not run when it should have
+        - It ran, but the output breaks a stack convention
+        - It sent me to a reference that does not exist
+    validations:
+      required: true

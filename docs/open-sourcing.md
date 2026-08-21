@@ -92,3 +92,61 @@ Apache-2.0 across the docs, the site, and the skills. A single license for the
 whole repository is easier to reason about than a split between code and prose,
 and the patent grant matters more for the skills than a documentation-only
 license would.
+
+## Going public
+
+Publishing is `git push`, but four settings only become available or only
+start mattering the moment the repository is visible. They are listed here
+because each is easy to forget and awkward to notice missing.
+
+**Branch protection on `main`.** GitHub gates protection rules behind a
+paid plan for private repositories, so this cannot be applied in advance;
+it is the first thing to do after flipping visibility. All three checks
+already run on every pull request and are named exactly as they appear
+below:
+
+```sh
+gh api -X PUT repos/MaybloomTech/maybloom-stack/branches/main/protection \
+  --input - <<'JSON'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": [
+      "Validate commit messages",
+      "Validate PR title",
+      "Validate skill tree coverage"
+    ]
+  },
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "enforce_admins": true,
+  "required_linear_history": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "restrictions": null
+}
+JSON
+```
+
+Zero required approvals is deliberate rather than an oversight: a single
+maintainer cannot approve their own pull request, and a rule that cannot
+be satisfied is a rule that gets disabled. The checks are what actually
+gate the merge, and `enforce_admins` keeps them binding on the maintainer
+too.
+
+**Private vulnerability reporting.** `SECURITY.md` tells people to open a
+private advisory, which only works if the feature is switched on:
+
+```sh
+gh api -X PUT repos/MaybloomTech/maybloom-stack/private-vulnerability-reporting
+```
+
+**Dependabot.** `.github/dependabot.yml` is already in the repository and
+starts running once the repository can reach the service. Its commit
+prefixes are set so its pull requests pass the Conventional Commits
+checks; if that ever stops being true, the symptom is every Dependabot PR
+failing on its title.
+
+**The marketplace instructions.** The `/plugin` install lines in
+`skills/README.md` clone this repository by URL. They only work for anyone
+other than the maintainer once it is public, so they are worth trying from
+a fresh machine as the last step.

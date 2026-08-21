@@ -1,0 +1,37 @@
+The Maybloom Stack
+Copyright 2026 Maybloom
+
+Licensed under the Apache License, Version 2.0. The full text is in the
+LICENSE file at the root of this repository.
+
+------------------------------------------------------------------------
+
+Code of Conduct
+
+CODE_OF_CONDUCT.md is adapted from the Contributor Covenant 3.0, which is
+stewarded by the Organization for Ethical Source and licensed under
+CC BY-SA 4.0 rather than Apache-2.0. That file therefore carries its own
+license, stated in its attribution section; everything else in this
+repository is Apache-2.0.
+
+------------------------------------------------------------------------
+
+Fonts
+
+The documentation site under site/ bundles three typefaces into its built
+output, so their attribution travels with what it publishes. Each is
+licensed under the SIL Open Font License 1.1, which requires this notice
+to accompany the font files:
+
+  IBM Plex Mono   Copyright 2017 IBM Corp., with Reserved Font Name "Plex"
+                  https://github.com/IBM/plex
+
+  Inter Tight     Copyright 2022 The Inter Project Authors
+                  https://github.com/rsms/inter-tight
+
+  Source Serif 4  Copyright 2014-2023 Adobe, with Reserved Font Name
+                  "Source"
+                  https://github.com/adobe-fonts/source-serif
+
+Each package ships the full OFL-1.1 text; it is installed with the font
+under node_modules/@fontsource/ and is not vendored into this repository.
