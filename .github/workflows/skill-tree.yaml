@@ -13,7 +13,7 @@ jobs:
     name: Validate skill tree coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The tree is a claim about what the skills can do without reading an
       # outside codebase. This fails when the picture, the manifest, and the
       # reference files stop agreeing.
