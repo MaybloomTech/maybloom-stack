@@ -6,6 +6,8 @@ the stack was extracted from is needed to work on it. If you find a
 document or skill that only makes sense to someone who can read that
 private codebase, that is a defect worth reporting on its own.
 
+Participation is governed by the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
 ## The one rule that orders everything else
 
 **Documents define intent, skills follow.** When the docs, the skills, and

@@ -6,6 +6,16 @@ LICENSE file at the root of this repository.
 
 ------------------------------------------------------------------------
 
+Code of Conduct
+
+CODE_OF_CONDUCT.md is adapted from the Contributor Covenant 3.0, which is
+stewarded by the Organization for Ethical Source and licensed under
+CC BY-SA 4.0 rather than Apache-2.0. That file therefore carries its own
+license, stated in its attribution section; everything else in this
+repository is Apache-2.0.
+
+------------------------------------------------------------------------
+
 Fonts
 
 The documentation site under site/ bundles three typefaces into its built

@@ -2,10 +2,14 @@
 
 ## Reporting a vulnerability
 
-Report privately through GitHub: open the **Security** tab on this
-repository and choose **Report a vulnerability**. That opens a private
-advisory visible only to the maintainers, which is the right channel for
-anything you would not want in a public issue.
+Two private channels, both reaching the same person:
+
+- **GitHub** — open the **Security** tab on this repository and choose
+  **Report a vulnerability**. This opens a private advisory and is the
+  better channel for anything with a patch attached, since the discussion
+  and the fix stay together.
+- **Email** — **hello@maybloom.tech**, if you would rather not use GitHub
+  or do not have an account.
 
 Please do not open a public issue for a suspected vulnerability. If you
 are unsure whether something qualifies, report it privately and we will
