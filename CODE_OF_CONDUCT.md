@@ -79,7 +79,11 @@ This enforcement ladder is intended as a guideline. It does not limit the abilit
 
 This project has one maintainer, so "Community Moderators" above currently means [@mikeki](https://github.com/mikeki), and both reporting channels reach that same person. Saying so is not a formality: it means there is no internal appeal, and a report about the maintainer's own conduct would otherwise be a report sent to its subject.
 
-The honest position is that a single-maintainer project cannot investigate itself. What exists instead is external: GitHub accepts [reports of abuse](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam) about a user, an organization, or a repository from anyone, and acts on them under its own Community Guidelines and Terms of Service without this project's involvement or consent. If your report concerns the maintainer, that is the route that does not run through them.
+A single-maintainer project cannot investigate itself, so for that case there are two routes and the choice belongs to the reporter.
+
+**Raise it publicly.** Open an issue and say what happened. The maintainer's commitment is to engage with it in the open — not to delete it, hide it, lock it, or move it somewhere quieter. Confidentiality in the section above exists to protect reporters, so a reporter may waive it; a complaint about the person holding the moderator role is one of the few where publishing it is itself the accountability, and it is a legitimate first choice here rather than a last resort.
+
+**Report it to GitHub.** [Reports of abuse](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam) about a user, an organization, or a repository are accepted from anyone and acted on under GitHub's own Community Guidelines, without this project's involvement or consent. This is the route that still works if the commitment above is not kept.
 
 If a second moderator is ever appointed, they will be named here. An unnamed neutral party is not a process.
 
