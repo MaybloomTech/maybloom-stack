@@ -1,6 +1,6 @@
 <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="st-title st-desc">
   <title id="st-title">The maybloom skill tree</title>
-  <desc id="st-desc">The contract (protobuf + Connect-RPC) sits at the root. Two limbs rise from it: servers and clients. Validated paths glow green — the TypeScript backend (the default), the Expo interface shipping to iOS, Android and web, and Astro for static public surfaces. The Go backend is amber: validating. Kotlin, python and swiftui wait as dashed open paths.</desc>
+  <desc id="st-desc">The contract (protobuf + Connect-RPC) sits at the root. Two limbs rise from it: servers and clients. Validated paths glow green — the TypeScript backend (the default), the Expo interface shipping to iOS, Android and web, and Astro for static public surfaces. The Go backend is amber: validating. kotlin, python, rust, swiftui and flutter wait as dashed open paths.</desc>
   <style>
     text { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
            paint-order: stroke; stroke: #14181a; stroke-width: 3.5px; stroke-linejoin: round; }
@@ -62,6 +62,8 @@
     <path d="M 308 440 Q 210 345 156 247"/>
     <path d="M 314 438 Q 270 300 271 181"/>
     <path d="M 653 432 Q 740 340 786 241"/>
+    <path d="M 316 438 Q 300 270 417 160"/>
+    <path d="M 658 436 Q 987 418 888 208"/>
   </g>
   <!-- expo -> platform dots -->
   <g stroke="#57c9a6" stroke-width="1.2" fill="none" opacity="0.5" stroke-linecap="round">
@@ -119,6 +121,10 @@
   <text class="name-dim" x="288" y="174">python</text>
   <circle cx="790" cy="230" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
   <text class="name-dim" x="808" y="234">swiftui</text>
+  <circle cx="425" cy="150" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="name-dim" x="443" y="154">rust</text>
+  <circle cx="884" cy="193" r="9" fill="none" stroke="rgba(231,236,232,0.4)" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="name-dim" x="860" y="197" text-anchor="end">flutter</text>
 
   <!-- the core -->
   <path d="M 480 466 l 39.8 23 v 46 l -39.8 23 l -39.8 -23 v -46 Z" fill="#0d1210" stroke="#57c9a6" stroke-width="1.8" filter="url(#glow)"/>

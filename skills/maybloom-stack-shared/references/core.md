@@ -22,9 +22,10 @@ the system speaks. Everything else in the stack radiates from this:
 - Backend and client evolve together in one monorepo, in one change,
   with backwards compatibility governed by written field-number rules.
 - The implementation on either side of the wire is replaceable. Connect
-  has official implementations for Go, TypeScript/JavaScript, Swift, and
-  Kotlin, with more maturing — and a Connect server also speaks gRPC and
-  gRPC-Web, so any language with gRPC support can join the contract.
+  has official implementations for Go, TypeScript/JavaScript, Swift,
+  Kotlin, Python, Dart and Rust, at varying maturity — and a Connect
+  server also speaks gRPC and gRPC-Web, so any language with gRPC
+  support can join the contract.
 
 A project that keeps this decision and swaps everything else is still on
 the stack. A project that keeps Fastify and Expo but hand-writes its API
@@ -101,13 +102,16 @@ call it something else. The tiers matter, the names don't.
 ## The open-path protocol
 
 When the user wants an implementation with no validated reference (a
-SwiftUI client, a Kotlin service, a Python worker, a different web
-framework), don't refuse and don't force the defaults. Proceed:
+Flutter client, a Rust or Kotlin service, a Python worker, a different
+web framework), don't refuse and don't force the defaults. Proceed:
 
 1. **Establish the Connect story.** Check whether the language has an
    official Connect implementation; if not, gRPC or gRPC-Web support
    reaches a Connect server just as well. Wire the language's plugin
-   into `buf.gen.yaml` with a gitignored output directory.
+   into `buf.gen.yaml` with a gitignored output directory. Where an
+   implementation's own docs recommend committing generated code — as
+   connect-rust's does — rule 2 wins: find its build-time codegen path
+   instead (for Rust, `connectrpc-build` driven from a `build.rs`).
 2. **Find the exemplar.** Ask the user for code sources they like — an
    existing repo, a style they want to keep. On a validated path the
    per-layer references are the exemplar; on an open path the user's own
