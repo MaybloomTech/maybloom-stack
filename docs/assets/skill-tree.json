@@ -54,6 +54,8 @@
     },
     { "id": "kotlin", "label": "kotlin", "limb": "servers", "status": "open" },
     { "id": "python", "label": "python", "limb": "servers", "status": "open" },
-    { "id": "swiftui", "label": "swiftui", "limb": "clients", "status": "open" }
+    { "id": "rust", "label": "rust", "limb": "servers", "status": "open" },
+    { "id": "swiftui", "label": "swiftui", "limb": "clients", "status": "open" },
+    { "id": "flutter", "label": "flutter", "limb": "clients", "status": "open" }
   ]
 }

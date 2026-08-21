@@ -14,7 +14,7 @@ public surfaces. These are defaults of experience, not requirements —
 Connect speaks many languages, and the stack is built to keep opening new
 paths as they are walked and written down.
 
-![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python and swiftui waiting as dashed open paths](./docs/assets/skill-tree.svg)
+![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./docs/assets/skill-tree.svg)
 
 Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**.
 

@@ -169,12 +169,25 @@ cost.
 
 The runtimes above are the validated paths — documented because they have
 been built and run for real. They are not the boundary of the stack. The
-core travels further: Connect has official implementations for Go,
-TypeScript/JavaScript, Swift, and Kotlin, with more maturing, and a
-Connect server also speaks gRPC and gRPC-Web, so any language with gRPC
-support can join the contract. A SwiftUI client, a Kotlin service, a
-Python worker — each consumes the same protos and looks, to the rest of
-the system, exactly like a validated implementation.
+core travels further: a language with an official Connect implementation
+joins the contract as a first-class citizen, and a Connect server also
+speaks gRPC and gRPC-Web, so a language with only gRPC support reaches it
+too. A SwiftUI client, a Kotlin service, a Python worker — each consumes
+the same protos and looks, to the rest of the system, exactly like a
+validated implementation.
+
+| Implementation | Upstream status | What it would be here |
+|---|---|---|
+| Go, TypeScript/JavaScript | stable, in production | the validated paths above |
+| Swift | stable | a SwiftUI client |
+| Kotlin | beta | an Android client, or a JVM service |
+| Python | beta | a worker, or an ML-adjacent service |
+| Dart | official, arrived through RFC 004 | a Flutter client — below |
+| Rust | official, arrived through RFC 007, pre-1.0 | a systems backend — below |
+
+Those are upstream's own words as of August 2026, and the two at the
+bottom are the newest. Check the status before leaning on one: "beta" and
+"pre-1.0" are claims with dates on them.
 
 Choosing an open path means carrying the core and writing the blueprint
 as you go: the contract rules from [Contracts](./contracts.md), the layer
@@ -189,3 +202,53 @@ A path stops being open the day it has been walked far enough to
 document; that is how the stack grows. The Go backend is partway through
 that passage — blueprinted from study, awaiting its first production
 service — and the next path will enter the same way.
+
+### Flutter clients, in Dart
+
+`connectrpc/connect-dart` is an official implementation and the pub
+package is `connectrpc`. Codegen takes the same two-plugin shape Go does —
+one plugin for the messages, one for the clients:
+
+```yaml
+# buf.gen.yaml
+plugins:
+  - remote: buf.build/protocolbuffers/dart   # messages: *.pb.dart
+    out: <flutter-package>/lib/gen
+  - remote: buf.build/connectrpc/dart        # clients: *.connect.client.dart
+    out: <flutter-package>/lib/gen
+```
+
+Three transports are available: Connect over HTTP/1.1 (the default), gRPC
+(which needs the `http2` package), and gRPC-Web. On the web the client is
+fetch-based through `dart:js_interop` and carries unary and
+server-streaming RPCs only — a limitation that never binds here, because
+the stack is unary-only for exactly the reason the Expo interface is.
+
+What is not settled is where the package lives. Flutter resolves through
+pub, not through the pnpm workspace, so a Flutter client is the first real
+instance of the mixed-language packaging question raised in *When one
+service becomes two*. Nothing here knows yet whether it belongs under
+`packages/` as a non-node sibling, at the repo root beside `go/`, or
+somewhere else.
+
+### Rust servers
+
+`connectrpc/connect-rust` is an official implementation built on Tower, so
+it drops into Axum or Hyper. It passes the full Connect conformance suite
+across all three protocols and runs in production, but it is pre-1.0 and
+says its API may still shift. The crates are `connectrpc` (the runtime),
+`protoc-gen-connect-rust` (codegen), `connectrpc-build` (build.rs
+integration), and `connectrpc-health` / `connectrpc-reflection` for the
+standard services. It wants Rust 1.88 or newer.
+
+One upstream default has to be overridden to stay on the stack.
+connect-rust recommends running `buf generate` and checking the output in;
+this stack's second core rule is that generated code is never committed.
+Use `connectrpc-build` from a `build.rs` instead. It regenerates at build
+time, which puts Rust on the same footing as every other language here:
+the generated edge is a build product, and a stale checkout cannot compile
+against a contract that has moved.
+
+Where the crate lives is the open question the Go module already has — one
+workspace with a crate per service, or a crate per service standing alone.
+It has the same answer: build it before deciding.
