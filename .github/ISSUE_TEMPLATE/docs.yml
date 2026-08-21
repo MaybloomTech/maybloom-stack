@@ -1,0 +1,21 @@
+name: A document is wrong or unclear
+description: Something in docs/ is inaccurate, contradicts another document, or assumes access to a codebase you cannot read.
+labels: ["docs"]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Which document
+      placeholder: docs/choosing.md, the "When one service becomes two" section
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: |
+        If two documents disagree, name both. If a document claims something
+        that has not been built, say so — the stack marks unwalked paths on
+        purpose, and a claim that outran the work is a defect worth fixing.
+    validations:
+      required: true

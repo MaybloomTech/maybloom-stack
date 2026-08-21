@@ -1,0 +1,29 @@
+version: 2
+
+updates:
+  # Conventional Commits are enforced by CI on both the PR title and every
+  # commit message, so the prefix here is not cosmetic: without it every
+  # Dependabot pull request fails the title check before anyone looks at it.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # A solo maintainer reviewing eight separate patch bumps is how
+      # updates stop getting reviewed. Minor and patch move together.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope

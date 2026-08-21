@@ -31,6 +31,12 @@ Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**.
 9. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
 10. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
+## Contributing
+
+[CONTRIBUTING.md](./CONTRIBUTING.md) covers the setup, what CI enforces,
+and how a path joins the skill tree. Security issues go through a private
+advisory rather than an issue — see [SECURITY.md](./SECURITY.md).
+
 ## What is in here
 
 | Directory | Contents |
