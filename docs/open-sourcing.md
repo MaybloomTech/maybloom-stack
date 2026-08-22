@@ -128,6 +128,12 @@ gh api -X PUT repos/MaybloomTech/maybloom-stack/branches/main/protection \
 JSON
 ```
 
+`Build the site image` is deliberately absent from that list even though it
+runs on pull requests. It is path-filtered, so on a pull request that
+touches neither the site nor the Dockerfile it never runs at all — and a
+required check that never runs leaves the pull request pending forever
+rather than passing.
+
 Zero required approvals is deliberate rather than an oversight: a single
 maintainer cannot approve their own pull request, and a rule that cannot
 be satisfied is a rule that gets disabled. The checks are what actually
