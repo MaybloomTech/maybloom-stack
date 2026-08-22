@@ -101,7 +101,30 @@ Walk the user through the post-bootstrap checklist. Don't run any of these
 yourself unless the user asks — they involve installing thousands of
 packages and spinning up dev servers.
 
-1. **Install + initial codegen.** From the project root:
+1. **Refresh the dependency catalog.** The catalog in
+   `pnpm-workspace.yaml` is the last set known to build together, not the
+   current one — nothing updates a template, so it is stale by however long
+   it has been since anyone edited it. Raise each entry to the current
+   published version before installing (`npm view <name> version` gives it),
+   with two exceptions that are ceilings rather than preferences:
+
+   | Package | Ceiling | Why |
+   |---|---|---|
+   | `typescript` | stay below 7 | 7 is the native compiler and does not expose the programmatic API `astro check` is built on, so `pnpm typecheck` fails outright. Track withastro/roadmap#1321. |
+   | `react`, `react-dom`, `@types/react` | the major Expo pins | React Native fixes the React major for the whole Expo SDK. React moves when Expo moves, never ahead of it. |
+
+   Check whether those reasons still hold rather than applying them by
+   habit; both are claims with dates on them, and a ceiling whose reason has
+   expired should be deleted, not inherited. If the user wants the scaffold
+   reproducible instead of current, skip this step and say so — the floor
+   builds, it is just older.
+
+   Do not resolve everything to latest without the ceilings. At the time of
+   writing `npm view typescript version` returns a major that breaks
+   `astro check`, so a project scaffolded that way ships with a broken
+   typecheck on day one.
+
+2. **Install + initial codegen.** From the project root:
 
    ```bash
    pnpm install
@@ -113,7 +136,7 @@ packages and spinning up dev servers.
    compiles the descriptor set the docs site renders, and builds the
    packages.
 
-2. **Generate the initial DB migration.** The skill ships a Drizzle schema
+3. **Generate the initial DB migration.** The skill ships a Drizzle schema
    for `Note` but no migration file (those are environment-specific):
 
    ```bash
@@ -122,7 +145,7 @@ packages and spinning up dev servers.
 
    Drizzle-kit writes `drizzle/0000_*.sql`. Commit it.
 
-3. **Run the backend.** Defaults to PGlite at `./.dev-db/<slug>` — no
+4. **Run the backend.** Defaults to PGlite at `./.dev-db/<slug>` — no
    Docker required:
 
    ```bash
@@ -132,7 +155,7 @@ packages and spinning up dev servers.
    Should log `[database] Connection healthy` and start listening on
    `http://localhost:3000`. Hit `/healthz` to confirm.
 
-4. **Run the interface.** In another terminal:
+5. **Run the interface.** In another terminal:
 
    ```bash
    pnpm dev:interface
@@ -141,7 +164,7 @@ packages and spinning up dev servers.
    Open the Expo dev menu (web is fastest for verification). The home
    screen renders the example notes list with create + delete.
 
-5. **Run the docs site.** In another terminal:
+6. **Run the docs site.** In another terminal:
 
    ```bash
    pnpm dev:docs-site
@@ -153,7 +176,7 @@ packages and spinning up dev servers.
    is hand-written, which is the point — edit a comment in `proto/`,
    refresh, and the page has changed.
 
-6. **Initialize git.** The scaffolder doesn't `git init` — let the user
+7. **Initialize git.** The scaffolder doesn't `git init` — let the user
    do that explicitly so they own the first commit.
 
 ## Reference: framework concepts the user is now responsible for
