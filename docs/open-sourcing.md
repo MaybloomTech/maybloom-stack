@@ -146,6 +146,13 @@ prefixes are set so its pull requests pass the Conventional Commits
 checks; if that ever stops being true, the symptom is every Dependabot PR
 failing on its title.
 
+**The published image's visibility.** A package's visibility is tracked
+separately from the repository's, so a public repo can still publish a
+package nobody else can pull. After the first successful `Publish image`
+run, open the package from the repository's Packages section and confirm it
+is public; the symptom otherwise is `docker pull` failing with an
+authentication error for everyone but the maintainer.
+
 **The marketplace instructions.** The `/plugin` install lines in
 `skills/README.md` clone this repository by URL. They only work for anyone
 other than the maintainer once it is public, so they are worth trying from

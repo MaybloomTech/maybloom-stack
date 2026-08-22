@@ -16,7 +16,12 @@ paths as they are walked and written down.
 
 ![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./docs/assets/skill-tree.svg)
 
-Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**.
+Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**, or run it
+yourself — every push to `main` publishes the site as a container image:
+
+```sh
+docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
+```
 
 ## The documents
 
