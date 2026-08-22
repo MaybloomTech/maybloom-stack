@@ -77,7 +77,7 @@ jobs:
             org.opencontainers.image.title=Maybloom Stack documentation site
             org.opencontainers.image.description=The maybloom stack documents, rendered as a static site.
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           # A pull request proves the image builds; only main publishes it.
