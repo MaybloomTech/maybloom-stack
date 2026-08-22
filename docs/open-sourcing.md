@@ -112,6 +112,7 @@ gh api -X PUT repos/MaybloomTech/maybloom-stack/branches/main/protection \
   "required_status_checks": {
     "strict": true,
     "contexts": [
+      "Build the site",
       "Validate commit messages",
       "Validate PR title",
       "Validate skill tree coverage"
