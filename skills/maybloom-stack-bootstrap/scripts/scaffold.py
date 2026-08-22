@@ -114,6 +114,15 @@ def scaffold(templates: Path, out: Path, subs: dict[str, str]) -> None:
     # Docs site: the worked example of a static site built from the contract.
     copy_tree(templates / "site", out / "packages" / "docs-site", subs)
 
+    # The catalog resolver travels with the project rather than staying in the
+    # skill: the versions it writes are the project's to move afterwards, and
+    # re-running it is how the whole workspace steps forward at once.
+    resolver = Path(__file__).resolve().parent / "resolve-catalog.py"
+    dst = out / "scripts" / "resolve-catalog.py"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(resolver.read_text(encoding="utf-8"), encoding="utf-8")
+    dst.chmod(0o755)
+
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

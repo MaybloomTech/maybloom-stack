@@ -101,7 +101,24 @@ Walk the user through the post-bootstrap checklist. Don't run any of these
 yourself unless the user asks — they involve installing thousands of
 packages and spinning up dev servers.
 
-1. **Install + initial codegen.** From the project root:
+1. **Resolve the dependency catalog.** The scaffold ships an empty catalog
+   on purpose — pinned templates go stale silently, because nothing watches
+   a `.tmpl` file. Resolve it against the registry first, from the project
+   root:
+
+   ```bash
+   python3 scripts/resolve-catalog.py > pnpm-workspace.yaml
+   ```
+
+   This writes current versions for everything, except where a package
+   carries a known ceiling: those are recorded in the script with the reason
+   attached, because a bare version number is a constraint whose reason has
+   been forgotten. Read the comments it emits — each one is a claim with a
+   date on it, and a ceiling whose reason has expired should be removed
+   rather than inherited. `catalog:` references in the package manifests
+   cannot resolve until this has run, so it comes before install.
+
+2. **Install + initial codegen.** From the project root:
 
    ```bash
    pnpm install
@@ -113,7 +130,7 @@ packages and spinning up dev servers.
    compiles the descriptor set the docs site renders, and builds the
    packages.
 
-2. **Generate the initial DB migration.** The skill ships a Drizzle schema
+3. **Generate the initial DB migration.** The skill ships a Drizzle schema
    for `Note` but no migration file (those are environment-specific):
 
    ```bash
@@ -122,7 +139,7 @@ packages and spinning up dev servers.
 
    Drizzle-kit writes `drizzle/0000_*.sql`. Commit it.
 
-3. **Run the backend.** Defaults to PGlite at `./.dev-db/<slug>` — no
+4. **Run the backend.** Defaults to PGlite at `./.dev-db/<slug>` — no
    Docker required:
 
    ```bash
@@ -132,7 +149,7 @@ packages and spinning up dev servers.
    Should log `[database] Connection healthy` and start listening on
    `http://localhost:3000`. Hit `/healthz` to confirm.
 
-4. **Run the interface.** In another terminal:
+5. **Run the interface.** In another terminal:
 
    ```bash
    pnpm dev:interface
@@ -141,7 +158,7 @@ packages and spinning up dev servers.
    Open the Expo dev menu (web is fastest for verification). The home
    screen renders the example notes list with create + delete.
 
-5. **Run the docs site.** In another terminal:
+6. **Run the docs site.** In another terminal:
 
    ```bash
    pnpm dev:docs-site
@@ -153,7 +170,7 @@ packages and spinning up dev servers.
    is hand-written, which is the point — edit a comment in `proto/`,
    refresh, and the page has changed.
 
-6. **Initialize git.** The scaffolder doesn't `git init` — let the user
+7. **Initialize git.** The scaffolder doesn't `git init` — let the user
    do that explicitly so they own the first commit.
 
 ## Reference: framework concepts the user is now responsible for
