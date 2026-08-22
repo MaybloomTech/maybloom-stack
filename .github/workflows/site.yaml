@@ -1,0 +1,31 @@
+name: Site
+
+# The gate that was missing. Three checks already lint how a change is
+# described; none of them built anything, so a dependency bump that broke
+# `astro check` merged green. This runs the two commands that would have
+# caught it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Build first: it is the cheaper failure and the one that means the
+      # site is broken rather than merely unverifiable.
+      - run: pnpm build
+      - run: pnpm typecheck
