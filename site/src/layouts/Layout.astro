@@ -16,9 +16,11 @@ import ThemeScript from '~/components/ThemeScript.astro';
 interface Props {
   title?: string;
   description?: string;
+  /** Keep the page out of search results (the 404 page, served at any URL). */
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, noindex = false } = Astro.props;
 const siteName = 'The Maybloom Stack';
 const fullTitle = title ? `${title} · ${siteName}` : siteName;
 const desc =
@@ -55,6 +57,7 @@ const analyticsEnabled = Boolean(analyticsScript && analyticsSiteId);
 
     <title>{fullTitle}</title>
     <meta name="description" content={desc} />
+    {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={desc} />
     <meta property="og:type" content="website" />
