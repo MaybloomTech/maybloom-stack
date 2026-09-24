@@ -1,0 +1,79 @@
+---
+/**
+ * Served by nginx for any path that does not exist (`error_page 404` in
+ * nginx.conf), at the URL that was asked for, so every link here is
+ * absolute. Astro emits it as /404.html; the sitemap leaves it out.
+ */
+import { getCollection } from 'astro:content';
+import Layout from '~/layouts/Layout.astro';
+
+const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data.order);
+---
+<Layout title="Page not found" description="There is no page at this address." noindex>
+  <main>
+    <section class="frame missing">
+      <p class="eyebrow">404</p>
+      <h1 class="serif">There is no page at this address.</h1>
+      <p class="lede">The link may be old, or the address may have a typo. The documents are listed here in reading order.</p>
+      <div class="actions">
+        <a class="cta" href="/">Back to the home page</a>
+        <a class="cta quiet" href="/docs/overview">Start with the overview</a>
+      </div>
+    </section>
+
+    <section class="frame docs-index">
+      <ol class="doc-list">
+        {docs.map((doc) => (
+          <li>
+            <a href={`/docs/${doc.id}`}>
+              <span class="doc-num">{doc.data.order}</span>
+              <span class="doc-title serif">{doc.data.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .missing { padding: 84px 32px 0; }
+  .missing h1 {
+    margin-top: 20px;
+    font-weight: 400; font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .lede {
+    margin-top: 22px; max-width: 640px;
+    font-size: 18px; line-height: 1.7; color: var(--ink-2);
+    text-wrap: pretty;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+  .cta {
+    display: inline-block;
+    font-size: 14.5px; font-weight: 500;
+    color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 999px; padding: 11px 22px;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .cta:hover { background: var(--accent); color: var(--bg); }
+  .cta.quiet { color: var(--ink-2); border-color: var(--line); }
+  .cta.quiet:hover { background: var(--accent-tint); color: var(--accent); border-color: var(--accent); }
+
+  .docs-index { padding-top: 56px; }
+  .doc-list { padding: 0; list-style: none; }
+  .doc-list li { border-top: 1px solid var(--line-soft); }
+  .doc-list li:last-child { border-bottom: 1px solid var(--line-soft); }
+  .doc-list a {
+    display: grid; grid-template-columns: 28px 1fr;
+    align-items: baseline; gap: 18px; padding: 14px 6px;
+    transition: background 0.15s ease;
+  }
+  .doc-list a:hover { background: var(--accent-tint); }
+  .doc-num { font-size: 14px; color: var(--ink-3); }
+  .doc-title { font-size: 19px; font-weight: 500; }
+
+  @media (max-width: 720px) {
+    .missing { padding-top: 56px; }
+  }
+</style>
