@@ -48,9 +48,15 @@ the contract this skill just created.
 
 The same logic extends past Go, because the stack's core is the contract,
 not the frameworks around it (see
-`../maybloom-stack-shared/references/core.md`). The scaffolded TypeScript
-backend and Expo interface are validated defaults; when the user has no
-stated preference, scaffold them without ceremony. When the user *does*
+`../maybloom-stack-shared/references/core.md`). The scaffolded Expo
+interface is the validated default client. The scaffolded TypeScript
+backend is a validated path, but since September 2026 the stack's default
+backend is Go: when the user has no stated preference, scaffold the
+monorepo, then hand off to `maybloom-stack-bootstrap-go` for the backend
+and remove `packages/backend` (say so in the plan; a Go-first scaffold is
+a pending change to this skill). Scaffold the TypeScript backend when the
+user asks for it or when one language across the loop is their stated
+reason. When the user *does*
 want a different client or server technology — another Connect-RPC
 language, a different UI framework, code sources of their own they want
 to keep using — don't turn them away and don't force the defaults:

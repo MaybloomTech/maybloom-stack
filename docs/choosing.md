@@ -15,8 +15,8 @@ applies.
 | Workload | Runtime |
 |---|---|
 | Public content known at build time | Astro site |
-| Product CRUD the interface talks to | TypeScript backend (Fastify) |
-| Daemons, ingestion, concurrency, constrained hardware | Go backend |
+| A service the interface talks to | Go backend (the default) |
+| A service where one language across the loop matters most | TypeScript backend (Fastify) |
 
 ## Astro: is it content?
 
@@ -30,51 +30,55 @@ auth, or live data, it stops being a site. Resist the temptation to sprinkle
 API calls into a site; that need is the signal a backend service and an
 interface screen exist for.
 
-## Fastify: is it the product?
+## Go: is it a service?
 
-The TypeScript backend is the default for application logic, and the word
-default is doing real work: choose it unless a specific pressure pushes to
-Go. What it buys:
+The Go backend is the default for anything the interface talks to, and
+the word default is doing real work: choose it unless a specific pressure
+pushes to TypeScript. It became the default in September 2026, once two
+services had walked the path and the reference implementation itself had
+restarted on it. What it buys:
 
-- **One language across the whole loop.** The person editing a store, a
-  handler, and the screen that calls it stays in TypeScript, with the
-  contract generating both ends.
-- **The best dev database in the business.** PGlite gives a real Postgres
-  embedded in-process: clone, install, run. No other runtime matches this
-  today.
-- **Iteration speed.** tsx watch, one process, seeded dev data, and a
-  type error anywhere in the pipeline stops the build.
+- **One binary, one container.** Embedded migrations, the web export
+  served from the same process if you want it, a 33 MB image, no
+  node_modules in production, instant start.
+- **The compiler as the checklist, all the way down.** The generated
+  handler interface makes a missing RPC a build failure; sqlc makes a
+  wrong query a generate failure; protovalidate keeps input rules in the
+  contract so handlers have nothing left to check.
+- **The workload shapes Go was always for.** Long-running daemons,
+  fan-out to many devices or APIs, streaming aggregation, small hardware.
+  These used to be the reasons to reach past the default; now they are
+  the default's home ground.
+- **A thin backend over other systems.** The reference implementation is
+  a backend-for-frontend with near-zero own state over a photo library,
+  an identity provider and a task board. Go's stdlib HTTP client, its
+  concurrency, and its footprint fit that shape exactly.
 
-CRUD over Postgres, session auth, media upload, scheduled reminders, the
-occasional fan-out: all of this is comfortably inside Fastify's envelope on
-a single box.
+The costs, stated plainly: a second toolchain in a repo whose interface is
+TypeScript, a second set of idioms to hold, and a dev database that is a
+container rather than an in-process library. The contract keeps both
+small: a generated client cannot tell the languages apart.
 
-## Go: does the runtime matter?
+## TypeScript: when one language wins
 
-Choose Go when the workload's shape, rather than its logic, is the hard
-part. Concrete signals, any one of which is sufficient:
+Choose the TypeScript backend when a specific pressure makes one language
+across the whole loop worth more than the Go defaults above:
 
-- **It runs forever and must sip resources.** Sensor ingestion polling a
-  hardware API every minute, an MQTT consumer, a webhook receiver on the LAN.
-  A static binary with a few dozen megabytes of RSS, deployed once and
-  forgotten, is Go's home turf.
-- **Concurrency is the feature.** Fanning out to many devices or APIs at
-  once, streaming aggregation, backpressure. Goroutines and errgroup model
-  this more directly than a Node event loop.
-- **The hardware is small.** A service destined for a Pi or a
-  low-power box benefits from Go's footprint and instant start.
-- **The service is being ported from Go.** An existing Go system joining
-  the stack keeps its language and adopts the contract, the layer
-  discipline, and the tooling.
-- **Deploy simplicity is worth more than iteration speed.** One
-  self-contained binary with embedded migrations, no node_modules, no
-  runtime image beyond a base layer.
+- **The same person edits the store, the handler and the screen** all
+  day, and switching languages per layer is the real cost.
+- **PGlite matters.** A real Postgres embedded in-process, clone, install,
+  run, no container. No other runtime matches this today.
+- **An existing TypeScript backend** joins the stack. Keep the language,
+  adopt the contract, the layer discipline and the tooling.
+- **Iteration speed on product CRUD beats deploy simplicity** for this
+  service, and the team knows it does.
 
-The costs, stated plainly: a second toolchain in the repo, a second set of
-idioms to hold, and a dev database story (embedded-postgres) that is good
-rather than magical. A team of two should pay these costs for a workload
-that earns them, and the moment it does, the contract makes the payment
-small.
+It is a validated path in production, not a fallback: the blueprint in
+[Backend: TypeScript](./backend-typescript.md) is complete and the
+bootstrap skill still scaffolds it. A Go-first scaffold is the next
+change to the skills, and until it lands a new Go-backed repo is
+`maybloom-stack-bootstrap` followed by `maybloom-stack-bootstrap-go`,
+with the TypeScript backend package removed.
 
 ## The rule that makes the choice cheap
 
@@ -99,9 +103,9 @@ transport is identical. This means:
 - A Fastify service spends its life in `Promise.all` batches babysitting
   CPU-bound or fan-out work, or its container restarts for memory: that
   service is asking to be Go.
-- A Go service is churning weekly with product CRUD changes that mirror
-  interface work item-for-item: it is paying Go's iteration cost for a
-  Fastify-shaped job.
+- A Go service's every change is a matching interface change by the same
+  person, and the language switch is what slows them: that is the
+  TypeScript pressure, and it is worth naming rather than enduring.
 - Anything is being built "in both languages to compare": the contract
   already guarantees the swap is possible later; build it once, in the
   default.
@@ -199,9 +203,9 @@ language-neutral core reference and take the project's existing code as
 the exemplar to imitate.
 
 A path stops being open the day it has been walked far enough to
-document; that is how the stack grows. The Go backend is partway through
-that passage — blueprinted from study, awaiting its first production
-service — and the next path will enter the same way.
+document; that is how the stack grows. The Go backend went through that
+passage in 2026: blueprinted from study, then walked by two services whose
+findings rewrote the blueprint. The next path will enter the same way.
 
 ### Flutter clients, in Dart
 
@@ -221,8 +225,8 @@ plugins:
 Three transports are available: Connect over HTTP/1.1 (the default), gRPC
 (which needs the `http2` package), and gRPC-Web. On the web the client is
 fetch-based through `dart:js_interop` and carries unary and
-server-streaming RPCs only — a limitation that never binds here, because
-the stack is unary-only for exactly the reason the Expo interface is.
+server-streaming RPCs only — a limitation that would bind only if a
+project adopted client streaming, which the stack has no case for.
 
 What is not settled is where the package lives. Flutter resolves through
 pub, not through the pnpm workspace, so a Flutter client is the first real

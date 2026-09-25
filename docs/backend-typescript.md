@@ -6,10 +6,12 @@ order: 3
 
 # Backend: TypeScript
 
-The TypeScript backend is the stack's default application backend: Fastify as
-the HTTP server, Connect-RPC for the service surface, Drizzle ORM over
-PostgreSQL for persistence, and PGlite as an embedded dev database so the
-whole system runs from a clone with no external services.
+The TypeScript backend is one of the stack's two validated backends, and
+was its default until September 2026, when the Go backend took that place:
+Fastify as the HTTP server, Connect-RPC for the service surface, Drizzle
+ORM over PostgreSQL for persistence, and PGlite as an embedded dev database
+so the whole system runs from a clone with no external services. When it
+is still the right choice is in [Choosing a runtime](./choosing.md).
 
 Like every validated path, this blueprint is a living document: it
 records what has worked in production so far, not decisions locked for
@@ -142,7 +144,8 @@ separate worker binary is a future the entry-file split already accommodates
 
 ## When this backend is the right one
 
-It is the default. Same language as the interface, the fastest iteration
-loop in the stack, an embedded dev database with no equal in other runtimes,
-and every type shared through the contract. Reach for Go when the workload
-says so; the criteria live in [Choosing a runtime](./choosing.md).
+When one language across the whole loop is worth more than one binary:
+same language as the interface, the fastest iteration loop in the stack,
+an embedded dev database with no equal in other runtimes, and every type
+shared through the contract. Go is the default otherwise; the criteria
+live in [Choosing a runtime](./choosing.md).
