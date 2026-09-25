@@ -175,3 +175,33 @@ post), use `useMutation`'s `onMutate` to update the cache optimistically
 and `onError` to roll back, keeping it in the resource's
 `use<Resources>.ts` hook rather than in the screen. For first-pass CRUD,
 plain `onSuccess: invalidate` is fine.
+
+## Variants and sharp edges walked in 2026
+
+- **connect-query instead of hand-written api + queries.**
+  `@connectrpc/connect-query` derives typed hooks from the service
+  descriptor (`useQuery(list<Resources>)`, keys via
+  `createConnectQueryKey`), which removes tiers 1 and 2 above. Use it
+  when the project already does, or when the resource count is large
+  and screens are happy with the proto types; keep the api tier when
+  screens want narrower view models. Do not mix the two per resource.
+- **Deep imports, no barrels.** Generated protos are imported by their
+  full path (`<ORG_SCOPE>/protocol-buffers/<APP_SLUG>/resources/v1/<resources>_pb`).
+  Never add an `index.ts` that re-exports the generated tree: Metro does
+  not tree-shake and the barrel drags every message into every bundle.
+- **Cookie sessions need `credentials: "include"`.** connect-web v2 has
+  no `credentials` option; pass a `fetch` override on the transport that
+  sets it. Harmless on native, required on the web whenever the backend
+  sets the session cookie.
+- **A persisted query cache cannot hold proto messages as-is.** `int64`
+  fields (every `Timestamp.seconds`) are `bigint` and `JSON.stringify`
+  throws; `bytes` is a `Uint8Array` that serializes as an object of
+  indexes. Tag both in the persister and reverse on restore.
+- **Tests run against a fake service, not a server.** connect-es's
+  `createRouterTransport` hosts a scripted implementation in-process;
+  pass it where the real transport goes and every hook and screen is
+  testable under `jest-expo`. React Native Testing Library 14 is async
+  end to end: `await render(...)` and `await fireEvent.*(...)`.
+- **Platform suffixes need the plain file too.** `store.native.ts`
+  without `store.ts` fails `tsc`; make the web implementation the
+  suffix-less file and Metro picks the native one on a device.

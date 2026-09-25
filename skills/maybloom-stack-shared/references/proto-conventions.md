@@ -18,6 +18,9 @@ See `gotchas.md` for the full rationale. The short version:
   removed field numbers. Don't add `reserved N;`.
 - **Once shipped to clients you don't control**: mark removed numbers
   `reserved` so they can never be reintroduced with a different type.
+  The concrete trigger is the first build a non-developer installs;
+  record the date and add `buf breaking --against` the default branch
+  to CI the same day.
 
 Check which regime the project is in before removing a field, and ask
 if it is not obvious. Guessing wrong in the shipped direction corrupts
@@ -131,3 +134,44 @@ registrations, which the conventions don't currently support.
   put the optional related resource as an `optional <Other> ...` field
   at the request level, not inside the main resource message. Keeps
   the resource shape clean for reads.
+- Selectors are surrogate ids (`string id`, or `int32 event_id` on an
+  integer-keyed system), never a unique name, even where a REST URL
+  used the name. The name is a read-only display field on the resource.
+- List requests are bounded from the first version: a `limit` with a
+  validated cap and, for time-ordered data, a `min_time`/`max_time`
+  window. An empty list request that reads a whole table is a smell.
+- Derived read-only fields go where the thing they describe lives: a
+  fact about the caller (`viewer_may_edit`) on the response envelope, a
+  fact about a member of the resource (`has_access` on a link) on the
+  resource, output-only and documented as such.
+
+## Validation constraints and the read marker
+
+Two options carry behaviour, and the Go path enforces both through
+interceptors (the TypeScript path can with `@bufbuild/protovalidate`):
+
+```proto
+import "buf/validate/validate.proto";
+
+message CreateBookRequest {
+  // required: the handler dereferences it, and the validate
+  // interceptor is the only nil guard.
+  resources.v1.Book book = 1 [(buf.validate.field).required = true];
+}
+
+service AppService {
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS; // a read: audit skips it, GET allowed
+  }
+}
+```
+
+Rules: always-valid invariants (lengths, enum membership) on the resource
+message, presence on the request envelopes, since create and update reuse
+the resource message with most of it unset. Mark every read
+`NO_SIDE_EFFECTS` as it is written; the default fails safe (an unmarked
+read is over-audited, never a missed mutation). A read that returns a
+credential must not be marked without `Cache-Control: no-store`, because
+the marker also makes it GET-able and cacheable. Vendoring
+`buf/validate/validate.proto` into a second, lint-excluded buf module
+keeps generation free of any registry dependency.

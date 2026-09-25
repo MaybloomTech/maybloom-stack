@@ -5,12 +5,14 @@ connect-go on stdlib `net/http`, sqlc-generated queries over pgx/v5, goose
 migrations, slog. The contract, the layer vocabulary (handler → store →
 adapter), and the interface are identical — a generated client cannot tell
 the two backends apart. This file defines the per-layer patterns so the
-skills that walk the pipeline (add-resource today, bootstrap-go when it
-ships) can do so on a Go service without reading any external codebase.
+skills that walk the pipeline (add-resource, add-rpc, extend-resource,
+bootstrap-go) can do so on a Go service without reading any external
+codebase. Two production services walked this path in 2026 and the
+patterns below are theirs.
 
 Sections: Detecting a Go backend · Layer map · Codegen · Migration
-(goose) · Queries (sqlc) · Adapter · Store · Handlers · Wiring ·
-Verification before claiming done · Go-specific gotchas.
+(goose) · Queries (sqlc) · Adapter · Store · Handlers · Validation ·
+Wiring · Verification before claiming done · Go-specific gotchas.
 
 ## Detecting a Go backend
 
@@ -19,17 +21,28 @@ The repo has a `go/` directory containing `go.mod`, `sqlc.yaml`, and
 
 ```
 go/
-  cmd/<service>/main.go   thin main: parse config, call run(ctx, cfg) error
+  cmd/<service>/main.go   thin main: load config, call run(ctx, cfg) error
   internal/
+    config/               env struct + Validate()
     server/               Connect handlers, interceptors, mux wiring
     store/                sqlc-generated package + stores + adapters
-    postgres/             pool setup, goose migrate, embedded-postgres for dev
+    postgres/             pool setup, goose migrate on boot
+    auth/                 the login, whatever shape it takes
   gen/                    buf output (gitignored, regenerated on build)
   db/
+    db.go                 //go:embed migrations/*.sql
     migrations/           goose SQL files: the schema source of truth
     queries/              sqlc query files
+  buf.gen.yaml            the Go codegen targets (local go-tool plugins)
   sqlc.yaml
 ```
+
+A larger service may package by domain instead (`internal/<domain>/`
+holding that domain's handlers, store and adapters, with a `Service`
+struct per domain and a leaf `internal/server` for the cross-cutting
+code). Detect it by the presence of resource-named directories under
+`internal/`; the per-layer patterns below are the same, only the file
+paths move into the domain directory.
 
 If both `packages/backend/` and `go/` exist, ask the user which service the
 resource belongs to — backend choice is per-service, never per-RPC.
@@ -42,7 +55,7 @@ where each layer lives and which generator runs:
 | Step | TypeScript | Go |
 |---|---|---|
 | Proto | `proto/<APP_SLUG>/...` | identical — same files, same conventions |
-| Codegen | `pnpm proto:gen` | same command; buf.gen.yaml must include the Go plugins (below) |
+| Codegen | `pnpm proto:gen` | `go tool buf generate ../proto --template buf.gen.yaml`, run from `go/` (below) |
 | Schema + migration | `src/db/schema.ts` + drizzle-kit | `db/migrations/000N_*.sql` (goose) — migrations ARE the schema |
 | Queries | Drizzle query builder, inline in store | `db/queries/<resources>.sql` + `go tool sqlc generate` |
 | Adapter | `src/core/<resources>/adapter.ts` | `internal/store/<resources>_adapter.go` |
@@ -53,22 +66,40 @@ where each layer lives and which generator runs:
 
 ## Codegen
 
-`pnpm proto:gen` (buf) must emit Go alongside TypeScript. `buf.gen.yaml`
-needs these entries, output under `go/gen/` (gitignored):
+The Go targets live in `go/buf.gen.yaml`, separate from the root template
+pnpm runs for TypeScript, and every plugin is a `go tool` binary pinned in
+`go.mod` (buf itself included), so generation needs no network and no
+JavaScript toolchain:
 
 ```yaml
-  - remote: buf.build/protocolbuffers/go
-    out: go/gen
+version: v2
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: gen
     opt: paths=source_relative
-  - remote: buf.build/connectrpc/go
-    out: go/gen
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: gen
     opt: paths=source_relative
 ```
 
+Run it **from `go/`**, pointed up at the contract:
+
+```bash
+cd go && go tool buf generate ../proto --template buf.gen.yaml
+```
+
+`go tool` resolves the pinned buf only inside the module, and `out: gen`
+is relative to that directory, so the output lands in `go/gen/`. If the
+repo's `pnpm proto:gen` script wraps this command too, use it; either way
+the Go build (and the Dockerfile) runs the `go tool buf` form.
+
 For proto package `<APP_SLUG>.service.v1` this generates
 `servicev1` (messages) and `servicev1connect` (the handler interface and
-`New<APP_NAME>ServiceHandler`). Never edit generated files; never commit
-`go/gen/` or `internal/store/storedb/`.
+`New<APP_NAME>ServiceHandler`), imported as
+`<GO_MODULE>/gen/<APP_SLUG>/service/v1/servicev1connect`. Every proto
+file needs a `go_package` option of the form
+`<GO_MODULE>/gen/<APP_SLUG>/service/v1;servicev1`. Never edit generated
+files; never commit `go/gen/` or `internal/store/storedb/`.
 
 ## Migration (goose)
 
@@ -96,9 +127,11 @@ Column mapping follows the same table as the Drizzle reference: proto
 (no NOT NULL), proto enum → a Postgres enum type created in the same
 migration. `Down` sections are best-effort dev conveniences.
 
-Migrations are embedded with `//go:embed` and applied on boot
-(`goose.UpContext`), so there is no separate "apply" step in dev — boot
-the server and watch the log.
+Migrations are embedded (`go/db/db.go`, a tiny package beside the
+directory, because embed paths cannot reach up the tree) and applied on
+boot through `goose.NewProvider(...).Up(ctx)`, so there is no separate
+"apply" step in dev — boot the server and watch the log. Migrations are
+schema-only; seed data is a store function switched by config.
 
 ## Queries (sqlc)
 
@@ -207,7 +240,7 @@ func (s *Store) Get<Resource>(ctx context.Context, id string) (*resourcesv1.<Res
     row, err := s.q.Get<Resource>(ctx, s.db, id)
     if errors.Is(err, pgx.ErrNoRows) {
         return nil, connect.NewError(connect.CodeNotFound,
-            fmt.Errorf("<resource> %s not found", id))
+            errors.New("<resource> not found"))
     }
     if err != nil {
         return nil, fmt.Errorf("get <resource> %s: %w", id, err)
@@ -230,11 +263,20 @@ func (s *Store) Create<Resource>(ctx context.Context, msg *resourcesv1.<Resource
 
 Conventions:
 
-- `connect.CodeInvalidArgument` for missing required fields,
-  `CodeNotFound` for missing rows, `CodeAlreadyExists` for unique
-  violations (match SQLSTATE 23505 via `pgconn.PgError` + `errors.As`).
-- Wrap causes with `%w`; a plain wrapped error surfaces as
-  `CodeInternal` at the edge, which is correct for unexpected failures.
+- `CodeNotFound` for missing rows (never a 500 for an unknown id),
+  `CodeAlreadyExists` for unique violations (match SQLSTATE 23505 via
+  `pgconn.PgError` + `errors.As`), `CodeFailedPrecondition` for a
+  well-formed request the current state forbids, `CodeInvalidArgument`
+  only for what protovalidate cannot express.
+- **connect-go sends `err.Error()` to the client.** A plain wrapped error
+  returned from a handler reaches the wire as `CodeUnknown` with the full
+  message, and `connect.NewError(CodeInternal, fmt.Errorf("...: %w", err))`
+  sends the driver's text too. Wrap causes with `%w` inside the store so
+  `errors.Is`/`errors.As` work, and hide them at the edge: either let the
+  handler map unexpected errors to a fixed public message, or use a small
+  wrapper whose `Error()` is the public text and whose `Unwrap()` is the
+  cause, with the logging interceptor logging the cause. The message the
+  client sees is part of the contract; the cause never is.
 - Multi-table mutations go through `RunInTx(ctx, pool, func(ctx, tx) error)`
   — the helper that retries serialization failures (SQLSTATE 40001,
   40P01). Every generated query method takes a `DBTX`
@@ -277,12 +319,47 @@ func (s *Server) Create<Resource>(
 }
 ```
 
-Handlers validate presence, read identity from the context the auth
-interceptor populated, call the store, wrap in `connect.NewResponse`. The
-twenty-line rule applies: more logic than that belongs in the store.
-Auth, logging, request IDs, and panic recovery are interceptors declared
-once at handler construction — a new RPC gets all of them for free, no
-per-route wiring.
+Handlers read identity from the context the auth interceptor populated,
+call the store, wrap in `connect.NewResponse`. The twenty-line rule
+applies: more logic than that belongs in the store. Auth, logging,
+request IDs, panic recovery and validation are interceptors declared once
+at handler construction — a new RPC gets all of them for free, no
+per-route wiring. The `nil` check on `input` above is what the validate
+interceptor makes unnecessary once the field is marked `required` (next
+section); keep it only on a service that has not adopted protovalidate.
+
+## Validation
+
+Input rules live in the contract as `buf.validate` options and are
+enforced by the `connectrpc.com/validate` interceptor, innermost in the
+chain, so a bad request never reaches the handler:
+
+```proto
+import "buf/validate/validate.proto";
+
+message Create<Resource>Request {
+  resources.v1.<Resource> <resource> = 1 [(buf.validate.field).required = true];
+}
+message List<Resources>Request {
+  int32 limit = 1 [(buf.validate.field).int32 = {gt: 0, lte: 200}];
+}
+```
+
+```go
+interceptors := connect.WithInterceptors(
+    Recover(log), RequestID(), auth.Interceptor(...), Logging(log),
+    validate.NewInterceptor(), // last = innermost; single return value
+)
+```
+
+Rules: a message-typed request field the handler dereferences is
+`required` (getters are nil-safe, field access on a nil message is not,
+and the recovery interceptor would turn that panic into a 500 any client
+can trigger); always-valid invariants (lengths, enum membership) go on the
+resource message, presence goes on the request envelopes; list reads carry
+a bounded `limit` from the first version. Mark read RPCs
+`option idempotency_level = NO_SIDE_EFFECTS;` so an audit interceptor can
+skip them, remembering that connect-go then also serves them over GET.
 
 ## Wiring
 
@@ -294,7 +371,9 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
 
 ## Verification before claiming done
 
-1. `pnpm proto:gen` ran cleanly and populated `go/gen/<APP_SLUG>/...`.
+1. `go tool buf generate ../proto --template buf.gen.yaml` (from `go/`)
+   ran cleanly and populated `go/gen/<APP_SLUG>/...`; `go tool buf lint
+   ../proto` is clean.
 2. `go tool sqlc generate` (from `go/`) ran cleanly — it validates every
    query against the schema; a typo'd column fails here, not at runtime.
 3. `go build ./...` and `go vet ./...` pass.
@@ -319,4 +398,24 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
 - **Don't hand-write a struct that happens to satisfy the handler
   interface partially** — embed
   `servicev1connect.Unimplemented<APP_NAME>ServiceHandler` only in tests.
-  In the real server, no embedding: full exhaustiveness is the point.
+  In the real server, no embedding: full exhaustiveness is the point. (A
+  brownfield filling a large interface over weeks may embed it as a
+  scaffold with a grep in CI that fails while it exists; see the stack's
+  adopting document.)
+- **`go tool buf` only resolves from inside the module.** Run it from
+  `go/` pointed at `../proto`; from the repo root it reports no such tool.
+- **buf refuses to generate an empty module.** A fresh contract needs one
+  RPC (`Health`) before the first generate succeeds.
+- **Go 1.22 method patterns answer `OPTIONS` with 405 before middleware
+  runs.** A service that enables CORS for a development client must
+  register one `OPTIONS /prefix/` route, or every preflight fails.
+- **`NO_SIDE_EFFECTS` makes the RPC GET-able**, and therefore cacheable
+  by an intermediary. A credential-returning read marked that way needs
+  `Cache-Control: no-store`.
+- **A hand-built `connect.NewRequest` has an empty `Spec()`**, so an
+  interceptor that branches on the method's idempotency level cannot be
+  unit-tested that way; drive it through the generated handler.
+- **On MariaDB, `UPDATE` reports changed rows, not matched rows** by
+  default, so "rows affected == 0 means not found" is wrong when the
+  update is a no-op; pre-read the row. Its DDL is also non-transactional,
+  which makes one change per migration file a correctness rule.

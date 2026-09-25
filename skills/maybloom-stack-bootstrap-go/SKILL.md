@@ -28,18 +28,26 @@ it when you reach step 4.
 - **The user wants to move an existing TypeScript service to Go.** That is
   a migration, not a bootstrap: scaffold with this skill, then port RPC by
   RPC behind the unchanged contract, running both until the cutover.
+- **The user has an existing Go service with no contract.** That is an
+  adoption, not a bootstrap: the stack's `docs/adopting.md` sequence
+  (contract first, restructure second, extract third, delete fourth)
+  applies, and this skill's module skeleton is only the target shape.
 
-## Before scaffolding: is Go the right call?
+## Before scaffolding: one backend or two?
 
-Ask, briefly, and record the answer — the repo now has two backends and
-the reason it has two is the thing future readers will want.
+Go is the stack's default backend, so a Go service needs no justification
+on its own. What needs a sentence in the plan is the repo's shape after
+this skill runs:
 
-Go earns its place when the workload's *shape* is the hard part:
-concurrency as the feature (fanning out to many devices or APIs), a
-long-running daemon, constrained hardware, an existing Go system joining
-the repo. TypeScript stays the default for product CRUD, and a second
-backend that exists "to compare" is a cost with no return — the contract
-already proves the two are interchangeable.
+- **The repo has no backend yet** (a contract-only monorepo, or one whose
+  `packages/backend` is being removed): this is the normal Go-first
+  path. Scaffold, then delete the TypeScript backend package if the
+  bootstrap left one, and say so in the PR.
+- **The repo has a TypeScript backend that stays**: the repo now has two
+  backends, and the reason it has two is the thing future readers will
+  want. A second backend that exists "to compare" is a cost with no
+  return — the contract already proves the two are interchangeable.
+  Record the reason in the project's `CLAUDE.md`.
 
 If the answer is thin, say so once and let the user decide. They may have
 context you don't.
@@ -98,15 +106,21 @@ running server beats one that ends in a half-written resource.
 
 ### 2. Teach buf to emit Go
 
-Add the Go plugins to `buf.gen.yaml` with output under `go/gen`, as shown
-in the codegen section of
-`../maybloom-stack-shared/references/paths/backend-go/README.md`. Add
-`go/gen/` and `go/internal/store/storedb/` to `.gitignore`: generated code
-is never committed on any path.
+Write `go/buf.gen.yaml` with the two local `go tool` plugins, as shown in
+the codegen section of
+`../maybloom-stack-shared/references/paths/backend-go/README.md`, and pin
+buf, `protoc-gen-go`, `protoc-gen-connect-go` and sqlc as `go tool`
+dependencies (step 4 shows the `go.mod` block). Add a `go_package` option
+to every proto file. Add `go/gen/` and `go/internal/store/storedb/` to
+`go/.gitignore`: generated code is never committed on any path.
 
-Run `pnpm proto:gen` and confirm Go files appear before continuing —
-finding out the plugins are misconfigured after writing the server wastes
-the whole step.
+Run `go tool buf generate ../proto --template buf.gen.yaml` from `go/`
+and confirm Go files appear before continuing — finding out the plugins
+are misconfigured after writing the server wastes the whole step. Then
+give the module one generate entry point (`go/generate.go` with two
+`//go:generate` lines, so `go generate .` runs buf and sqlc) and use that
+everywhere after: the README, CI and the Dockerfile all run the same
+command.
 
 ### 3. Directory layout
 
@@ -118,8 +132,9 @@ Create the tree from the path reference's layout section: `cmd/<SERVICE>/`,
 
 Read [`references/module-skeleton.md`](./references/module-skeleton.md)
 and write the files it describes: `go.mod` with tool pinning, `sqlc.yaml`,
-config, the pool and migration wiring, `run()`, the server and its
-interceptors, health endpoints, and the Dockerfile.
+config, the embedded migrations and the pool wiring, `run()`, the server
+and its interceptor chain (validation included), health endpoints, the
+lint config, and the Dockerfile.
 
 Let `go get` resolve versions rather than pinning ones from memory, then
 `go mod tidy`. Pinned versions written from memory are the most common way
@@ -146,19 +161,25 @@ build in CI alongside the existing typecheck.
 
 A bootstrap that typechecks but doesn't run is not done.
 
-1. `pnpm proto:gen` populates `go/gen/<APP_SLUG>/...` for both the shared
-   resources and the new service package.
-2. `go tool sqlc generate` runs cleanly from `go/`. It validates queries
-   against the schema, so a typo fails here rather than at runtime.
-3. `go build ./...` and `go vet ./...` pass.
-4. `go run ./cmd/<SERVICE>` boots, applies the goose migration on start
-   (watch the log for it), and serves `/healthz`.
-5. The first RPC answers a real call — the generated connect-go client
+1. `go generate .` from `go/` populates `go/gen/<APP_SLUG>/...` for both
+   the shared resources and the new service package and runs sqlc, which
+   validates queries against the schema, so a typo fails here rather than
+   at runtime.
+2. `go build ./...`, `go vet ./...` and `go tool golangci-lint run` pass.
+3. `go run ./cmd/<SERVICE>` boots, applies the goose migration on start
+   (watch the log for it), and serves `/healthz` and `/readyz`.
+4. The first RPC answers a real call — the generated connect-go client
    from a test, or curl against
-   `/<APP_SLUG>.<SERVICE_PROTO_PKG>.v1.<SERVICE_NAME>/<Method>`.
+   `/<APP_SLUG>.<SERVICE_PROTO_PKG>.v1.<SERVICE_NAME>/<Method>` — and a
+   request that violates a protovalidate constraint answers
+   `invalid_argument`.
+5. The store tests run against `TEST_DATABASE_URL` (a throwaway database
+   container) and skip cleanly without it.
 6. `pnpm typecheck` still passes: the shared protos regenerated, so the
    TypeScript side must still build.
 7. `git status` shows no generated files.
+8. `docker build -f go/Dockerfile .` from the repo root succeeds and the
+   image answers `/healthz`.
 
 ## After bootstrap: what the user now owns
 
@@ -169,9 +190,9 @@ Say these out loud rather than leaving them to be discovered.
 - **The contract is the only coupling that is safe.** If the two services
   start sharing tables, that coupling is invisible to the wire and will
   break in production rather than at build time.
-- **The Go path is `validating` on the skill tree.** The blueprint is
-  grounded in current practice, but this service is what proves it —
-  patterns that turn out wrong should come back as changes to
+- **The Go path is validated, and still moving.** Two services proved the
+  blueprint and rewrote it once; patterns that turn out wrong on this one
+  should come back as changes to
   `../maybloom-stack-shared/references/paths/backend-go/README.md` and the
   docs, not as local workarounds. Recording a deliberate deviation in the
   project's `CLAUDE.md` is how the next session inherits it.

@@ -7,14 +7,14 @@ generated, typed, and evolve together — a client knows every resource, RPC,
 and field a service offers from generated code alone, in whichever language
 either side is written.
 
-Around that core the stack documents its validated paths: a TypeScript
-backend on Fastify (the default), a Go backend on connect-go, one Expo
+Around that core the stack documents its validated paths: a Go backend
+on connect-go (the default), a TypeScript backend on Fastify, one Expo
 interface across iOS, Android, and web, and static Astro sites for the
 public surfaces. These are defaults of experience, not requirements —
 Connect speaks many languages, and the stack is built to keep opening new
 paths as they are walked and written down.
 
-![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./docs/assets/skill-tree.svg)
+![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — Go (the default) and TypeScript on the servers limb, Expo shipping to iOS, Android and web, Astro for static surfaces; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./docs/assets/skill-tree.svg)
 
 Read it at **[stack.maybloom.tech](https://stack.maybloom.tech)**, or run it
 yourself — every push to `main` publishes the site as a container image:
@@ -34,7 +34,8 @@ docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
 7. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
 8. [Skills](./docs/skills.md), how the stack ships as agent skills
 9. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
-10. [Prior art](./docs/prior-art.md), how the stack compares to what exists
+10. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
+11. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
 ## Contributing
 
@@ -91,9 +92,11 @@ pnpm build      # static build to site/dist/
 ## Status
 
 The TypeScript backend, interface, and sites blueprints describe systems
-running in production today. The Go blueprint is a design grounded in current
-Go practice, and the first Go service will validate it. Anything still
-speculative says so in the document that covers it.
+running in production today. The Go blueprint began as a design grounded in
+current Go practice; two services have since walked it, one brought over
+from a REST codebase and one built from the scaffold, and the document now
+records what they found, including where they chose differently. Anything
+still speculative says so in the document that covers it.
 
 All of it is living documentation. The decisions inside a validated path are
 the current best answer, not locked ones — they keep changing as the systems

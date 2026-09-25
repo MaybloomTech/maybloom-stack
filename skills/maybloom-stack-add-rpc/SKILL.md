@@ -78,9 +78,17 @@ they mean for a new operation.
 - **Responses carry what changed.** Return the updated resource
   (`Book book = 1;`) so the client can update its cache from the response
   rather than refetching. A list RPC returns one `repeated` field.
-- **Unary only.** Streaming is outside the stack; a long operation returns
-  a resource whose status the client polls, which keeps every deployment
-  story simple.
+- **Unary by default.** A long operation returns a resource whose status
+  the client polls. Server streaming is a stack-wide decision a project
+  makes once (see `core.md`), never something one RPC adopts on its own;
+  if the project has not made it, this RPC is unary.
+- **Reads say so.** A read-only RPC carries
+  `option idempotency_level = NO_SIDE_EFFECTS;` so audit interceptors skip
+  it, remembering that connect-go then also serves it over GET.
+- **Input rules go in the contract.** Where the backend runs protovalidate
+  (the Go path does), mark a message-typed request field the handler
+  dereferences `required` and put bounds on ids and limits as
+  `buf.validate` options rather than in handler code.
 
 Add the two messages to `proto/<APP_SLUG>/service/v1/<resources>.proto`
 next to the CRUD envelopes for the same resource, and the `rpc` line to
@@ -130,9 +138,10 @@ rather than a field.
 ### 4. Handler
 
 One thin function (TypeScript: a file in `src/handlers/`; Go: a method on
-the server struct). Validate presence, read identity from request context,
-call the store, shape the response. If it needs more than about twenty
-lines, the rule has leaked out of the store.
+the server struct). Read identity from request context, call the store,
+shape the response; validate presence only where the contract does not
+(the TypeScript path without protovalidate). If it needs more than about
+twenty lines, the rule has leaked out of the store.
 
 Identity comes from the context the auth interceptor populated, never from
 the request body — an RPC that trusts a client-supplied `user_id` is an
