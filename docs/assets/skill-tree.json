@@ -32,7 +32,7 @@
       "id": "go",
       "label": "Go",
       "limb": "servers",
-      "status": "validating",
+      "status": "validated",
       "doc": "docs/backend-go.md",
       "path": "backend-go"
     },

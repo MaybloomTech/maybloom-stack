@@ -81,3 +81,51 @@ package script wraps the same `biome lint packages` invocation; both
 work. Use the script. `pnpm exec biome ...` is just the direct call when
 you want to skip the script indirection (e.g. passing extra biome flags)
 — it's a "how to" tip, not a gotcha.
+
+## A `SameSite=Strict` cookie and a dev server on another origin
+
+**Symptom.** From the Expo dev server (`localhost:8081`) against a
+deployed backend, sign-in works and reads work, then after one
+access-token lifetime everything is `Unauthenticated`, and a reload
+comes back signed out. The same client against a local docker stack
+is fine.
+
+**Cause.** The session or refresh cookie is `SameSite=Strict`, which is
+the correct production setting. `localhost:8081` to
+`https://staging.example` is cross-site, and the browser neither sends
+nor even stores a `Strict` cookie from a cross-site response. The local
+stack hid it: `localhost:8081` to `localhost:8090` is same-site, because
+ports do not count.
+
+**Fix.** Prove the web session on the hosted build, on the API's origin;
+that is the deploy rule in `docs/interface.md`. A dev CORS allow-list on
+the backend covers reads and is not the session path. If a cross-origin
+dev loop is essential, the cookie has to be `Lax` or the dev server has
+to be proxied to be same-site; decide that knowingly. Native clients
+carry the token in the request body and never meet this.
+
+## The TypeScript proto output has dangling imports
+
+**Symptom.** `tsc` in the interface fails on
+`buf/validate/validate_pb` (or another imported module) that no
+generated file provides, while the Go build is fine.
+
+**Cause.** protoc-gen-es emits only the module named as input; the
+contract imports protovalidate (or another dependency), and Go never
+noticed because `protoc-gen-go` output imports protovalidate's published
+Go module instead.
+
+**Fix.** `include_imports: true` on the protoc-gen-es plugin block, not
+`include_wkt` (the well-known types come from `@bufbuild/protobuf/wkt`).
+Then make sure something compiles against the generated TypeScript on
+every CI run; a generated target with no consumer is unverified.
+
+## buf refuses an empty module
+
+**Symptom.** The first `buf generate` on a fresh or freshly-emptied
+contract fails rather than producing nothing.
+
+**Cause.** A module with no proto files is an error, not a no-op.
+
+**Fix.** Start the contract with one RPC (`Health` is the conventional
+one); it is useful anyway for the version stamp and the readiness check.

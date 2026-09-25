@@ -44,16 +44,20 @@ These bind every client and server regardless of language or framework:
    are in `proto-conventions.md` in this directory. They are contract
    rules, not TypeScript rules.
 2. **Generated code is never committed.** Each language target gets a
-   plugin block in `buf.gen.yaml` and a gitignored output directory;
+   plugin block in a buf template and a gitignored output directory;
    install/build regenerates. There is no "did you regenerate?" review
-   comment on this stack.
+   comment on this stack. Say the cost where it applies: a fresh Go
+   clone does not compile until the generators run, editors show
+   unresolved imports until then, and CI pays generator time per job.
 3. **One `service` block per backend**, named `<AppName>Service`, in its
    own proto package. The unit of implementation choice is the service,
    never the RPC.
-4. **Unary RPCs only.** The validated client uses the web transport on
-   React Native, which streaming would break — and unary keeps every
-   open-path client trivial too. Streaming is a stack-wide decision, not
-   a per-endpoint one.
+4. **Unary RPCs by default.** The validated client uses the web
+   transport on React Native and every walked service is unary, which
+   keeps every open-path client trivial. Server streaming is permitted
+   as a stack-wide decision per project, made once with the client's
+   fetch story checked first (Expo SDK 52+ streams through `expo/fetch`);
+   it is never a per-endpoint choice, and no service has walked it yet.
 5. **Exhaustiveness comes from the generated service type** wherever the
    language offers it (a typed implementation map, a generated handler
    interface). If the user's language can't enforce it at compile time,
@@ -68,11 +72,13 @@ whatever framework the project uses, but keep the seams.
 
 **Server side:**
 
-- **Handler** — the transport seam. One thin unit per RPC: validate
-  presence, read identity from request context (put there by
-  cross-cutting middleware declared once, not per route), call the
-  store, shape the response. If it grows past ~20 lines, logic is
-  leaking in.
+- **Handler** — the transport seam. One thin unit per RPC: read
+  identity from request context (put there by cross-cutting middleware
+  declared once, not per route), call the store, shape the response.
+  Input validation belongs to the contract (protovalidate constraints,
+  enforced by middleware) wherever the language has an implementation;
+  otherwise the handler checks presence. If it grows past ~20 lines,
+  logic is leaking in.
 - **Store** — business logic and transactions. Accepts and returns proto
   messages; speaks the RPC error model (Connect codes) directly; owns
   multi-step mutations inside a transaction helper. The recurring
@@ -138,7 +144,7 @@ web framework), don't refuse and don't force the defaults. Proceed:
 | | Core (binds every project) | Validated default (swap freely) |
 |---|---|---|
 | Contract | proto + Buf + Connect-RPC, conventions in `proto-conventions.md` | — |
-| Server | handler/store/adapter seams, generated edges, unary | Fastify + Drizzle + PGlite; or connect-go + sqlc + pgx |
+| Server | handler/store/adapter seams, generated edges, unary by default | connect-go + sqlc + goose (the default; Postgres or MariaDB), or Fastify + Drizzle + PGlite |
 | Client | generated client + api/cache/screens tiers | Expo Router + React Query |
 | Monorepo | contract at the root, consumed by every package | pnpm workspace, biome, the catalog |
 | Naming | one service per backend; resources PascalCase singular in proto | "interface", file layout, camelCase plural tables |

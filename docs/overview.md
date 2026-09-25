@@ -13,10 +13,13 @@ whichever language a service is written in, and the same generated types reach
 the client. Humans write the three layers in the middle: handlers, stores, and
 adapters.
 
-It was extracted from a working production system, where it runs today as a
+It was extracted from a working production system, where it ran as a
 Fastify backend, an Expo interface, and static Astro sites in one pnpm
-workspace. This document set generalizes it, adds a Go backend blueprint as a
-peer of the TypeScript one, and defines when to reach for each runtime.
+workspace. This document set generalizes it, describes the Go backend as a
+peer of the TypeScript one, and defines when to reach for each runtime. The
+Go path has since been walked twice: by a Go service brought onto the
+contract from a REST codebase, and by the reference implementation's own
+restart as a Go backend.
 
 ## The core and the paths
 
@@ -35,8 +38,8 @@ languages and speaks gRPC and gRPC-Web besides, so any of them can serve
 or consume the same contract.
 
 The **paths** are the implementations this document set describes in depth:
-a TypeScript backend on Fastify, a Go backend on connect-go, an Expo
-interface, static Astro sites. They are validated paths — documented
+a Go backend on connect-go (the default since September 2026), a
+TypeScript backend on Fastify, an Expo interface, static Astro sites. They are validated paths — documented
 because each has been built and run for real, not because it is required.
 The defaults are defaults of experience, and the set grows like a skill
 tree: a new language or framework joins the documented stack when someone
@@ -45,7 +48,7 @@ path — permitted, supported by the core, just not yet blueprinted.
 [Choosing a runtime](./choosing.md) covers the validated paths; its last
 section covers the open ones.
 
-![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./assets/skill-tree.svg)
+![The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — Go (the default) and TypeScript on the servers limb, Expo shipping to iOS, Android and web, Astro for static surfaces; kotlin, python, rust, swiftui and flutter waiting as dashed open paths](./assets/skill-tree.svg)
 
 Even inside a validated path, the decisions are not locked. The
 blueprints record the current best answer — still experimental, revised
@@ -73,8 +76,9 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
   database rows. The only layer that knows both shapes.
 - **store** — business logic and transactions. Stores speak proto types
   outward and rows inward.
-- **handlers** — one thin function per RPC: validate presence, read identity
-  from request context, call the store, shape the response.
+- **handlers** — one thin function per RPC: read identity from request
+  context, call the store, shape the response. Input validation belongs
+  to the contract (protovalidate) where the path supports it.
 - **wiring** — the service implementation object registered with Connect. The
   compiler refuses to build until every RPC in the proto has a handler.
 - **api / queries / screen** — the interface mirror: typed client wrappers,
@@ -89,7 +93,9 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
 2. **Generated edges, hand-written middle.** Codegen owns the layers that are
    mechanical: wire types, service scaffolding, the SQL data layer. People own
    the layers that carry judgment: adapters, stores, handlers. Generated code
-   is never committed; it is rebuilt from source on install.
+   is never committed; it is rebuilt from source on install. That rule is a
+   pnpm instinct with a Go cost (a fresh clone does not compile until the
+   generators run); the [Go document](./backend-go.md#codegen) states it.
 
 3. **One source of truth per layer.** Proto files for the wire. One schema
    artifact for the database. One service definition per backend. Drift is a
@@ -129,9 +135,10 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
     <name>-site/             Astro sites, one package per site
   go/                      the Go module (one per repo), when a Go service exists
     cmd/<service>/           one main package per binary
-    internal/                server, store, postgres packages
+    internal/                config, server, store, postgres, auth packages
     gen/                     generated Go from buf (gitignored)
     db/                      migrations/ and queries/, the SQL sources of truth
+    buf.gen.yaml             the Go codegen targets, run as `go tool buf` from go/
   skills/                  the agent skills that scaffold and extend the stack
   buf.yaml, buf.gen.yaml   contract toolchain, at the root
   pnpm-workspace.yaml      workspace + version catalog

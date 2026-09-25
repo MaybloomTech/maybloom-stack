@@ -1,7 +1,7 @@
 ---
 title: Prior art
 description: How the maybloom stack compares to what exists
-order: 10
+order: 11
 ---
 
 # Prior art

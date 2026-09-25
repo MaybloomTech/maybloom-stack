@@ -74,37 +74,92 @@ service. See [Choosing a runtime](./choosing.md).
   instead of embedded resources.
 - Comments on fields are load-bearing documentation. Rules like "populated on
   read, ignored on write" live next to the field they govern.
+- Keys are surrogate ids. A REST URL that addressed a resource by a unique
+  name does not make the name the contract's key; the id is rename-stable,
+  and the name rides along as a read-only display field.
+- A derived read-only field's home is decided by whom it describes. A flag
+  about the caller (`viewer_may_edit`) goes on the response envelope; a
+  flag about a member of the resource (`has_access` on a linked person)
+  stays on the resource as output-only.
+- List requests carry bounds from the first version: a `limit` and, for
+  time-ordered data, a window. An empty list request that reads a whole
+  table is cheap to fix before a client exists and expensive after.
+
+## Validation and side effects in the contract
+
+Two options carry behaviour, not just shape, and both backends act on them:
+
+- **protovalidate constraints** (`buf.validate` field options) are the
+  input validation. The Go path enforces them in an interceptor; the
+  TypeScript path can with `@bufbuild/protovalidate`. Constraints
+  distribute by message role: always-valid invariants (lengths, enum
+  membership) on the resource, presence on the request envelopes, and a
+  message-typed request field the handler dereferences marked `required`,
+  because that is the only nil guard once handlers stop checking.
+- **`option idempotency_level = NO_SIDE_EFFECTS`** marks a read. An audit
+  interceptor skips it, and connect-go also accepts it over HTTP GET, which
+  makes it cacheable; a credential-returning read marked this way needs
+  `Cache-Control: no-store`. The default fails safe: an unmarked read is
+  over-logged, a mutation is never missed.
 
 ## Field number policy
 
 While a project is pre-launch, removed field numbers are reused and
 `reserved` is unnecessary; the wire never leaves the building. The moment a
 project has shipped clients you cannot atomically upgrade, removed numbers
-become `reserved N;` permanently. Write the switch date down when it happens.
+become `reserved N;` permanently. The concrete trigger is the first build a
+non-developer installs. Write the date down when it happens, and add
+`buf breaking --against` the default branch to CI the same day.
 
 ## Codegen
 
 `buf.yaml` declares the module and its deps (googleapis for well-known
-types). `buf.gen.yaml` declares one plugin block per language target:
+types). Each language target gets a plugin block, and the validated shape
+is one template per toolchain:
 
 ```yaml
+# buf.gen.yaml at the repo root: the TypeScript target, run by pnpm
 version: v2
 plugins:
-  # TypeScript: types + service shapes for backend and interface
   - local: node_modules/.bin/protoc-gen-es
     out: packages/protocol-buffers/src
+    include_imports: true          # emit the modules the contract imports (protovalidate)
     opt: [target=ts]
-  # Go: messages + connect-go service scaffolding (when a Go service exists)
-  - remote: buf.build/protocolbuffers/go
-    out: go/gen
-    opt: [paths=source_relative]
-  - remote: buf.build/connectrpc/go
-    out: go/gen
-    opt: [paths=source_relative]
 ```
 
-Every proto file carries an explicit `go_package` option pointing into
-`go/gen/proto/...`, so Go output lands inside the Go module.
+```yaml
+# go/buf.gen.yaml: the Go targets, run from go/ as `go tool buf generate ../proto --template buf.gen.yaml`
+version: v2
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: gen
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: gen
+    opt: paths=source_relative
+```
+
+A third target, `protoc-gen-connect-openapi` as another local plugin in
+the Go template, produces an OpenAPI document for readers who will never
+open a proto; the scaffolded docs site answers the same need by rendering
+the descriptor set. Either is optional.
+
+The split is what lets the Go image build with no JavaScript toolchain and
+the TypeScript package generate with no Go on a pure-frontend machine.
+Every plugin is a local, pinned binary (`go tool` in `go.mod`, pnpm for
+protoc-gen-es), so generation makes no network call; `remote:` plugins on
+the Buf Schema Registry work too and cost egress on every build.
+
+Every proto file carries an explicit `go_package` option of the form
+`github.com/<org>/<repo>/go/gen/<slug>/service/v1;servicev1`, and
+`paths=source_relative` makes the Go output mirror the proto directory
+under `go/gen/`.
+
+Two lint facts to know before the first `buf lint`: the standard rules
+require every RPC's request and response to be unique types, so a shared
+empty message is refused (each empty response is its own named message,
+which is what the conventions above want anyway); and buf refuses to
+generate an empty module, so a fresh contract starts with one RPC.
 
 Two rules that keep codegen honest:
 
@@ -120,8 +175,11 @@ Two rules that keep codegen honest:
 
 - TypeScript consumers deep-import through the package export map:
   `@<org>/protocol-buffers/<slug>/service/v1/service_pb`.
-- Go consumers import `go/gen/proto/<slug>/resources/v1` and the generated
-  `<pkg>connect` handler package.
+- Go consumers import `<module>/gen/<slug>/resources/v1` and the generated
+  `<module>/gen/<slug>/service/v1/servicev1connect` handler package.
+- TypeScript consumers never re-export the generated tree through a barrel
+  file: Metro does not tree-shake, and a barrel over the contract drags
+  every message into every bundle. Deep imports only.
 - The interface uses the same generated schema objects for
   `create(<Message>Schema, {...})` construction that the backend uses for
   responses. One contract, one construction idiom, every language.

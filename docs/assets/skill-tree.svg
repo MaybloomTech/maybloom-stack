@@ -1,6 +1,6 @@
 <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="st-title st-desc">
   <title id="st-title">The maybloom skill tree</title>
-  <desc id="st-desc">The contract (protobuf + Connect-RPC) sits at the root. Two limbs rise from it: servers and clients. Validated paths glow green — the TypeScript backend (the default), the Expo interface shipping to iOS, Android and web, and Astro for static public surfaces. The Go backend is amber: validating. kotlin, python, rust, swiftui and flutter wait as dashed open paths.</desc>
+  <desc id="st-desc">The contract (protobuf + Connect-RPC) sits at the root. Two limbs rise from it: servers and clients. Validated paths glow green — the Go backend (the default), the TypeScript backend, the Expo interface shipping to iOS, Android and web, and Astro for static public surfaces. The Go backend joined the validated paths in 2026 after two services walked it. kotlin, python, rust, swiftui and flutter wait as dashed open paths.</desc>
   <style>
     text { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
            paint-order: stroke; stroke: #14181a; stroke-width: 3.5px; stroke-linejoin: round; }
@@ -51,11 +51,10 @@
   <!-- connectors: gates -> validated leaves -->
   <g stroke="#57c9a6" stroke-width="1.4" fill="none" opacity="0.55" stroke-linecap="round">
     <path d="M 312 439 Q 235 415 178 380"/>
+    <path d="M 318 438 Q 348 355 353 289"/>
     <path d="M 644 429 Q 638 365 640 299"/>
     <path d="M 654 439 Q 750 420 818 376"/>
   </g>
-  <!-- gate -> validating leaf (Go) -->
-  <path d="M 318 438 Q 348 355 353 289" stroke="#d9a94f" stroke-width="1.4" fill="none" opacity="0.55" stroke-dasharray="6 4" stroke-linecap="round"/>
 
   <!-- connectors: gates -> open leaves (dotted) -->
   <g stroke="rgba(231,236,232,0.3)" stroke-width="1.2" fill="none" stroke-dasharray="1.5 5" stroke-linecap="round">
@@ -85,15 +84,14 @@
   <circle cx="165" cy="372" r="4.5" fill="#74dabb" filter="url(#glow)"/>
   <text class="name" x="187" y="368">TypeScript</text>
   <text class="sub" x="187" y="385">fastify · drizzle · pglite</text>
-  <rect x="187" y="393" width="56" height="15" rx="3" fill="none" stroke="rgba(116,218,187,0.5)" stroke-width="0.8"/>
-  <text class="chip" x="215" y="403.5" text-anchor="middle">DEFAULT</text>
 
-  <!-- validating leaf: Go -->
-  <circle cx="355" cy="275" r="12" fill="rgba(217,169,79,0.1)" stroke="#d9a94f" stroke-width="1.4" stroke-dasharray="4 3"/>
-  <path d="M 355 267.5 A 7.5 7.5 0 0 1 355 282.5 Z" fill="#d9a94f" opacity="0.85"/>
+  <!-- validated leaf: Go -->
+  <circle cx="355" cy="275" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
+  <circle cx="355" cy="275" r="4.5" fill="#74dabb" filter="url(#glow)"/>
   <text class="name" x="377" y="271">Go</text>
-  <text class="sub" x="377" y="288">connect-go · sqlc · pgx</text>
-  <text class="tag-amber" x="377" y="305">VALIDATING</text>
+  <text class="sub" x="377" y="288">connect-go · sqlc · goose</text>
+  <rect x="377" y="296" width="56" height="15" rx="3" fill="none" stroke="rgba(116,218,187,0.5)" stroke-width="0.8"/>
+  <text class="chip" x="405" y="306.5" text-anchor="middle">DEFAULT</text>
 
   <!-- validated leaf: Expo -->
   <circle cx="640" cy="285" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
