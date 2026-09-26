@@ -1,0 +1,46 @@
+# CLAUDE.md
+
+Guidance for coding agents in this repository. The stack's conventions
+are the `maybloom-stack` skills; this file holds only what is specific to
+__APP_NAME__. Record decisions here as they are made, so the next session
+inherits them instead of rediscovering them.
+
+## Project overview
+
+__APP_NAME__ is a maybloom-stack monorepo. The proto contract in
+`proto/__APP_SLUG__/` is the API; `packages/backend` serves it,
+`packages/interface` (Expo Router) consumes it, and `packages/docs-site`
+renders it. Generated code (`packages/protocol-buffers/src/`) is never
+committed.
+
+## Commands
+
+From the repo root:
+
+```bash
+pnpm install          # also generates the protos and builds
+pnpm proto:gen        # buf generate, after any proto change
+pnpm typecheck
+pnpm lint             # buf lint + biome
+pnpm dev:backend
+pnpm dev:interface
+```
+
+## Delegation (the `maybloom-stack-delegate` skill has the roster and rules)
+
+- **Protected paths** (architect-only, no subagents):
+  `packages/backend/src/context.ts`, `packages/backend/src/db/`,
+  `packages/interface/src/data/api/client.ts`. Add auth, session and
+  permission files here as they appear.
+- **Commands run from:** the repo root.
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`, then the package's
+  `test` script.
+- **Mechanic checks:** `pnpm lint`, or the CI job the chore touches.
+
+## Rules a change must honour
+
+- Migrations are append-only; one schema change each.
+- A new RPC is added to the proto first, then the handler, then the
+  interface; the generated service type refuses to compile until every
+  declared RPC has a handler, so let the compiler be the checklist.
+- Every new source file starts with a licence header.
