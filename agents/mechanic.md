@@ -20,8 +20,8 @@ inventory, a README or changelog edit. Do exactly that chore.
 - **No subagents.** You have no `Agent` tool on purpose.
 - Generated code is never committed. The project's `CLAUDE.md` says where
   the generators write and where commands run from.
-- Every new source file starts with the licence header the repo uses;
-  config and markdown files do not.
+- A new source file starts with the licence header the project's `CLAUDE.md`
+  requires, if it requires one; config and markdown files never do.
 
 ## Budget
 

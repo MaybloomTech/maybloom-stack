@@ -3,13 +3,23 @@
 Scaffold a new project from the maybloom-stack templates.
 
 The bootstrap skill copies the templates/ tree into a target directory,
-substituting four placeholders in any file whose name ends in `.tmpl`:
+substituting these placeholders in any file whose name ends in `.tmpl`:
 
   __APP_NAME__       — PascalCase display name (e.g. "Foobar")
   __APP_SLUG__       — lowercase slug (e.g. "foobar"), used in proto package
                         names, npm package names, the database name, etc.
   __APP_SLUG_UPPER__ — uppercase env-var prefix (e.g. "FOOBAR")
   __ORG_SCOPE__      — npm scope including the @ (e.g. "@foobar-tech")
+  __LICENSE_FIELD__  — the package.json "license" value: the SPDX id, or
+                        UNLICENSED when no licence was chosen
+  __LICENSE_RULE__   — the licence-header rule written into CLAUDE.md
+
+A licence is optional (`--license`, default `none`). When one is chosen,
+every generated source file (.ts, .tsx, .js, .mjs, .go) gets a first line
+`// SPDX-License-Identifier: <id>`, and for Apache-2.0 and MIT a LICENSE
+file (and NOTICE, for Apache) is written from templates/licenses/ with the
+`--copyright` holder and the current year. Any other SPDX id gets the
+headers only; the LICENSE file is the user's to add.
 
 Layout mapping (templates → output):
 
@@ -31,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from datetime import date
 import shutil
 import sys
 from pathlib import Path
@@ -40,21 +51,45 @@ PLACEHOLDER_KEYS = (
     "__APP_SLUG__",
     "__APP_SLUG_UPPER__",
     "__ORG_SCOPE__",
+    "__LICENSE_FIELD__",
+    "__LICENSE_RULE__",
 )
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+SPDX_RE = re.compile(r"^[A-Za-z0-9.+-]+$")
+
+# Licences whose text ships in templates/licenses/<id>.txt.tmpl.
+BUNDLED_LICENSES = ("Apache-2.0", "MIT")
+# Files that take a `//` comment header.
+HEADER_SUFFIXES = {".ts", ".tsx", ".js", ".mjs", ".go"}
 
 
-def derive_substitutions(name: str, slug: str, org: str) -> dict[str, str]:
+def derive_substitutions(name: str, slug: str, org: str, license_id: str) -> dict[str, str]:
     if not SLUG_RE.match(slug):
         sys.exit(f"--slug must be lowercase letters, digits, or dashes: {slug!r}")
     if not org.startswith("@"):
         sys.exit(f"--org must start with '@': {org!r}")
+    if license_id != "none" and not SPDX_RE.match(license_id):
+        sys.exit(f"--license must be 'none' or an SPDX identifier: {license_id!r}")
+    if license_id == "none":
+        license_field = "UNLICENSED"
+        license_rule = (
+            "No licence header yet: no LICENSE was chosen at bootstrap. Once one is,\n"
+            "  start every hand-written source file with `// SPDX-License-Identifier: <id>`."
+        )
+    else:
+        license_field = license_id
+        license_rule = (
+            f"Every hand-written source file starts with `// SPDX-License-Identifier: {license_id}`;\n"
+            "  generated files, config and markdown do not."
+        )
     return {
         "__APP_NAME__": name,
         "__APP_SLUG__": slug,
         "__APP_SLUG_UPPER__": slug.upper().replace("-", "_"),
         "__ORG_SCOPE__": org,
+        "__LICENSE_FIELD__": license_field,
+        "__LICENSE_RULE__": license_rule,
     }
 
 
@@ -115,6 +150,34 @@ def scaffold(templates: Path, out: Path, subs: dict[str, str]) -> None:
     copy_tree(templates / "site", out / "packages" / "docs-site", subs)
 
 
+def stamp_headers(out: Path, license_id: str) -> int:
+    """Prepend the SPDX header to every generated source file. Returns the count."""
+    header = f"// SPDX-License-Identifier: {license_id}\n"
+    count = 0
+    for path in out.rglob("*"):
+        if not path.is_file() or path.suffix not in HEADER_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if text.startswith("#!") or text.startswith(header):
+            continue
+        path.write_text(header + text, encoding="utf-8")
+        count += 1
+    return count
+
+
+def write_license(templates: Path, out: Path, license_id: str, holder: str) -> bool:
+    """Write LICENSE (and NOTICE for Apache-2.0) when the text is bundled."""
+    if license_id not in BUNDLED_LICENSES:
+        return False
+    subs = {"__COPYRIGHT_HOLDER__": holder, "__YEAR__": str(date.today().year)}
+    text = (templates / "licenses" / f"{license_id}.txt.tmpl").read_text(encoding="utf-8")
+    (out / "LICENSE").write_text(substitute(text, subs), encoding="utf-8")
+    if license_id == "Apache-2.0":
+        notice = (templates / "licenses" / "NOTICE.txt.tmpl").read_text(encoding="utf-8")
+        (out / "NOTICE").write_text(substitute(notice, subs), encoding="utf-8")
+    return True
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--name", required=True, help="Display name, e.g. 'Foobar'")
@@ -122,15 +185,36 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--org", required=True, help="npm scope, e.g. '@foobar-tech'")
     parser.add_argument("--out", required=True, help="Target directory (must be empty or non-existent)")
     parser.add_argument(
+        "--license",
+        default="none",
+        help="SPDX licence id (e.g. 'Apache-2.0', 'MIT') or 'none' (default). "
+        "Stamps a header on every source file; writes LICENSE for bundled texts.",
+    )
+    parser.add_argument(
+        "--copyright",
+        default=None,
+        help="Copyright holder for the LICENSE text; required unless --license is 'none'",
+    )
+    parser.add_argument(
         "--templates",
         default=str(Path(__file__).resolve().parent.parent / "templates"),
         help="Path to the templates dir (defaults to the bundled one)",
     )
     args = parser.parse_args(argv)
 
-    subs = derive_substitutions(args.name, args.slug, args.org)
-    scaffold(Path(args.templates), Path(args.out).resolve(), subs)
+    if args.license != "none" and not args.copyright:
+        parser.error("--copyright is required when --license is not 'none'")
+    subs = derive_substitutions(args.name, args.slug, args.org, args.license)
+    templates, out = Path(args.templates), Path(args.out).resolve()
+    scaffold(templates, out, subs)
     print(f"Scaffolded {args.name} ({args.slug}) into {args.out}")
+    if args.license != "none":
+        stamped = stamp_headers(out, args.license)
+        print(f"Stamped `// SPDX-License-Identifier: {args.license}` on {stamped} source files")
+        if write_license(templates, out, args.license, args.copyright):
+            print(f"Wrote LICENSE ({args.license}, {args.copyright})")
+        else:
+            print(f"No bundled text for {args.license}: add LICENSE yourself")
     print()
     print("Next steps:")
     print(f"  cd {args.out}")
