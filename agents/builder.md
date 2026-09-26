@@ -49,7 +49,8 @@ call costs double. So:
   never committed and never hand-edited; regenerate it.
 - Generated protos are deep-imported from the generated package; no
   barrel files.
-- Every new source file starts with the licence header the repo uses.
+- A new source file starts with the licence header the project's `CLAUDE.md`
+  requires, if it requires one.
 
 ## Report
 

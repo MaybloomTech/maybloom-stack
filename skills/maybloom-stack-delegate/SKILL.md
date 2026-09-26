@@ -14,9 +14,14 @@ per session or `Agent` call; a task takes the lowest tier that can own it.
 
 ## The roster
 
+The architect is the session reading this skill, never an agent: the rules
+below are constraints on what it keeps, what it hands off, and how it
+reviews what comes back. The builder and mechanic are the agents this
+plugin ships. A repo pins the actual models in its `CLAUDE.md`.
+
 | Tier | Model | Owns |
 |---|---|---|
-| **Architect** | The strongest tier available (Opus-class; the safety-review tier for auth, session and privacy) | Plans and slice briefs; the foundations (transport, session, data layer, stream client, error model); **every server slice** (the proto is the contract, and the contract is architect work); anything touching authn / authz / privacy; `/code-review` of every builder PR. |
+| **Architect** | The interactive session. Opus-class for architect work; the top tier (Fable-class) for the slice briefs and for anything touching auth, session or privacy | Plans and slice briefs; the foundations (transport, session, data layer, stream client, error model); **every server slice** (the proto is the contract, and the contract is architect work); anything touching authn / authz / privacy; `/code-review` of every builder PR. |
 | **Builder** | Sonnet-class (`maybloom-stack:builder`) | Screen and feature slices against a fixed brief, and their tests. |
 | **Mechanic** | Haiku-class (`maybloom-stack:mechanic`) | CI, Docker, compose, the proxy, `app.json` / `eas.json`, biome / tsconfig, dependency bumps, lint fixes, rename sweeps, inventories, README and changelog chores. Never product code. |
 
