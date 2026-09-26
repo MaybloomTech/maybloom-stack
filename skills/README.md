@@ -10,6 +10,7 @@ The maybloom stack's agent skills. This directory is their source of truth;
 | `maybloom-stack-add-resource/` | Add a resource end-to-end through every layer |
 | `maybloom-stack-extend-resource/` | Change a resource that already exists: fields, child tables, links |
 | `maybloom-stack-add-rpc/` | Add one non-CRUD operation |
+| `maybloom-stack-delegate/` | Who does what: the model tiers, the rules, the brief template. The agents it describes live in `../agents/` |
 | `maybloom-stack-shared/` | References loaded by the others: cross-cutting files (the language-neutral core, proto conventions, gotchas, tx patterns) and one directory per path under `references/paths/` |
 
 The directories must stay siblings: they reference each other by
@@ -66,8 +67,8 @@ Claude Code:
 /plugin install maybloom-stack@maybloom-stack
 ```
 
-That installs the whole family in one step — the two triggering skills
-plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
+That installs the whole family in one step — the triggering skills, the
+`builder` and `mechanic` agents from `../agents/`, plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
 files, so the `../maybloom-stack-shared/references/...` links keep
 resolving on the installed copy. Installed skills are namespaced
 (`maybloom-stack:maybloom-stack-bootstrap`). Pull new releases with

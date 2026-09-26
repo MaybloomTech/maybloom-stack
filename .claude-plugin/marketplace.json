@@ -7,7 +7,7 @@
     {
       "name": "maybloom-stack",
       "source": ".",
-      "description": "Agent skills for the maybloom stack: bootstrap a proto-first Connect-RPC monorepo and add resources end-to-end through every layer. Validated TypeScript and Go paths ship in full; a language-neutral core reference supports any other Connect-RPC implementation."
+      "description": "Agent skills for the maybloom stack: bootstrap a proto-first Connect-RPC monorepo and add resources end-to-end through every layer. Validated TypeScript and Go paths ship in full; a language-neutral core reference supports any other Connect-RPC implementation. Includes the builder and mechanic subagents and the delegation skill that says who does what."
     }
   ]
 }

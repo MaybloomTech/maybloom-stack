@@ -58,8 +58,9 @@ scaffold the monorepo anyway (the proto module and Buf codegen wiring are
 the part every path shares), keep the packages that fit, and follow the
 open-path protocol in `core.md` for the rest. The scaffolded packages
 remain useful as live exemplars of the layer seams even when the user
-replaces them. Suggest recording their choices in the project's
-`CLAUDE.md` so later sessions inherit them.
+replaces them. The scaffold writes a `CLAUDE.md` with a `## Delegation`
+section (see `maybloom-stack-delegate`); record their choices there so
+later sessions inherit them.
 
 ## Interview
 

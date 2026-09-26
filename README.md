@@ -33,8 +33,9 @@ docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
 6. [Sites](./docs/sites.md), Astro for the public, static surfaces
 7. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
 8. [Skills](./docs/skills.md), how the stack ships as agent skills
-9. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
-10. [Prior art](./docs/prior-art.md), how the stack compares to what exists
+9. [Delegation](./docs/delegation.md), how work on the stack is split between model tiers
+10. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
+11. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
 ## Contributing
 
@@ -49,6 +50,7 @@ advisory rather than an issue — see [SECURITY.md](./SECURITY.md).
 | `docs/` | The canonical definition. Source of truth for everything else. |
 | `site/` | The Astro site that renders `docs/` unchanged. |
 | `skills/` | Agent skills that apply the conventions to a real codebase. |
+| `agents/` | The builder and mechanic subagents the delegation model runs on. |
 | `.claude-plugin/` | Marketplace + plugin manifests that make the skills installable via `/plugin`. |
 
 ## Using the skills

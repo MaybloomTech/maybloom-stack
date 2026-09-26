@@ -23,6 +23,7 @@ situation, rather than a generator that stamps one shape.
 | `maybloom-stack-extend-resource` | Fields, child tables, and links on an existing resource | Instructions; leans on the shared wire and transaction references |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
 | `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Instructions + a module skeleton reference, following the [Go blueprint](./backend-go.md) |
+| `maybloom-stack-delegate` | Split the work between model tiers: the roster, the rules, the brief template; ships with the `builder` and `mechanic` agents | Instructions, see [Delegation](./delegation.md) |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so `pnpm install` ends with a running CRUD loop. The
