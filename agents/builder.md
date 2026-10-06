@@ -30,7 +30,8 @@ It is the whole task. Do not widen it.
 Read the `## Delegation` section of the project's `CLAUDE.md` before the
 first edit. It names the protected paths, where commands run from, and
 the checks a builder runs. If the section is missing, say so in the
-report and fall back to the root scripts (`typecheck`, `lint`, `test`).
+report and fall back to the root `typecheck` and `lint` scripts, plus
+`test` where the package has one.
 
 ## Budget
 

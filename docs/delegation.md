@@ -73,4 +73,4 @@ report shape stay, so the architect's review does not learn a second
 format.
 
 The full rules, the brief template and the `CLAUDE.md` section are in the
-[skill itself](../skills/maybloom-stack-delegate/SKILL.md).
+[skill itself](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md).

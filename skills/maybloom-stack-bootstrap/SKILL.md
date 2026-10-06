@@ -71,8 +71,8 @@ later sessions inherit them.
 ## Interview
 
 Before running the scaffolder, collect five values from the user. The first
-four map 1:1 to the placeholders the templates use; the fifth decides the
-licence.
+four map 1:1 to the placeholders the templates use; the fifth, the licence,
+is two flags.
 
 | Prompt | Variable | Example | Notes |
 |---|---|---|---|
@@ -80,7 +80,7 @@ licence.
 | Slug? | `__APP_SLUG__` | `foobar` | lowercase, dashes ok, no spaces. Drives the proto package, the npm package basenames, the database name, the Android package, etc. Has to be a valid identifier prefix. |
 | npm org / scope? | `__ORG_SCOPE__` | `@foobar-tech` | Must start with `@`. Becomes `@foobar-tech/backend`, `@foobar-tech/interface`, `@foobar-tech/protocol-buffers`. |
 | Where to scaffold? | `--out` | `~/workspace/foobar` | Must be empty or non-existent. |
-| Licence? | `--license` | `Apache-2.0` | An SPDX id, or `none` (the default). Ask it as a choice: none, Apache-2.0, MIT, or another id. When it is not `none`, also ask **whose copyright** (`--copyright`, e.g. `Foobar Tech`); suggest the org name and confirm. The scaffold stamps `// SPDX-License-Identifier: <id>` on every source file, sets the `license` field of each `package.json`, writes the rule into `CLAUDE.md`, and for Apache-2.0 and MIT writes `LICENSE` (and `NOTICE`) too. Any other id gets the headers only; say so, and that `LICENSE` is theirs to add. |
+| Licence? | `--license` | `Apache-2.0` | An SPDX id, or `none` (the default). Ask it as a choice: none, Apache-2.0, MIT, or another id. When it is not `none`, also ask **whose copyright** (`--copyright`, e.g. `Foobar Tech`); suggest the org name and confirm. The scaffold stamps `// SPDX-License-Identifier: <id>` on every source file (config and `.d.ts` files excepted), sets the `license` field of each `package.json`, writes the rule into `CLAUDE.md`, and for Apache-2.0 and MIT writes `LICENSE` (and `NOTICE`) too. Any other id gets the headers only; say so, and that `LICENSE` is theirs to add. |
 
 If the user mentions the resources they want up-front (e.g. "an app for
 tracking books, with `Book` and `Loan` resources"), keep that list — you'll

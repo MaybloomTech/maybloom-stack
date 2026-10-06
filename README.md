@@ -63,7 +63,8 @@ monorepo with one worked example resource, `maybloom-stack-bootstrap-go`
 stands up a Go service inside a repo that already has the contract,
 `maybloom-stack-add-resource` adds the Nth resource end-to-end through
 every layer, `maybloom-stack-extend-resource` changes a resource that
-already exists, and `maybloom-stack-add-rpc` adds a single operation.
+already exists, `maybloom-stack-add-rpc` adds a single operation, and
+`maybloom-stack-delegate` says which model tier owns which of those tasks.
 `maybloom-stack-shared` holds the references they all load — the
 language-neutral core that lets the skills work with client or server
 technologies beyond the validated defaults, plus one directory per

@@ -33,8 +33,9 @@ pnpm dev:interface
   `packages/interface/src/data/api/client.ts`. Add auth, session and
   permission files here as they appear.
 - **Commands run from:** the repo root.
-- **Builder checks:** `pnpm typecheck`, `pnpm lint`, then the package's
-  `test` script.
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`. No test runner is
+  scaffolded yet; the first slice that needs one adds it with a `test`
+  script and updates this line.
 - **Mechanic checks:** `pnpm lint`, or the CI job the chore touches.
 
 ## Rules a change must honour

@@ -15,7 +15,8 @@ substituting these placeholders in any file whose name ends in `.tmpl`:
   __LICENSE_RULE__   — the licence-header rule written into CLAUDE.md
 
 A licence is optional (`--license`, default `none`). When one is chosen,
-every generated source file (.ts, .tsx, .js, .mjs, .go) gets a first line
+every hand-written source file (.ts, .tsx, .js, .mjs, .go; config files and
+.d.ts declarations excepted, as the CLAUDE.md rule says) gets a first line
 `// SPDX-License-Identifier: <id>`, and for Apache-2.0 and MIT a LICENSE
 file (and NOTICE, for Apache) is written from templates/licenses/ with the
 `--copyright` holder and the current year. Any other SPDX id gets the
@@ -62,6 +63,13 @@ SPDX_RE = re.compile(r"^[A-Za-z0-9.+-]+$")
 BUNDLED_LICENSES = ("Apache-2.0", "MIT")
 # Files that take a `//` comment header.
 HEADER_SUFFIXES = {".ts", ".tsx", ".js", ".mjs", ".go"}
+
+
+def takes_header(path: Path) -> bool:
+    """Source files only: the rule written into CLAUDE.md exempts config and declarations."""
+    if path.suffix not in HEADER_SUFFIXES:
+        return False
+    return ".config." not in path.name and not path.name.endswith(".d.ts")
 
 
 def derive_substitutions(name: str, slug: str, org: str, license_id: str) -> dict[str, str]:
@@ -151,11 +159,11 @@ def scaffold(templates: Path, out: Path, subs: dict[str, str]) -> None:
 
 
 def stamp_headers(out: Path, license_id: str) -> int:
-    """Prepend the SPDX header to every generated source file. Returns the count."""
+    """Prepend the SPDX header to every hand-written source file. Returns the count."""
     header = f"// SPDX-License-Identifier: {license_id}\n"
     count = 0
     for path in out.rglob("*"):
-        if not path.is_file() or path.suffix not in HEADER_SUFFIXES:
+        if not path.is_file() or not takes_header(path):
             continue
         text = path.read_text(encoding="utf-8")
         if text.startswith("#!") or text.startswith(header):
@@ -188,7 +196,7 @@ def main(argv: list[str]) -> int:
         "--license",
         default="none",
         help="SPDX licence id (e.g. 'Apache-2.0', 'MIT') or 'none' (default). "
-        "Stamps a header on every source file; writes LICENSE for bundled texts.",
+        "Stamps a header on every source file (config and .d.ts excepted); writes LICENSE for bundled texts.",
     )
     parser.add_argument(
         "--copyright",

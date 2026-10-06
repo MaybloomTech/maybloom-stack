@@ -52,7 +52,7 @@ adapter/store/handlers, the generated handler interface as the
 exhaustiveness check), so the skill operates on a connect-go service
 without reading any codebase outside the skill tree.
 
-The other three skills split the work add-resource is the wrong shape for.
+Three of the other skills split the work add-resource is the wrong shape for.
 Extend-resource changes a resource that already exists, where the RPC
 surface usually stays put and the risk moves to wire compatibility and to
 rows already in the database. Add-rpc adds one operation, which is the

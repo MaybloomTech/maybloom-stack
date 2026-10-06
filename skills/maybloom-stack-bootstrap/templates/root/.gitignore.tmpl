@@ -10,3 +10,8 @@ dist/
 # other edge in this repo. The directory itself is tracked (via .gitkeep)
 # because buf writes into it rather than creating it.
 packages/docs-site/src/generated/*.json
+# Generated from proto/ by `pnpm proto:gen` on install; never committed. The
+# directory itself is tracked (via .gitkeep) so tsup has somewhere to write
+# into before the first generate.
+packages/protocol-buffers/src/*
+!packages/protocol-buffers/src/.gitkeep
