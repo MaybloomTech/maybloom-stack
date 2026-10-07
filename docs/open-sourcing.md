@@ -1,7 +1,7 @@
 ---
 title: Open-sourcing
 description: How this repository relates to the private system the stack came from
-order: 9
+order: 10
 ---
 
 # Open-sourcing

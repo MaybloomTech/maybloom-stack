@@ -33,9 +33,10 @@ docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
 6. [Sites](./docs/sites.md), Astro for the public, static surfaces
 7. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
 8. [Skills](./docs/skills.md), how the stack ships as agent skills
-9. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
-10. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
-11. [Prior art](./docs/prior-art.md), how the stack compares to what exists
+9. [Delegation](./docs/delegation.md), how work on the stack is split between model tiers
+10. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
+11. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
+12. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
 ## Contributing
 
@@ -50,6 +51,7 @@ advisory rather than an issue — see [SECURITY.md](./SECURITY.md).
 | `docs/` | The canonical definition. Source of truth for everything else. |
 | `site/` | The Astro site that renders `docs/` unchanged. |
 | `skills/` | Agent skills that apply the conventions to a real codebase. |
+| `agents/` | The builder and mechanic subagents the delegation model runs on. |
 | `.claude-plugin/` | Marketplace + plugin manifests that make the skills installable via `/plugin`. |
 
 ## Using the skills
@@ -61,7 +63,8 @@ monorepo with one worked example resource, `maybloom-stack-bootstrap-go`
 stands up a Go service inside a repo that already has the contract,
 `maybloom-stack-add-resource` adds the Nth resource end-to-end through
 every layer, `maybloom-stack-extend-resource` changes a resource that
-already exists, and `maybloom-stack-add-rpc` adds a single operation.
+already exists, `maybloom-stack-add-rpc` adds a single operation, and
+`maybloom-stack-delegate` says which model tier owns which of those tasks.
 `maybloom-stack-shared` holds the references they all load — the
 language-neutral core that lets the skills work with client or server
 technologies beyond the validated defaults, plus one directory per
