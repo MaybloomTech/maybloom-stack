@@ -15,7 +15,14 @@ a real implementation disagree, `docs/` is what the stack means, the
 implementation is what is currently true, and the skills trail the
 documents rather than leading them. A change to how the stack works starts
 in `docs/`; the skill change comes with it or after it, never instead of
-it. [Open-sourcing](./docs/open-sourcing.md) explains why.
+it.
+
+The rule exists because the stack still has a private reference
+implementation, which is a failure mode worth naming: documentation that
+describes a system only its authors can see. Nothing here may require
+reading that codebase. A document or skill that says "copy the helper from
+the other repo" is a defect, and gets rewritten to either carry the pattern
+itself or describe its shape well enough to rebuild from scratch.
 
 ## Getting set up
 

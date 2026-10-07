@@ -143,6 +143,5 @@ commands, the team-pinning settings, and the contributor flow (a clone
 added as a local marketplace) are in `skills/README.md`.
 
 A skill that tells the agent to go read code the reader has no access to is
-a defect rather than a shortcut, for the reason described in
-[open-sourcing](./open-sourcing.md): every pattern a skill relies on has to
+a defect rather than a shortcut: every pattern a skill relies on has to
 travel with it.

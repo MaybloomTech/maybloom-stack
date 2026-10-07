@@ -34,9 +34,8 @@ docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
 7. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
 8. [Skills](./docs/skills.md), how the stack ships as agent skills
 9. [Delegation](./docs/delegation.md), how work on the stack is split between model tiers
-10. [Open-sourcing](./docs/open-sourcing.md), how this repo relates to the system it came from
-11. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
-12. [Prior art](./docs/prior-art.md), how the stack compares to what exists
+10. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
+11. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
 ## Contributing
 
@@ -107,8 +106,8 @@ they describe meet new constraints and technologies. Only the contract core
 holds still.
 
 The stack was extracted from a working private product, which is not
-published. [Open-sourcing](./docs/open-sourcing.md) explains what that means
-for the docs you are reading.
+published and is not needed to use anything here: every pattern the docs
+and skills rely on travels with them.
 
 ## License
 
