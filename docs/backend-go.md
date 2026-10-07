@@ -18,13 +18,11 @@ services have since walked it, and this version records what they found:
 
 - **OCF IMS**, an incident-management system for a fair, brought onto the
   contract from a Go REST codebase: 60 unary RPCs on connect-go, sqlc over
-  MariaDB, goose, slog, a full interceptor spine, and an Expo client. It runs
-  as a staging instance that follows `master`, with production next.
+  MariaDB, goose, slog, a full interceptor spine, and an Expo client.
 - **The Maybloom app**, the stack's own reference implementation, restarted
   as a Go backend-for-frontend over Postgres: connect-go, sqlc + pgx, goose,
-  an OIDC login, the web interface embedded in the binary. Built and
-  verified from the `bootstrap-go` skill's layout; its first deploy is the
-  step after this document.
+  an OIDC login, the web interface embedded in the binary. Built from the
+  `bootstrap-go` skill's layout and in production since September 2026.
 
 Where the two agree, the pattern below is stated as settled. Where they
 chose differently, both answers are given with the reason each was chosen.
@@ -645,8 +643,8 @@ ENTRYPOINT ["<service>"]
 The version is stamped from the git short SHA at build time and reported
 by the `Health` RPC, so the running image can always say which commit it
 is. Also stamp it as the `org.opencontainers.image.revision` label; OCF
-IMS's first staging image carried none and the digest was the only way to
-know what was running. The healthcheck can be busybox `wget` on alpine or
+IMS's first image carried none and the digest was the only way to know
+what was running. The healthcheck can be busybox `wget` on alpine or
 the binary's own `healthcheck` subcommand; both are walked.
 
 ### Where the web interface is served
@@ -672,10 +670,10 @@ different rhythms or the Go image must stay minimal.
 
 ### A host without Go
 
-The stack's deploy target is a small box that builds everything in Docker,
-and the Maybloom server has no Go installed. A twelve-line script runs the
-toolchain in the same image the Dockerfile uses, with the module and build
-caches in named volumes so the second run is fast:
+A deploy host that builds everything in Docker needs no Go toolchain of
+its own. A twelve-line script runs the toolchain in the same image the
+Dockerfile uses, with the module and build caches in named volumes so the
+second run is fast:
 
 ```sh
 docker run --rm -i --user "$(id -u):$(id -g)" \
@@ -688,16 +686,16 @@ docker run --rm -i --user "$(id -u):$(id -g)" \
 generate`. Running as the invoking user keeps `go.sum` and the generated
 files owned by the person, not root.
 
-### Staging that follows the branch
+### A test instance that follows the branch
 
-OCF IMS's testing instance is the production compose file with three
-knobs: the image tag defaults to `latest` with `pull_policy: always`, a
-demo seed loads on an empty database, and a cron job on the host pulls
-every half hour and restarts only when the image changed. `latest` is
-moved only by the CI job that runs after lint, the test suite and an image
-smoke test, so the instance can only ever receive a tested build, and the
-host needs no inbound access and GitHub holds no deploy key. Pin the tag
-in `.env` to freeze it for a test session. Nothing real ever goes on it.
+A test instance is the production compose file with three knobs: the
+image tag defaults to `latest` with `pull_policy: always`, a demo seed
+loads on an empty database, and a cron job on the host pulls on a
+schedule and restarts only when the image changed. `latest` is moved only
+by the CI job that runs after lint, the test suite and an image smoke
+test, so the instance can only ever receive a tested build, and the host
+needs no inbound access and GitHub holds no deploy key. Pin the tag in
+`.env` to freeze it for a test session. Nothing real ever goes on it.
 
 ## Patterns adopted, patterns left behind
 
