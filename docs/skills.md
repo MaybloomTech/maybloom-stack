@@ -24,6 +24,7 @@ situation, rather than a generator that stamps one shape.
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
 | `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Instructions + a module skeleton reference, following the [Go blueprint](./backend-go.md) |
 | `maybloom-stack-delegate` | Split the work between model tiers: the roster, the rules, the brief template; ships with the `builder` and `mechanic` agents | Instructions, see [Delegation](./delegation.md) |
+| `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage | Instructions + the one shell script, copied into place once per machine |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so `pnpm install` ends with a running CRUD loop. The
@@ -51,6 +52,17 @@ backend carries the per-layer patterns (goose migration, sqlc queries, Go
 adapter/store/handlers, the generated handler interface as the
 exhaustiveness check), so the skill operates on a connect-go service
 without reading any codebase outside the skill tree.
+
+One skill is tooling rather than a task on the stack. The delegation
+model budgets work by model tier, and the status line is how a person
+watches that budget spend: the 5-hour and weekly windows, and the
+weekly limit scoped to the strongest model, which is the one that binds
+first. Claude Code pipes only the first two into a status-line command,
+so the script reads the scoped one from the usage endpoint the `/usage`
+command uses, cached and refreshed off the render path. A plugin cannot
+set a user's status line, so the skill ships the script and installs it
+by copying it to a stable path and setting one key in
+`~/.claude/settings.json`, once per machine.
 
 Three of the other skills split the work add-resource is the wrong shape for.
 Extend-resource changes a resource that already exists, where the RPC
