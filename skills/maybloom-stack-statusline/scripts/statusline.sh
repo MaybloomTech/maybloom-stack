@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Claude Code status line script
 # Shows: cwd | git branch | model | 5-hour usage+reset | weekly usage+reset | model-scoped week (e.g. Fable) | context usage
+#
+# STATUSLINE_DEBUG=1 runs the usage refresh in the foreground and reports on
+# stderr why the scoped segment is or is not available (no token, HTTP 401,
+# curl failure); see SKILL.md, Troubleshooting.
 
 input=$(cat)
 
@@ -11,34 +15,40 @@ c_cyan='\033[36m'
 c_magenta='\033[35m'
 c_yellow='\033[33m'
 c_green='\033[32m'
-c_orange='\033[33m'   # bold yellow approximates orange in most terminals
 c_red='\033[31m'
-c_bold='\033[1m'
 
-# Color a usage percentage by threshold: green <50, yellow 50-79, red >=80
+debug_log() {
+  [ -n "${STATUSLINE_DEBUG:-}" ] && printf 'statusline: %s\n' "$*" >&2
+  return 0
+}
+
+# Color a usage percentage by threshold: green <50, yellow 50-79, red >=80.
+# Anything that is not a number (jq's "null", an empty string) prints nothing,
+# so a caller that passes a bad value gets an empty segment rather than a
+# green 0% and an error on stderr.
 color_pct() {
-  local pct_raw="$1"
-  local pct
-  pct=$(printf '%.0f' "$pct_raw")
+  local pct="${1%%.*}"
+  [[ "$pct" =~ ^[0-9]+$ ]] || return 0
   if [ "$pct" -ge 80 ]; then
     printf '%b%s%%%b' "$c_red" "$pct" "$c_reset"
   elif [ "$pct" -ge 50 ]; then
-    printf '%b%s%%%b' "$c_orange" "$pct" "$c_reset"
+    printf '%b%s%%%b' "$c_yellow" "$pct" "$c_reset"
   else
     printf '%b%s%%%b' "$c_green" "$pct" "$c_reset"
   fi
 }
 
-# Format seconds-until-reset. Modes: "hm" (default, Xh Ym) or "dhm" (Xd Yh Zm)
+# Format seconds-until-reset. Modes: "hm" (default, Xh Ym) or "dhm" (Xd Yh Zm).
+# resets_at is an epoch; a fractional one is truncated, a non-number prints nothing.
 format_reset() {
-  local resets_at="$1"
+  local resets_at="${1%%.*}"
   local mode="${2:-hm}"
+  [[ "$resets_at" =~ ^[0-9]+$ ]] || return 0
   local now
   now=$(date +%s)
   local secs=$(( resets_at - now ))
   if [ "$secs" -le 0 ]; then
-    echo ""
-    return
+    return 0
   fi
   local d=$(( secs / 86400 ))
   local h=$(( (secs % 86400) / 3600 ))
@@ -61,15 +71,23 @@ format_reset() {
   fi
 }
 
-# Current working directory (shortened: replace $HOME with ~)
-cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""')
-cwd="${cwd/#$HOME/\~}"   # \~ : a bare ~ in the replacement is tilde-expanded back to $HOME
+# Current working directory. raw_cwd is what git gets; cwd is the display
+# form, with $HOME shortened to ~ only at a path boundary (so /home/mc never
+# shortens /home/mcerver).
+raw_cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""')
+cwd="$raw_cwd"
+if [ -n "$HOME" ]; then
+  if [ "$raw_cwd" = "$HOME" ]; then
+    cwd='~'
+  elif [[ "$raw_cwd" == "$HOME"/* ]]; then
+    cwd="~/${raw_cwd#"$HOME"/}"
+  fi
+fi
 
 # Git branch (skip optional locks to avoid blocking)
 git_branch=""
-if [ -n "$cwd" ]; then
-  expanded_cwd="${cwd/#\~/$HOME}"
-  git_branch=$(git -C "$expanded_cwd" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
+if [ -n "$raw_cwd" ]; then
+  git_branch=$(git -C "$raw_cwd" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
 fi
 
 # Model display name
@@ -95,6 +113,7 @@ week_resets=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
 USAGE_TTL=300
 usage_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
 usage_cache="$usage_cache_dir/usage.json"
+usage_lock="$usage_cache.lock"
 
 file_mtime() {
   stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
@@ -110,19 +129,33 @@ oauth_token() {
   fi
 }
 
+# Fetch the usage JSON into the cache. The bearer token travels to curl through
+# a config file on stdin (-K -), never on the command line, so it is not
+# readable in `ps` or /proc/*/cmdline while the request runs. printf is a bash
+# builtin, so there is no process carrying it either.
 refresh_usage_cache() {
-  local tok tmp
+  local tok tmp code rc
   tok=$(oauth_token)
-  [ -n "$tok" ] || return
-  tmp="$usage_cache.tmp.$$"
-  if curl -sS -m 8 -H "Authorization: Bearer $tok" -H 'anthropic-beta: oauth-2025-04-20' \
-       https://api.anthropic.com/api/oauth/usage -o "$tmp" 2>/dev/null \
-     && jq -e '.limits' "$tmp" >/dev/null 2>&1; then
-    mv -f "$tmp" "$usage_cache"
-  else
-    rm -f "$tmp"
+  if [ -z "$tok" ]; then
+    debug_log "no OAuth token (not signed in to claude.ai here, or an API-key session): scoped segment unavailable"
+    return 0
   fi
-  rm -f "$usage_cache.lock"
+  tmp="$usage_cache.tmp.$$"
+  code=$(printf 'header = "Authorization: Bearer %s"\nheader = "anthropic-beta: oauth-2025-04-20"\n' "$tok" \
+    | curl -sS -m 8 -K - -o "$tmp" -w '%{http_code}' https://api.anthropic.com/api/oauth/usage 2>/dev/null)
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    debug_log "curl failed (exit $rc): network or DNS; segment hidden once the cache is an hour old"
+  elif [ "$code" != 200 ]; then
+    debug_log "usage endpoint answered HTTP $code (401 = login expired: run /login)"
+  elif ! jq -e '.limits' "$tmp" >/dev/null 2>&1; then
+    debug_log "usage endpoint answered 200 without a limits[] array; response kept at $tmp.bad"
+    mv -f "$tmp" "$tmp.bad"
+  else
+    mv -f "$tmp" "$usage_cache"
+    debug_log "usage cache refreshed"
+  fi
+  rm -f "$tmp"
 }
 
 scoped_pct=""; scoped_name=""; scoped_resets=""
@@ -130,20 +163,29 @@ if command -v curl >/dev/null 2>&1; then
   mkdir -p "$usage_cache_dir" 2>/dev/null
   now=$(date +%s)
   age=$(( now - $(file_mtime "$usage_cache") ))
-  if [ "$age" -ge "$USAGE_TTL" ]; then
-    # one refresher at a time; a lock older than 60 s is stale and ignored
-    if [ ! -e "$usage_cache.lock" ] || [ $(( now - $(file_mtime "$usage_cache.lock") )) -gt 60 ]; then
-      : > "$usage_cache.lock"
-      ( refresh_usage_cache ) >/dev/null 2>&1 &
+  if [ -n "${STATUSLINE_DEBUG:-}" ]; then
+    # foreground, every time, messages on stderr
+    refresh_usage_cache
+    age=0
+  elif [ "$age" -ge "$USAGE_TTL" ]; then
+    # one refresher at a time; a lock older than 60 s is stale and ignored.
+    # The lock is removed by the wrapper, whichever way the refresh returns.
+    if [ ! -e "$usage_lock" ] || [ $(( now - $(file_mtime "$usage_lock") )) -gt 60 ]; then
+      : > "$usage_lock"
+      ( refresh_usage_cache; rm -f "$usage_lock" ) >/dev/null 2>&1 &
       disown 2>/dev/null
     fi
   fi
   # a cache older than an hour means refreshes have been failing (token?), hide rather than mislead
   if [ -r "$usage_cache" ] && [ "$age" -lt 3600 ]; then
-    read -r scoped_pct scoped_name scoped_resets < <(
-      jq -r '[.limits[]? | select(.kind == "weekly_scoped")][0]
+    # tab-separated so a display_name with a space ("Fable 5.1") stays one field
+    IFS=$'\t' read -r scoped_pct scoped_name scoped_resets < <(
+      jq -r '[.limits[]? | select(.kind == "weekly_scoped" and .percent != null)][0]
              | select(. != null)
-             | "\(.percent) \(.scope.model.display_name // "model" | ascii_downcase) \(.resets_at // "")"' \
+             | [ (.percent | tostring),
+                 ((.scope.model.display_name // "model") | ascii_downcase),
+                 (.resets_at // "") ]
+             | @tsv' \
          "$usage_cache" 2>/dev/null)
     if [ -n "$scoped_resets" ]; then
       # ISO 8601 with fractional seconds -> epoch (GNU date, then BSD date)
@@ -151,6 +193,8 @@ if command -v curl >/dev/null 2>&1; then
       scoped_resets=$(date -u -d "$iso" +%s 2>/dev/null \
         || date -u -j -f '%Y-%m-%dT%H:%M:%S' "$iso" +%s 2>/dev/null || echo "")
     fi
+  elif [ -n "${STATUSLINE_DEBUG:-}" ]; then
+    debug_log "no usable cache at $usage_cache"
   fi
 fi
 
@@ -169,46 +213,31 @@ if [ -n "$model" ]; then
   line1+=("$(printf '%b%s%b' "$c_yellow" "$model" "$c_reset")")
 fi
 
+# One usage segment: "label:NN% (reset)". Nothing when the percentage is not a number.
+usage_segment() {
+  local label="$1" pct="$2" resets="$3" mode="$4"
+  local colored reset_str
+  colored=$(color_pct "$pct")
+  [ -n "$colored" ] || return 0
+  reset_str=""
+  if [ -n "$resets" ]; then
+    reset_str=$(format_reset "$resets" "$mode")
+  fi
+  if [ -n "$reset_str" ]; then
+    printf '%s:%s %b(%s)%b' "$label" "$colored" "$c_dim" "$reset_str" "$c_reset"
+  else
+    printf '%s:%s' "$label" "$colored"
+  fi
+}
+
 # Line 2: 5-hour, weekly, scoped week (fable), context
 line2=()
-if [ -n "$five_pct" ]; then
-  colored_pct=$(color_pct "$five_pct")
-  reset_str=""
-  if [ -n "$five_resets" ]; then
-    reset_str=$(format_reset "$five_resets")
-  fi
-  if [ -n "$reset_str" ]; then
-    line2+=("$(printf '5h:%s %b(%s)%b' "$colored_pct" "$c_dim" "$reset_str" "$c_reset")")
-  else
-    line2+=("$(printf '5h:%s' "$colored_pct")")
-  fi
-fi
-if [ -n "$week_pct" ]; then
-  colored_pct=$(color_pct "$week_pct")
-  reset_str=""
-  if [ -n "$week_resets" ]; then
-    reset_str=$(format_reset "$week_resets" dhm)
-  fi
-  if [ -n "$reset_str" ]; then
-    line2+=("$(printf 'weekly:%s %b(%s)%b' "$colored_pct" "$c_dim" "$reset_str" "$c_reset")")
-  else
-    line2+=("$(printf 'weekly:%s' "$colored_pct")")
-  fi
-fi
-if [ -n "$scoped_pct" ]; then
-  colored_pct=$(color_pct "$scoped_pct")
-  reset_str=""
-  if [ -n "$scoped_resets" ]; then
-    reset_str=$(format_reset "$scoped_resets" dhm)
-  fi
-  if [ -n "$reset_str" ]; then
-    line2+=("$(printf '%s:%s %b(%s)%b' "$scoped_name" "$colored_pct" "$c_dim" "$reset_str" "$c_reset")")
-  else
-    line2+=("$(printf '%s:%s' "$scoped_name" "$colored_pct")")
-  fi
-fi
+seg=$(usage_segment "5h" "$five_pct" "$five_resets" hm);                 [ -n "$seg" ] && line2+=("$seg")
+seg=$(usage_segment "weekly" "$week_pct" "$week_resets" dhm);            [ -n "$seg" ] && line2+=("$seg")
+seg=$(usage_segment "${scoped_name:-model}" "$scoped_pct" "$scoped_resets" dhm); [ -n "$seg" ] && line2+=("$seg")
 if [ -n "$used_pct" ]; then
-  line2+=("$(printf 'ctx:%s' "$(color_pct "$used_pct")")")
+  colored=$(color_pct "$used_pct")
+  [ -n "$colored" ] && line2+=("$(printf 'ctx:%s' "$colored")")
 fi
 
 join_parts() {

@@ -32,7 +32,9 @@ often an expired login) the segment is hidden rather than left stale.
 The script is `scripts/statusline.sh` next to this file. It needs `bash`,
 `jq`, `curl` and `git`, and runs on Linux and macOS: on macOS the OAuth
 token comes from the keychain item `Claude Code-credentials`, on Linux
-from `~/.claude/.credentials.json`.
+from `~/.claude/.credentials.json`. The token reaches curl through a
+config on stdin, never as an argument, so it is not readable in `ps`
+while a refresh runs.
 
 ## Install
 
@@ -43,19 +45,27 @@ than referenced in place.
 
 1. Check the dependencies: `command -v jq curl git`. Install what is
    missing (`apt install jq`, `brew install jq`).
-2. Copy the script. `<this-skill-dir>` is the directory this `SKILL.md`
-   was loaded from:
+2. Look before copying. `<this-skill-dir>` is the directory this
+   `SKILL.md` was loaded from. If `~/.claude/statusline-command.sh`
+   already exists, diff it first; the file may carry the user's own
+   edits, and the copy below would destroy them:
+
+   ```sh
+   test -f ~/.claude/statusline-command.sh \
+     && diff -u ~/.claude/statusline-command.sh <this-skill-dir>/scripts/statusline.sh
+   ```
+
+   No file, or no output: go on to the copy. A diff: show it to the user
+   and ask before overwriting. When they want their edits kept, merge
+   instead of copying: keep their file and bring over the block headed
+   "Model-scoped weekly limit" and the `scoped_name` segment of line 2.
+
+   Then copy:
 
    ```sh
    cp <this-skill-dir>/scripts/statusline.sh ~/.claude/statusline-command.sh
    chmod +x ~/.claude/statusline-command.sh
    ```
-
-   If `~/.claude/statusline-command.sh` already exists and differs, show
-   the user the diff before overwriting: the file may carry their own
-   edits. The merge rule when it does is to keep their edits and bring
-   over the block headed "Model-scoped weekly limit" and the
-   `scoped_pct` section of line 2.
 3. Set the key in `~/.claude/settings.json`, keeping every other key:
 
    ```sh
@@ -93,10 +103,19 @@ check included) and step 4. Step 3 is already in place.
   happens outside a signed-in claude.ai session (API-key sessions have no
   usage buckets). Nothing to fix.
 - **The scoped segment is missing, the others show:** the cache is stale
-  or absent. Run the refresh by hand and read the error:
-  `bash -x ~/.claude/statusline-command.sh < /dev/null 2>&1 | grep -A3 oauth/usage`.
-  An HTTP 401 means the login expired: `/login`. No `curl` means the
-  segment is skipped by design.
+  or absent. The normal refresh runs in the background with its output
+  discarded, so ask the script itself:
+
+  ```sh
+  STATUSLINE_DEBUG=1 bash ~/.claude/statusline-command.sh < /dev/null
+  ```
+
+  That runs the refresh in the foreground and prints one `statusline:`
+  line on stderr saying why: no OAuth token (not signed in on this
+  machine, or an API-key session), `HTTP 401` (login expired: `/login`),
+  a curl exit code (network or DNS), or `usage cache refreshed`, after
+  which the segment is back on the next redraw. No `curl` on the machine
+  means the segment is skipped by design.
 - **Linux shows the segment, macOS does not:** the keychain read needs the
   `security` tool to find `Claude Code-credentials`; sign in to Claude
   Code on that Mac first, then wait one refresh (five minutes) or delete
