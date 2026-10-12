@@ -4,7 +4,7 @@
 #
 # STATUSLINE_DEBUG=1 runs the usage refresh in the foreground and reports on
 # stderr why the scoped segment is or is not available (no token, HTTP 401,
-# curl failure); see SKILL.md, Troubleshooting.
+# curl failure, stale cache); see SKILL.md, Troubleshooting.
 
 input=$(cat)
 
@@ -16,6 +16,11 @@ c_magenta='\033[35m'
 c_yellow='\033[33m'
 c_green='\033[32m'
 c_red='\033[31m'
+
+# Field separator for multi-value reads from jq: a non-whitespace character,
+# because bash collapses runs of whitespace IFS characters (a tab would make
+# an empty middle field shift the ones after it).
+US=$'\x1f'
 
 debug_log() {
   [ -n "${STATUSLINE_DEBUG:-}" ] && printf 'statusline: %s\n' "$*" >&2
@@ -71,10 +76,40 @@ format_reset() {
   fi
 }
 
-# Current working directory. raw_cwd is what git gets; cwd is the display
-# form, with $HOME shortened to ~ only at a path boundary (so /home/mc never
-# shortens /home/mcerver).
-raw_cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""')
+# ISO 8601 timestamp -> epoch seconds. Keeps the zone (Z or +hh:mm), drops
+# only fractional seconds; a bare epoch passes through; anything else prints
+# nothing. GNU date first, then BSD date (macOS), which wants +hhmm.
+iso_re='^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?$'
+iso_to_epoch() {
+  local s="$1" base tz
+  if [[ "$s" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    printf '%s' "${s%%.*}"
+    return 0
+  fi
+  [[ "$s" =~ $iso_re ]] || return 0
+  base="${BASH_REMATCH[1]}"
+  tz="${BASH_REMATCH[3]:-Z}"
+  [ "$tz" = Z ] && tz='+00:00'
+  date -u -d "${base}${tz}" +%s 2>/dev/null \
+    || date -j -f '%Y-%m-%dT%H:%M:%S%z' "${base}${tz/:/}" +%s 2>/dev/null \
+    || true
+}
+
+# Everything the status-line payload gives us, in one jq call. Missing values
+# come through as empty fields; US keeps empty fields in place.
+IFS="$US" read -r raw_cwd model used_pct five_pct five_resets week_pct week_resets < <(
+  printf '%s' "$input" | jq -r --arg us "$US" '
+    [ (.workspace.current_dir // .cwd // ""),
+      (.model.display_name // ""),
+      (.context_window.used_percentage // ""),
+      (.rate_limits.five_hour.used_percentage // ""),
+      (.rate_limits.five_hour.resets_at // ""),
+      (.rate_limits.seven_day.used_percentage // ""),
+      (.rate_limits.seven_day.resets_at // "") ]
+    | map(tostring) | join($us)' 2>/dev/null)
+
+# Display form of the directory: $HOME shortened to ~ only at a path boundary
+# (so /home/mc never shortens /home/mcerver). git gets raw_cwd.
 cwd="$raw_cwd"
 if [ -n "$HOME" ]; then
   if [ "$raw_cwd" = "$HOME" ]; then
@@ -90,30 +125,20 @@ if [ -n "$raw_cwd" ]; then
   git_branch=$(git -C "$raw_cwd" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
 fi
 
-# Model display name
-model=$(echo "$input" | jq -r '.model.display_name // ""')
-
-# Context window usage (used%)
-used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
-
-# 5-hour rate limit — percentage and reset timestamp
-five_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
-five_resets=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
-
-# Weekly rate limit (7-day window) — percentage and reset timestamp
-week_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
-week_resets=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
-
 
 # Model-scoped weekly limit (e.g. "Week, Fable"). The status line JSON only
 # carries the 5-hour and 7-day buckets, so this comes from the same OAuth usage
 # endpoint /usage reads (limits[] entry with kind weekly_scoped). Cached in
-# $XDG_CACHE_HOME/claude-statusline/usage.json for USAGE_TTL seconds and
-# refreshed in the background so the status line never waits on the network.
+# $XDG_CACHE_HOME/claude-statusline/usage.json and refreshed in the background
+# so the status line never waits on the network. One request per USAGE_TTL
+# seconds, whether or not the last one succeeded: the attempt stamp records the
+# start of every refresh, so an expired login costs one request per TTL, not
+# one per redraw.
 USAGE_TTL=300
 usage_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
 usage_cache="$usage_cache_dir/usage.json"
-usage_lock="$usage_cache.lock"
+usage_attempt="$usage_cache.attempt"   # mtime = start of the last refresh
+usage_lock="$usage_cache.lock"          # a directory: mkdir is atomic
 
 file_mtime() {
   stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
@@ -149,8 +174,9 @@ refresh_usage_cache() {
   elif [ "$code" != 200 ]; then
     debug_log "usage endpoint answered HTTP $code (401 = login expired: run /login)"
   elif ! jq -e '.limits' "$tmp" >/dev/null 2>&1; then
-    debug_log "usage endpoint answered 200 without a limits[] array; response kept at $tmp.bad"
-    mv -f "$tmp" "$tmp.bad"
+    # one file, overwritten each time, so failing refreshes do not pile up
+    mv -f "$tmp" "$usage_cache.bad"
+    debug_log "usage endpoint answered 200 without a limits[] array; response kept at $usage_cache.bad"
   else
     mv -f "$tmp" "$usage_cache"
     debug_log "usage cache refreshed"
@@ -163,39 +189,43 @@ if command -v curl >/dev/null 2>&1; then
   mkdir -p "$usage_cache_dir" 2>/dev/null
   now=$(date +%s)
   age=$(( now - $(file_mtime "$usage_cache") ))
+  since_attempt=$(( now - $(file_mtime "$usage_attempt") ))
   if [ -n "${STATUSLINE_DEBUG:-}" ]; then
-    # foreground, every time, messages on stderr
+    # foreground, every time, messages on stderr; then judge the cache the
+    # way a normal run would, by its real age
     refresh_usage_cache
-    age=0
-  elif [ "$age" -ge "$USAGE_TTL" ]; then
-    # one refresher at a time; a lock older than 60 s is stale and ignored.
-    # The lock is removed by the wrapper, whichever way the refresh returns.
-    if [ ! -e "$usage_lock" ] || [ $(( now - $(file_mtime "$usage_lock") )) -gt 60 ]; then
-      : > "$usage_lock"
-      ( refresh_usage_cache; rm -f "$usage_lock" ) >/dev/null 2>&1 &
+    age=$(( $(date +%s) - $(file_mtime "$usage_cache") ))
+  elif [ "$age" -ge "$USAGE_TTL" ] && [ "$since_attempt" -ge "$USAGE_TTL" ]; then
+    # one refresher at a time: mkdir either wins or fails, atomically; a lock
+    # directory older than 60 s belongs to a refresher that died and is removed.
+    if [ -d "$usage_lock" ] && [ $(( now - $(file_mtime "$usage_lock") )) -gt 60 ]; then
+      rmdir "$usage_lock" 2>/dev/null
+    fi
+    if mkdir "$usage_lock" 2>/dev/null; then
+      : > "$usage_attempt"
+      ( refresh_usage_cache; rmdir "$usage_lock" ) >/dev/null 2>&1 &
       disown 2>/dev/null
     fi
   fi
   # a cache older than an hour means refreshes have been failing (token?), hide rather than mislead
   if [ -r "$usage_cache" ] && [ "$age" -lt 3600 ]; then
-    # tab-separated so a display_name with a space ("Fable 5.1") stays one field
-    IFS=$'\t' read -r scoped_pct scoped_name scoped_resets < <(
-      jq -r '[.limits[]? | select(.kind == "weekly_scoped" and .percent != null)][0]
+    # first word of the model's display name, lower case: "Fable 5.1" -> fable
+    IFS="$US" read -r scoped_pct scoped_name scoped_resets < <(
+      jq -r --arg us "$US" '[.limits[]? | select(.kind == "weekly_scoped" and .percent != null)][0]
              | select(. != null)
              | [ (.percent | tostring),
-                 ((.scope.model.display_name // "model") | ascii_downcase),
-                 (.resets_at // "") ]
-             | @tsv' \
+                 (((.scope.model.display_name // "model") | ascii_downcase | split(" ")[0]) // "model"),
+                 (.resets_at // "" | tostring) ]
+             | join($us)' \
          "$usage_cache" 2>/dev/null)
-    if [ -n "$scoped_resets" ]; then
-      # ISO 8601 with fractional seconds -> epoch (GNU date, then BSD date)
-      iso="${scoped_resets%%.*}"
-      scoped_resets=$(date -u -d "$iso" +%s 2>/dev/null \
-        || date -u -j -f '%Y-%m-%dT%H:%M:%S' "$iso" +%s 2>/dev/null || echo "")
-    fi
-  elif [ -n "${STATUSLINE_DEBUG:-}" ]; then
+    scoped_resets=$(iso_to_epoch "$scoped_resets")
+  elif [ -r "$usage_cache" ]; then
+    debug_log "cache at $usage_cache is ${age}s old (over an hour): segment hidden until a refresh succeeds"
+  else
     debug_log "no usable cache at $usage_cache"
   fi
+else
+  debug_log "curl not found: the scoped segment is skipped by design"
 fi
 
 # Dim separator
