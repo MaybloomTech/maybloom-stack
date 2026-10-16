@@ -16,12 +16,12 @@
     "@astrojs/sitemap": "^3.7.4",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/inter-tight": "^5.2.7",
-    "@fontsource/source-serif-4": "^5.2.9",
-    "astro": "^7.3.5"
+    "@fontsource/source-serif-4": "^5.3.1",
+    "astro": "^7.3.8"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
-    "@astrojs/markdown-remark": "^7.3.1",
+    "@astrojs/markdown-remark": "^7.3.2",
     "@types/hast": "^3.0.5",
     "typescript": "^6.0.3"
   }
