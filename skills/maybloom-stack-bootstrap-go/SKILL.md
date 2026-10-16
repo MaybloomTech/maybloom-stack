@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-bootstrap-go
-description: Use whenever the user wants to add a Go service to an EXISTING maybloom stack monorepo (a repo with `proto/` and `buf.yaml`, from `maybloom-stack-bootstrap` or following its conventions) — standing up the `go/` module with connect-go, sqlc, pgx, and goose so a second backend can serve part of the same contract. Triggers on "add a Go service to this repo", "I want the ingest pipeline in Go", "bootstrap the Go backend", "this workload needs Go, set it up", or a user reaching for Go because a job is concurrency-heavy, long-running, or headed for constrained hardware. This is the scaffolder that runs once per Go service; use `maybloom-stack-add-resource` or `maybloom-stack-add-rpc` for everything after it exists, and `maybloom-stack-bootstrap` instead when there is no monorepo yet.
+description: Use whenever the user wants to add a Go service to an EXISTING maybloom stack monorepo (a repo with `proto/` and `buf.yaml`, from `maybloom-stack-bootstrap` or following its conventions) that has no `go/` yet — one scaffolded with `--backend typescript`, or a contract-only repo — standing up the `go/` module with connect-go, sqlc, pgx, and goose from the bootstrap skill's own Go templates, so a backend (or a second one) can serve the same contract. Triggers on "add a Go service to this repo", "I want the ingest pipeline in Go", "bootstrap the Go backend", "this workload needs Go, set it up", or a user reaching for Go because a job is concurrency-heavy, long-running, or headed for constrained hardware. This is the scaffolder that runs once per Go service; use `maybloom-stack-add-resource` or `maybloom-stack-add-rpc` for everything after it exists, and `maybloom-stack-bootstrap` instead when there is no monorepo yet (its default already scaffolds the Go backend).
 ---
 
 # maybloom-stack-bootstrap-go
@@ -9,14 +9,21 @@ Stand up a Go service inside a monorepo that already has a contract. The
 protos, the buf toolchain, and the TypeScript side stay where they are;
 this adds a peer backend that speaks the same wire.
 
+A new repo does not need this skill: `maybloom-stack-bootstrap` scaffolds
+the Go backend by default. This skill is for the repo that was scaffolded
+with `--backend typescript` and now wants Go, or a contract-only repo, or
+a second Go service. It writes the same files bootstrap does, from the
+same templates (`../maybloom-stack-bootstrap/templates/backend-go/` and
+`templates/root-go/`), so the two never drift.
+
 Read
 `../maybloom-stack-shared/references/paths/backend-go/README.md` first —
 it is the path reference, and it defines every per-layer pattern this
 skill scaffolds toward. This skill covers only what exists once per
 service: the module, the server, the database wiring, and the deploy
-shape. The file contents live in
-[`references/module-skeleton.md`](./references/module-skeleton.md); read
-it when you reach step 4.
+shape. The files are the bootstrap templates;
+[`references/module-skeleton.md`](./references/module-skeleton.md) is the
+commentary on them. Read it when you reach step 4.
 
 ## When this skill is the wrong tool
 
@@ -64,9 +71,10 @@ and renaming later is tedious.
 | `<SERVICE_PROTO_PKG>` | the proto package this service owns | `ingest` (→ `proto/<APP_SLUG>/ingest/v1`) |
 | `<SERVICE_NAME>` | the proto service block | `IngestService` |
 | `<APP_SLUG>` | existing, read it from `proto/` | `orchard` |
-| `<PORT>` | the port it listens on | `3002` |
+| `<PORT>` | the port it listens on | `3002` (the templates say 8080; change it when a TypeScript backend already has a port) |
 
-Also ask which Go version to target, and confirm the database story: the
+If the protos already carry a `go_package` (bootstrap writes one on both
+paths), `<GO_MODULE>` is decided: read it from there. Confirm the database story: the
 service can share the TypeScript backend's Postgres or own its own. Two
 services writing the same tables is a coupling the contract cannot
 protect, so prefer separate schemas or separate databases unless the user
@@ -106,21 +114,23 @@ running server beats one that ends in a half-written resource.
 
 ### 2. Teach buf to emit Go
 
-Write `go/buf.gen.yaml` with the two local `go tool` plugins, as shown in
-the codegen section of
-`../maybloom-stack-shared/references/paths/backend-go/README.md`, and pin
-buf, `protoc-gen-go`, `protoc-gen-connect-go` and sqlc as `go tool`
-dependencies (step 4 shows the `go.mod` block). Add a `go_package` option
-to every proto file. Add `go/gen/` and `go/internal/store/storedb/` to
-`go/.gitignore`: generated code is never committed on any path.
+Copy `go.mod.tmpl` (as `go.mod`, with `<GO_MODULE>` in place of
+`__GO_MODULE__`), `go.sum`, `buf.gen.yaml`, `sqlc.yaml`, `generate.go` and
+`.gitignore` from `../maybloom-stack-bootstrap/templates/backend-go/` into
+`go/`. That pins buf, `protoc-gen-go`, `protoc-gen-connect-go` and sqlc as
+`go tool` dependencies and gitignores `gen/` and `internal/store/storedb/`:
+generated code is never committed on any path. If the protos lack a
+`go_package` option (a repo that predates the Go-first scaffold), add one
+to every file: `<GO_MODULE>/gen/<APP_SLUG>/<pkg>/v1;<pkg>v1`. If
+`buf.yaml` still depends on `buf.build/googleapis/googleapis` rather than
+vendoring protovalidate under `third_party/`, bring the root over to the
+bootstrap templates' `buf.yaml`, `buf.gen.yaml` and `third_party/` first.
 
 Run `go tool buf generate ../proto --template buf.gen.yaml` from `go/`
 and confirm Go files appear before continuing — finding out the plugins
-are misconfigured after writing the server wastes the whole step. Then
-give the module one generate entry point (`go/generate.go` with two
-`//go:generate` lines, so `go generate .` runs buf and sqlc) and use that
-everywhere after: the README, CI and the Dockerfile all run the same
-command.
+are misconfigured after writing the server wastes the whole step. From
+here on `go generate .` (buf, then sqlc) is the one command the README, CI
+and the Dockerfile run.
 
 ### 3. Directory layout
 
@@ -131,14 +141,23 @@ Create the tree from the path reference's layout section: `cmd/<SERVICE>/`,
 ### 4. Module skeleton
 
 Read [`references/module-skeleton.md`](./references/module-skeleton.md)
-and write the files it describes: `go.mod` with tool pinning, `sqlc.yaml`,
-config, the embedded migrations and the pool wiring, `run()`, the server
-and its interceptor chain (validation included), health endpoints, the
-lint config, and the Dockerfile.
+and copy the rest of `templates/backend-go/` into `go/` (substituting
+`__GO_MODULE__`, `__APP_SLUG__` for `<SERVICE>` and `__APP_NAME__` for
+`<SERVICE_NAME>` without the `Service` suffix, dropping `.tmpl`): config,
+the embedded migrations and the pool wiring, `run()`, the identity seam,
+the server and its interceptor chain (validation included), health
+endpoints, the lint config, the Dockerfile, the README. Then
+`templates/root-go/`'s `go.work`, `scripts/go` and `scripts/golangci-lint`
+at the repo root, and the Go scripts from its `package.json` merged into
+the repo's. Leave out the Note example (`db/migrations/00001_notes.sql`,
+`db/queries/notes.sql`, `internal/store/notes*.go`,
+`internal/server/notes*.go`) unless the service wants it as a specimen;
+step 5 writes the real first resource in its place.
 
-Let `go get` resolve versions rather than pinning ones from memory, then
-`go mod tidy`. Pinned versions written from memory are the most common way
-a scaffold arrives broken.
+Run `go mod tidy` after the code is in: the shipped `go.mod` and `go.sum`
+are a floor known to build together, and tidy confirms them against the
+imports. Pinned versions written from memory are the most common way a
+scaffold arrives broken; the templates exist so nobody has to.
 
 ### 5. First resource through the layers
 
@@ -165,9 +184,10 @@ A bootstrap that typechecks but doesn't run is not done.
    the shared resources and the new service package and runs sqlc, which
    validates queries against the schema, so a typo fails here rather than
    at runtime.
-2. `go build ./...`, `go vet ./...` and `go tool golangci-lint run` pass.
-3. `go run ./cmd/<SERVICE>` boots, applies the goose migration on start
-   (watch the log for it), and serves `/healthz` and `/readyz`.
+2. `go build ./...`, `go vet ./...` and `scripts/golangci-lint run` pass.
+3. `go run ./cmd/<SERVICE>` boots with `DEV_USER` set, applies the goose
+   migration on start (watch the log for it), and serves `/healthz`,
+   `/readyz` and the `Health` RPC.
 4. The first RPC answers a real call — the generated connect-go client
    from a test, or curl against
    `/<APP_SLUG>.<SERVICE_PROTO_PKG>.v1.<SERVICE_NAME>/<Method>` — and a

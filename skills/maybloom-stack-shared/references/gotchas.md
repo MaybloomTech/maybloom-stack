@@ -46,18 +46,15 @@ just means you're staring at output that's already done.
 **Symptom.** Two contradictory pieces of advice in the wild: "always
 mark removed fields `reserved`" vs "renumber freely."
 
-**Cause.** Both are correct depending on whether the proto has shipped
-to clients you don't control.
+**Cause.** Both are defensible depending on whether the proto has shipped
+to clients you don't control; the stack used to switch regimes at the
+first build a non-developer installs.
 
-**Fix in a pre-release project.** While the project has no deployed proto
-consumers, **reuse removed field numbers, and do not add `reserved N;`
-lines.** Nothing on the network can see a wire-format conflict, and a
-growing list of reserved numbers in a schema that has never shipped is
-noise that outlives its reason. Ask the project's owner which regime
-applies before assuming; some prefer reserving from day one.
-
-**Fix in a shipped project.** Once clients you do not control are on the
-network, mark removed numbers `reserved`:
+**Fix.** Since 2026-10-15 the stack has one rule: a removed number is
+`reserved`, from the first commit. The moment a project ships is easy to
+miss, and the cost of missing it (corrupted deserialization on clients
+already on the network) is out of proportion to a few reserved lines in
+a young schema. The shape:
 
 ```proto
 message Book {
@@ -71,8 +68,8 @@ message Book {
 Reserving prevents anyone from re-introducing the old field-id with a
 new type, which would corrupt deserialization for old clients.
 
-**Bottom line.** Match the policy to whether wire-format consumers exist
-outside your control. Pre-release: reuse. Once it ships: reserve.
+**Bottom line.** Reserve, always. Add `buf breaking --against` the default
+branch to CI once wire-format consumers exist outside your control.
 
 ## (Not a gotcha) "Always use `pnpm exec biome lint packages`"
 
@@ -117,8 +114,12 @@ Go module instead.
 
 **Fix.** `include_imports: true` on the protoc-gen-es plugin block, not
 `include_wkt` (the well-known types come from `@bufbuild/protobuf/wkt`).
-Then make sure something compiles against the generated TypeScript on
-every CI run; a generated target with no consumer is unverified.
+The bootstrap's root `buf.gen.yaml` already sets it; if you see this
+symptom, someone removed it. Then make sure something compiles against
+the generated TypeScript on every CI run; a generated target with no
+consumer is unverified. The same descriptor carries the `buf.validate`
+options as extensions, which is why the docs site reads it with
+`ignoreUnknownFields`.
 
 ## buf refuses an empty module
 

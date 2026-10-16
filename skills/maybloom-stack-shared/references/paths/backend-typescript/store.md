@@ -9,11 +9,8 @@ store function.
 ```ts
 import { Code, ConnectError } from "@connectrpc/connect";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
-import type {
-  Create<Resource>Request,
-  Update<Resource>Request,
-} from "<ORG_SCOPE>/protocol-buffers/<APP_SLUG>/service/v1/<resources>_pb";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import type { <Resource> } from "<ORG_SCOPE>/protocol-buffers/<APP_SLUG>/resources/v1/<resources>_pb";
 import { <resources> } from "db/schema";
 import { server } from "server";
 import {
@@ -22,28 +19,28 @@ import {
   <resource>ToUpdate,
 } from "core/<resources>/adapter";
 
-export async function create<Resource>(request: Create<Resource>Request) {
-  const input = request.<resource>;
-  if (!input) {
-    throw new ConnectError("<Resource> is required", Code.InvalidArgument);
+export async function create<Resource>(createdBy: string, input: <Resource>) {
+  if (!input.title.trim()) {
+    throw new ConnectError("Title is required", Code.InvalidArgument);
   }
-  const id = input.id || randomUUID();
   const [row] = await server.db
     .insert(<resources>)
-    .values(<resource>ToInsert(input, id))
+    .values(<resource>ToInsert(input, randomUUID(), createdBy))
     .returning();
   return <resource>RowToProto(row);
 }
 
-export async function update<Resource>(request: Update<Resource>Request) {
-  const input = request.<resource>;
-  if (!input?.id) {
+// archived moves the row in or out of the archive; the row stays either
+// way. This is the stack's default shape for "delete".
+export async function update<Resource>(input: <Resource>, archived: boolean) {
+  if (!input.id) {
     throw new ConnectError("<Resource> id is required", Code.InvalidArgument);
   }
   const [row] = await server.db
     .update(<resources>)
     .set({
       ...<resource>ToUpdate(input),
+      archivedAt: archived ? sql`coalesce(${<resources>.archivedAt}, now())` : null,
       updatedAt: new Date(),
     })
     .where(eq(<resources>.id, input.id))
@@ -65,23 +62,51 @@ export async function get<Resource>(id: string) {
   return <resource>RowToProto(row);
 }
 
-export async function list<Resources>() {
-  const rows = await server.db.select().from(<resources>);
-  return rows.map(<resource>RowToProto);
-}
-
-export async function delete<Resource>(id: string) {
-  await server.db.delete(<resources>).where(eq(<resources>.id, id));
+// Cursor paging, newest first, keyset on (created_at, id); the bootstrap's
+// core/notes/store.ts has the token codec (base64url of "<millis>:<id>").
+export async function list<Resources>(filter: {
+  pageSize: number;
+  pageToken: string;
+  includeArchived: boolean;
+}) {
+  const size = Math.min(filter.pageSize > 0 ? filter.pageSize : 50, 200);
+  const before = decodePageToken(filter.pageToken);
+  const rows = await server.db
+    .select()
+    .from(<resources>)
+    .where(
+      and(
+        filter.includeArchived ? undefined : isNull(<resources>.archivedAt),
+        before
+          ? or(
+              lt(<resources>.createdAt, before.createdAt),
+              and(eq(<resources>.createdAt, before.createdAt), lt(<resources>.id, before.id)),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(desc(<resources>.createdAt), desc(<resources>.id))
+    .limit(size + 1);
+  const page = rows.slice(0, size);
+  const last = page[page.length - 1];
+  return {
+    <resources>: page.map(<resource>RowToProto),
+    nextPageToken: rows.length > size && last ? encodePageToken(last.createdAt, last.id) : "",
+  };
 }
 ```
+
+A hard delete, for leaf data only, is
+`await server.db.delete(<resources>).where(eq(<resources>.id, id))`.
 
 ## Conventions
 
 - **Throw `ConnectError`, not generic `Error`.** Connect maps the code to
   HTTP status; the central error handler in `server.ts` keeps logging
   consistent.
-- **`Code.InvalidArgument`** for missing required fields. `Code.NotFound`
-  for missing rows on get/update/delete. `Code.AlreadyExists` for unique
+- **`Code.InvalidArgument`** for missing required fields and a page token
+  the service did not issue. `Code.NotFound`
+  for missing rows on get/update. `Code.AlreadyExists` for unique
   constraint violations (catch the Drizzle error and rethrow with this
   code if you care about the distinction).
 - **`server.db.transaction(async (tx) => ...)`** when a single RPC mutates
@@ -100,25 +125,10 @@ export async function delete<Resource>(id: string) {
 
 ## List filters
 
-Proto `List<Resources>Request` fields become optional store args. Pattern
-adapted from the maybloom `listQuests`:
-
-```ts
-export async function list<Resources>(filters?: {
-  includeArchived?: boolean;
-}) {
-  const conditions = [];
-  if (!filters?.includeArchived) {
-    conditions.push(isNull(<resources>.archivedAt));
-  }
-  const rows = conditions.length
-    ? await server.db.select().from(<resources>).where(and(...conditions))
-    : await server.db.select().from(<resources>);
-  return rows.map(<resource>RowToProto);
-}
-```
-
-Handlers extract the proto fields and pass them as the filters object.
+Proto `List<Resources>Request` fields beyond the paging trio become
+further `and(...)` conditions in `list<Resources>` above, each `undefined`
+when the request left the filter out. Handlers extract the proto fields
+and pass them as the filter object.
 
 ## What does *not* belong in a store
 

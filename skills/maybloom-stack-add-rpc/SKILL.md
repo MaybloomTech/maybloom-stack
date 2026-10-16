@@ -82,9 +82,14 @@ they mean for a new operation.
   the client polls. Server streaming is a stack-wide decision a project
   makes once (see `core.md`), never something one RPC adopts on its own;
   if the project has not made it, this RPC is unary.
-- **Reads say so.** A read-only RPC carries
-  `option idempotency_level = NO_SIDE_EFFECTS;` so audit interceptors skip
-  it, remembering that connect-go then also serves it over GET.
+- **Lists page by cursor.** A list RPC carries `page_size` (validated,
+  0 for the default), an opaque `page_token`, and answers
+  `next_page_token`, empty on the last page; never an offset and never a
+  total. `ListNotes` in the bootstrap scaffold is the shape.
+- **Removal is archival.** An operation that removes something sets
+  `archived_at` and keeps the row (usually that is the resource's Update
+  with `archived: true`, not a new RPC); a hard delete is a per-resource
+  decision for leaf data, named as such in the RPC's comment.
 - **Input rules go in the contract.** Where the backend runs protovalidate
   (the Go path does), mark a message-typed request field the handler
   dereferences `required` and put bounds on ids and limits as

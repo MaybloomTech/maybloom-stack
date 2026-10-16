@@ -5,8 +5,8 @@ The maybloom stack's agent skills. This directory is their source of truth;
 
 | Directory | Job |
 |---|---|
-| `maybloom-stack-bootstrap/` | Scaffold a new stack monorepo (templates + script) |
-| `maybloom-stack-bootstrap-go/` | Stand up a Go service in a repo that already has the contract |
+| `maybloom-stack-bootstrap/` | Scaffold a new stack monorepo (templates + script): the Go backend by default, TypeScript on `--backend typescript` |
+| `maybloom-stack-bootstrap-go/` | Stand up a Go service, from bootstrap's Go templates, in a repo that has the contract and no `go/` |
 | `maybloom-stack-add-resource/` | Add a resource end-to-end through every layer |
 | `maybloom-stack-extend-resource/` | Change a resource that already exists: fields, child tables, links |
 | `maybloom-stack-add-rpc/` | Add one non-CRUD operation |
@@ -113,4 +113,12 @@ restarting the session.
 - Files ending in `.tmpl` get placeholder substitution and lose the suffix
   when `scaffold.py` runs. Files that would otherwise confuse git or tooling
   in this repo (a template `.gitignore`, for instance) carry the suffix even
-  when they hold no placeholders.
+  when they hold no placeholders. Placeholders in path names are
+  substituted too (`cmd/__APP_SLUG__/`).
+- `templates/root/` is shared by both backends; `templates/root-go/` and
+  `templates/root-typescript/` hold the root files that differ
+  (`package.json`, `CLAUDE.md`, the Go wrappers); `templates/backend-go/`
+  lands at `go/` and `templates/backend-typescript/` at `packages/backend/`.
+  `backend-go/go.mod.tmpl` and `go.sum` are a floor known to build
+  together; refreshing them is a per-release chore (scaffold, `go get -u
+  ./...`, `go mod tidy`, verify, copy back).

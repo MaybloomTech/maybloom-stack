@@ -13,9 +13,11 @@ import { create } from "@bufbuild/protobuf";
 import { <Resource>Schema } from "<ORG_SCOPE>/protocol-buffers/<APP_SLUG>/resources/v1/<resources>_pb";
 import { client } from "./client";
 
-export async function list<Resources>() {
-  const response = await client.list<Resources>({});
-  return response.<resources>;
+// One page, newest first; pass the previous page's nextPageToken for the
+// next one. An empty token means this was the last page.
+export async function list<Resources>(pageToken = "") {
+  const response = await client.list<Resources>({ pageSize: 50, pageToken });
+  return { <resources>: response.<resources>, nextPageToken: response.nextPageToken };
 }
 
 export async function get<Resource>(id: string) {
@@ -41,8 +43,10 @@ export async function update<Resource>(
   return response.<resource>;
 }
 
-export async function delete<Resource>(id: string) {
-  await client.delete<Resource>({ id });
+// Archiving is the stack's "delete": the row stays, the list leaves it out.
+export async function archive<Resource>(<resource>: <Resource>) {
+  const response = await client.update<Resource>({ <resource>, archived: true });
+  return response.<resource>;
 }
 ```
 
@@ -61,17 +65,20 @@ on success.
 ```ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  archive<Resource>,
   create<Resource>,
-  delete<Resource>,
   list<Resources>,
 } from "../api/<resources>";
 
 const <RESOURCES>_KEY = ["<resources>"] as const;
 
+// The first page; a screen that scrolls to load more uses useInfiniteQuery
+// over list<Resources>(pageToken) with getNextPageParam reading nextPageToken.
 export function use<Resources>() {
   return useQuery({
     queryKey: <RESOURCES>_KEY,
-    queryFn: list<Resources>,
+    queryFn: () => list<Resources>(),
+    select: (page) => page.<resources>,
   });
 }
 
@@ -83,10 +90,10 @@ export function useCreate<Resource>() {
   });
 }
 
-export function useDelete<Resource>() {
+export function useArchive<Resource>() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: delete<Resource>,
+    mutationFn: archive<Resource>,
     onSuccess: () => qc.invalidateQueries({ queryKey: <RESOURCES>_KEY }),
   });
 }
@@ -117,7 +124,7 @@ Two options for where the screen file lives:
 - **Single-screen resource:** add a route under
   `packages/interface/app/<resources>/index.tsx` (Expo Router). The
   bootstrap's `app/index.tsx` is a working reference for the absolute
-  minimum (list + create + delete in one screen).
+  minimum (list + create + archive in one screen).
 - **Detail / edit flow:** add `app/<resources>/[id].tsx` for the detail
   view; the list links to it via `<Link href={`/<resources>/${id}`}>`.
 
@@ -131,12 +138,12 @@ to update.
 ```tsx
 import { useState } from "react";
 import { ActivityIndicator, Button, FlatList, Text, TextInput, View } from "react-native";
-import { useCreate<Resource>, useDelete<Resource>, use<Resources> } from "../../src/data/queries/use<Resources>";
+import { useArchive<Resource>, useCreate<Resource>, use<Resources> } from "../../src/data/queries/use<Resources>";
 
 export default function <Resources>Screen() {
   const { data, isLoading, error } = use<Resources>();
   const create = useCreate<Resource>();
-  const remove = useDelete<Resource>();
+  const archive = useArchive<Resource>();
   const [title, setTitle] = useState("");
 
   if (isLoading) return <ActivityIndicator />;
@@ -159,7 +166,7 @@ export default function <Resources>Screen() {
         renderItem={({ item }) => (
           <View>
             <Text>{item.title}</Text>
-            <Button title="Delete" onPress={() => remove.mutate(item.id)} />
+            <Button title="Archive" onPress={() => archive.mutate(item)} />
           </View>
         )}
       />

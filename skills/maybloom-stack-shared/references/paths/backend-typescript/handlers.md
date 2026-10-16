@@ -56,12 +56,10 @@ export const create<Resource>: MethodImpl<Create<Resource>Method> = async (
       Code.InvalidArgument,
     );
   }
-  const sessionUserId = context.values.get(kUserId);
-  const createdBy = sessionUserId ?? input.createdBy ?? "";
-  const <resource> = await create<Resource>Core({
-    ...request,
-    <resource>: { ...input, createdBy },
-  });
+  // The session user, never the client's word for it; "dev" until auth
+  // is wired (kUserId is set in main.ts's contextValues).
+  const createdBy = context.values.get(kUserId) ?? "dev";
+  const <resource> = await create<Resource>Core(createdBy, input);
   return create(Create<Resource>ResponseSchema, { <resource> });
 };
 ```
@@ -74,22 +72,24 @@ user" gets resolved. If the same store function is called from a CLI or
 a scheduled job (no user), the caller passes whatever it wants for
 `createdBy`. Keeping that policy in the handler makes the store reusable.
 
-## List handler with filters
+## List handler
 
 ```ts
 export const list<Resources>: MethodImpl<List<Resources>Method> = async (
   request,
 ) => {
-  const <resources> = await list<Resources>Core({
-    includeArchived: request.includeArchived ?? undefined,
+  const page = await list<Resources>Core({
+    pageSize: request.pageSize,
+    pageToken: request.pageToken,
+    includeArchived: request.includeArchived,
   });
-  return create(List<Resources>ResponseSchema, { <resources> });
+  return create(List<Resources>ResponseSchema, page);
 };
 ```
 
-`?? undefined` matters — proto's default for `optional bool` is `false`,
-so passing the field through directly always sets the filter. Stores
-treat undefined as "no filter", false as "exclude archived".
+Further filters pass through the same object. For an `optional` proto
+scalar, pass `request.field ?? undefined` so a filter the client left out
+stays "no filter" rather than its zero value.
 
 ## Don't put in handlers
 

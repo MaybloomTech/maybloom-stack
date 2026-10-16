@@ -19,7 +19,8 @@ workspace. This document set generalizes it, describes the Go backend as a
 peer of the TypeScript one, and defines when to reach for each runtime. The
 Go path has since been walked twice: by a Go service brought onto the
 contract from a REST codebase, and by the reference implementation's own
-restart as a Go backend.
+restart as a Go backend. Since October 2026 the bootstrap skill scaffolds
+the Go backend by default and the TypeScript one on request.
 
 ## The core and the paths
 
@@ -128,17 +129,19 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
     common/v1/               shared value types
     resources/v1/            domain resources, no RPCs
     service/v1/              request/response envelopes + the app service
-  packages/                TypeScript workspace packages
-    protocol-buffers/        generated TS (gitignored src/, built on install)
-    backend/                 Fastify + Connect-RPC + Drizzle
-    interface/               Expo Router + React Query
-    <name>-site/             Astro sites, one package per site
-  go/                      the Go module (one per repo), when a Go service exists
+  third_party/protovalidate/   the vendored buf/validate/validate.proto (a second, lint-ignored buf module)
+  go/                      the Go module (one per repo), the default backend
     cmd/<service>/           one main package per binary
-    internal/                config, server, store, postgres, auth packages
+    internal/                config, server, store, postgres, auth, version packages
     gen/                     generated Go from buf (gitignored)
     db/                      migrations/ and queries/, the SQL sources of truth
-    buf.gen.yaml             the Go codegen targets, run as `go tool buf` from go/
+    buf.gen.yaml, generate.go   the Go codegen targets, run as `go generate .` from go/
+  packages/                TypeScript workspace packages
+    protocol-buffers/        generated TS (gitignored src/, built on install)
+    backend/                 Fastify + Connect-RPC + Drizzle, when the TypeScript backend was chosen instead
+    interface/               Expo Router + React Query
+    <name>-site/             Astro sites, one package per site
+  scripts/go, scripts/golangci-lint   the Go toolchain and linter in their pinned images
   skills/                  the agent skills that scaffold and extend the stack
   buf.yaml, buf.gen.yaml   contract toolchain, at the root
   pnpm-workspace.yaml      workspace + version catalog

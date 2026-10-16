@@ -1,19 +1,32 @@
 ---
 name: maybloom-stack-bootstrap
-description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo with Protocol Buffers + Connect-RPC + Fastify + Drizzle + PGlite on the backend and Expo Router + React Query on the interface. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Fastify + Expo project", or "start a Connect-RPC backend with an Expo client". Use this even when the user names a different stack ("proto + Fastify + Expo") if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after `pnpm install`, plus a static Astro docs site that renders the contract's own reference from the protos at build time. The scaffolded backend and interface are the stack's validated defaults (TypeScript, Expo); use this skill even when the user wants the Go backend or another Connect-RPC client/server technology — the contract-and-codegen monorepo core is the same, and the user's choices are then built from the shared blueprint and core references, never improvised.
+description: Use whenever the user wants to start a new project that uses the "maybloom stack" — a pnpm monorepo whose core is a Protocol Buffers + Connect-RPC contract, with a Go backend (connect-go + sqlc + pgx + goose on Postgres) by default or a TypeScript backend (Fastify + Drizzle + PGlite) on request, an Expo Router interface, and a static Astro docs site that renders the contract. Triggers on phrases like "new project with the maybloom patterns", "bootstrap a maybloom-style monorepo", "set up a proto + Go + Expo project", "start a Connect-RPC backend with an Expo client", or "proto + Fastify + Expo". Use this even when the user names a different stack if the underlying request matches the framework. The skill scaffolds the entire monorepo and ships one example resource ("Note") wired through every layer so the user has a running CRUD loop after install, plus the docs site. Go is scaffolded unless the user asks for TypeScript or names one language across the loop as their reason; other Connect-RPC client or server technologies are built from the shared blueprint and core references, never improvised.
 ---
 
 # maybloom-stack-bootstrap
 
 Bootstrap a fresh monorepo on the maybloom stack: a pnpm workspace with
-four packages — Protocol Buffers (Buf + Connect-ES generated TypeScript),
-backend (Fastify + Connect-RPC + Drizzle ORM with a PGlite dev DB and a
-Postgres prod DB), interface (Expo Router + React Query + Connect Web
-client), and a docs site (Astro, static) that renders the contract itself.
+the contract at the root (Buf, the vendored protovalidate rules, Connect-ES
+generated TypeScript), a backend, an interface (Expo Router + React Query
++ Connect Web client), and a docs site (Astro, static) that renders the
+contract itself.
 
-The skill ships a single example resource — a `Note` (id, title, body,
-created_by, timestamps) — wired through every layer. After scaffolding the
-user can run the full loop end-to-end before adding their own resources.
+The backend is **Go by default**: connect-go on the stdlib mux, sqlc + pgx
+over Postgres, goose migrations applied on boot, protovalidate enforced by
+an interceptor, one static binary. `--backend typescript` scaffolds the
+Fastify + Drizzle + PGlite backend instead; it is a validated path and the
+documented alternative, chosen when one language across the whole loop is
+the user's stated reason or when PGlite's zero-container dev loop matters
+more than the Go defaults (`docs/choosing.md` has the criteria).
+
+The skill ships a single example resource, a `Note` (id, title, body,
+created_by, timestamps, archived_at), wired through every layer. After
+scaffolding the user can run the full loop end-to-end before adding their
+own resources. Note demonstrates the contract conventions as they stand:
+`buf.validate` rules on the resource and the envelopes, a `Health` RPC
+open to anonymous callers, cursor paging (`page_size`, opaque
+`page_token`, `next_page_token`), and archival through `UpdateNote` with
+`archived: true` in place of a Delete RPC.
 
 The docs site is the worked example on the client side that the interface
 isn't: it never calls the service. It compiles the protos to a descriptor
@@ -35,51 +48,38 @@ rather than notes to self.
   resource that exists, and **`maybloom-stack-add-rpc`** for one new
   operation. Both are narrower than add-resource; prefer them when they
   fit.
-- **`maybloom-stack-bootstrap-go`** to add a Go service to the repo this
-  skill created.
+- **`maybloom-stack-bootstrap-go`** to add a Go service to a repo this
+  skill scaffolded with `--backend typescript`, or a second Go service.
 
-The backend this skill scaffolds is the TypeScript one (Fastify + Drizzle
-+ PGlite). The stack also defines a Go backend (connect-go + sqlc + pgx)
-as a peer behind the same contract. If the user wants a Go service,
-scaffold the monorepo here first — the proto module and Buf codegen wiring
-are what every path shares — then hand off to
-`maybloom-stack-bootstrap-go`, which stands up the `go/` module against
-the contract this skill just created.
-
-The same logic extends past Go, because the stack's core is the contract,
-not the frameworks around it (see
+The stack's core is the contract, not the frameworks around it (see
 `../maybloom-stack-shared/references/core.md`). The scaffolded Expo
-interface is the validated default client. The scaffolded TypeScript
-backend is a validated path, but since September 2026 the stack's default
-backend is Go: when the user has no stated preference, scaffold the
-monorepo, then hand off to `maybloom-stack-bootstrap-go` for the backend
-and remove `packages/backend` (say so in the plan; a Go-first scaffold is
-a pending change to this skill). Scaffold the TypeScript backend when the
-user asks for it or when one language across the loop is their stated
-reason. When the user *does*
-want a different client or server technology — another Connect-RPC
-language, a different UI framework, code sources of their own they want
-to keep using — don't turn them away and don't force the defaults:
-scaffold the monorepo anyway (the proto module and Buf codegen wiring are
-the part every path shares), keep the packages that fit, and follow the
-open-path protocol in `core.md` for the rest. The scaffolded packages
-remain useful as live exemplars of the layer seams even when the user
-replaces them. The scaffold writes a `CLAUDE.md` with a `## Delegation`
-section (see `maybloom-stack-delegate`); record their choices there so
-later sessions inherit them.
+interface is the validated default client. When the user *does* want a
+different client or server technology — another Connect-RPC language, a
+different UI framework, code sources of their own they want to keep
+using — don't turn them away and don't force the defaults: scaffold the
+monorepo anyway (the proto module and Buf codegen wiring are the part
+every path shares), keep the packages that fit, and follow the open-path
+protocol in `core.md` for the rest. The scaffolded packages remain useful
+as live exemplars of the layer seams even when the user replaces them.
+The scaffold writes a `CLAUDE.md` with a `## Delegation` section (see
+`maybloom-stack-delegate`); record their choices there so later sessions
+inherit them.
 
 ## Interview
 
-Before running the scaffolder, collect five values from the user. The first
-four map 1:1 to the placeholders the templates use; the fifth, the licence,
-is two flags.
+Before running the scaffolder, collect these from the user. The first
+four map 1:1 to placeholders the templates use; the backend and the Go
+module have defaults worth confirming in one sentence; the licence is two
+flags.
 
 | Prompt | Variable | Example | Notes |
 |---|---|---|---|
 | What's the display name? | `__APP_NAME__` | `Foobar` | PascalCase. Becomes the Expo app name and the Connect service name (`FoobarService`). |
-| Slug? | `__APP_SLUG__` | `foobar` | lowercase, dashes ok, no spaces. Drives the proto package, the npm package basenames, the database name, the Android package, etc. Has to be a valid identifier prefix. |
-| npm org / scope? | `__ORG_SCOPE__` | `@foobar-tech` | Must start with `@`. Becomes `@foobar-tech/backend`, `@foobar-tech/interface`, `@foobar-tech/protocol-buffers`. |
+| Slug? | `__APP_SLUG__` | `foobar` | lowercase, dashes ok, no spaces. Drives the proto package, the npm package basenames, the database name, the Go binary name, the Android package, etc. |
+| npm org / scope? | `__ORG_SCOPE__` | `@foobar-tech` | Must start with `@`. Becomes `@foobar-tech/interface`, `@foobar-tech/protocol-buffers`, and `@foobar-tech/backend` on the TypeScript path. |
 | Where to scaffold? | `--out` | `~/workspace/foobar` | Must be empty or non-existent. |
+| Which backend? | `--backend` | `go` | `go` (default) or `typescript`. Don't ask when the user has no preference: say the scaffold is Go and move on. |
+| Go module path? | `--go-module` / `__GO_MODULE__` | `github.com/foobar-tech/foobar/go` | Defaults to `github.com/<org without @>/<slug>/go`. Confirm it when the GitHub org differs from the npm scope. Written into every proto's `go_package` on both paths, so a Go service can join a TypeScript repo later without touching the contract. |
 | Licence? | `--license` | `Apache-2.0` | An SPDX id, or `none` (the default). Ask it as a choice: none, Apache-2.0, MIT, or another id. When it is not `none`, also ask **whose copyright** (`--copyright`, e.g. `Foobar Tech`); suggest the org name and confirm. The scaffold stamps `// SPDX-License-Identifier: <id>` on every source file (config and `.d.ts` files excepted), sets the `license` field of each `package.json`, writes the rule into `CLAUDE.md`, and for Apache-2.0 and MIT writes `LICENSE` (and `NOTICE`) too. Any other id gets the headers only; say so, and that `LICENSE` is theirs to add. |
 
 If the user mentions the resources they want up-front (e.g. "an app for
@@ -99,24 +99,28 @@ python3 <this-skill-dir>/scripts/scaffold.py \
   --slug '<APP_SLUG>' \
   --org '<ORG_SCOPE>' \
   --out '<OUT_DIR>' \
-  --license '<SPDX_ID or none>' --copyright '<HOLDER>'   # omit both for none
+  --backend go \                                        # or typescript
+  --go-module '<GO_MODULE>' \                           # omit for the default
+  --license '<SPDX_ID or none>' --copyright '<HOLDER>'  # omit both for none
 ```
 
 The script copies `templates/` into `<OUT_DIR>`, dropping `.tmpl` suffixes
-and substituting placeholders. It refuses to scaffold into a non-empty dir.
+and substituting placeholders (in paths too: `cmd/__APP_SLUG__/`). It
+refuses to scaffold into a non-empty dir.
 
 ## After scaffolding
 
 Walk the user through the post-bootstrap checklist. Don't run any of these
-yourself unless the user asks — they involve installing thousands of
-packages and spinning up dev servers.
+yourself unless the user asks — they install thousands of packages and
+start dev servers.
 
-1. **Refresh the dependency catalog.** The catalog in
-   `pnpm-workspace.yaml` is the last set known to build together, not the
-   current one — nothing updates a template, so it is stale by however long
-   it has been since anyone edited it. Raise each entry to the current
-   published version before installing (`npm view <name> version` gives it),
-   with two exceptions that are ceilings rather than preferences:
+1. **Refresh the dependency floors.** The catalog in
+   `pnpm-workspace.yaml`, and on the Go path `go/go.mod` with its
+   `go.sum`, are the last set known to build together, not the current
+   one — nothing updates a template, so they are stale by however long it
+   has been since anyone edited them. Raise each npm entry to the current
+   published version before installing (`npm view <name> version` gives
+   it), with two exceptions that are ceilings rather than preferences:
 
    | Package | Ceiling | Why |
    |---|---|---|
@@ -125,9 +129,11 @@ packages and spinning up dev servers.
 
    Check whether those reasons still hold rather than applying them by
    habit; both are claims with dates on them, and a ceiling whose reason has
-   expired should be deleted, not inherited. If the user wants the scaffold
-   reproducible instead of current, skip this step and say so — the floor
-   builds, it is just older.
+   expired should be deleted, not inherited. On the Go path, `go get -u
+   ./...` then `go mod tidy` in `go/` does the same for the module, after
+   step 3 has generated the code the imports point at. If the user wants
+   the scaffold reproducible instead of current, skip this step and say
+   so — the floor builds, it is just older.
 
    Do not resolve everything to latest without the ceilings. At the time of
    writing `npm view typescript version` returns a major that breaks
@@ -142,12 +148,29 @@ packages and spinning up dev servers.
 
    The `postinstall` script runs
    `pnpm proto:gen && pnpm proto:descriptor && pnpm build`, which populates
-   `packages/protocol-buffers/src/<slug>/...` from the proto files,
-   compiles the descriptor set the docs site renders, and builds the
-   packages.
+   `packages/protocol-buffers/src/<slug>/...` (and `src/buf/validate/`,
+   the vendored rules the contract imports) from the proto files, compiles
+   the descriptor set the docs site renders, and builds the packages.
 
-3. **Generate the initial DB migration.** The skill ships a Drizzle schema
-   for `Note` but no migration file (those are environment-specific):
+3. **The backend's own generate step.**
+
+   **Go** — the development database is the compose one, and the module
+   generates the contract and the data layer with the `go tool` binaries
+   pinned in `go.mod`:
+
+   ```bash
+   docker compose up -d db
+   cd go && go mod tidy && go generate . && cd ..
+   ```
+
+   `go mod tidy` confirms `go.sum` against the pins (the shipped one is a
+   floor) and `go generate .` writes `go/gen/` (buf) and
+   `go/internal/store/storedb/` (sqlc), both gitignored. Without Go
+   installed, `scripts/go mod tidy` and `scripts/go generate .` run the
+   same in the pinned Docker image.
+
+   **TypeScript** — the skill ships a Drizzle schema for `Note` but no
+   migration file (those are environment-specific):
 
    ```bash
    pnpm --filter <ORG_SCOPE>/backend db:generate
@@ -155,15 +178,24 @@ packages and spinning up dev servers.
 
    Drizzle-kit writes `drizzle/0000_*.sql`. Commit it.
 
-4. **Run the backend.** Defaults to PGlite at `./.dev-db/<slug>` — no
-   Docker required:
+4. **Run the backend.**
 
    ```bash
    pnpm dev:backend
    ```
 
-   Should log `[database] Connection healthy` and start listening on
-   `http://localhost:3000`. Hit `/healthz` to confirm.
+   **Go**: runs `go run` against the compose database with `DEV_USER=dev`
+   and CORS for the Expo dev server. The log shows `starting`, the
+   `DEV_USER` warning, and `listening` on `:8080`; migrations applied on
+   open. `/healthz` and `/readyz` answer, and `Health` over Connect:
+
+   ```bash
+   curl -s -X POST -H 'Content-Type: application/json' -d '{}' \
+     http://localhost:8080/<slug>.service.v1.<APP_NAME>Service/Health
+   ```
+
+   **TypeScript**: PGlite at `./.dev-db/<slug>`, no Docker. Should log
+   `[database] Connection healthy` and listen on `http://localhost:3000`.
 
 5. **Run the interface.** In another terminal:
 
@@ -172,7 +204,8 @@ packages and spinning up dev servers.
    ```
 
    Open the Expo dev menu (web is fastest for verification). The home
-   screen renders the example notes list with create + delete.
+   screen renders the example notes list with create and archive; the
+   default API URL already points at the backend's port.
 
 6. **Run the docs site.** In another terminal:
 
@@ -187,7 +220,9 @@ packages and spinning up dev servers.
    refresh, and the page has changed.
 
 7. **Initialize git.** The scaffolder doesn't `git init` — let the user
-   do that explicitly so they own the first commit.
+   do that explicitly so they own the first commit. `git status` must show
+   no generated code: `go/gen/`, `go/internal/store/storedb/`,
+   `packages/protocol-buffers/src/` and the descriptor are all ignored.
 
 ## Reference: framework concepts the user is now responsible for
 
@@ -196,23 +231,40 @@ These are the patterns embedded in the templates. When the user asks
 
 - **Connect-RPC service definition lives in proto.** Adding an RPC means
   declaring it in `proto/<slug>/service/v1/service.proto`, regenerating,
-  writing a handler, and wiring it into the service object in
-  `packages/backend/src/main.ts`. The TypeScript compiler refuses to build
-  if those four are out of sync.
-- **handler → store → adapter on the backend.** Handlers (`src/handlers/`)
-  are thin: they extract auth context and shape proto responses. Stores
-  (`src/core/<resource>/store.ts`) hold real logic and call Drizzle.
-  Adapters (`src/core/<resource>/adapter.ts`) bridge proto messages and DB
-  rows.
-- **Root-relative imports on the backend.** `tsconfig.json` sets
-  `baseUrl: "src"`, so import from `db/...`, `core/...`, `handlers/...` —
-  not `../../db/...`.
-- **Typed config via Typebox + `@fastify/env`.** All runtime config goes
-  through `configSchema` in `src/config.ts`. Read it via `server.config`.
-- **PGlite for dev, Postgres for prod, one driver-agnostic surface.**
-  `src/db/config.ts` returns a `DbHandle` whose `.db` is structurally
-  identical regardless of driver. The single cast in `initPgliteHandle`
-  reconciles the two type-level shapes.
+  and writing a handler. On the Go path the generated handler interface
+  refuses to compile until every declared RPC has a method; on the
+  TypeScript path the service implementation object in `src/main.ts`
+  does the same.
+- **Input rules live in the contract.** `buf.validate` options on the
+  resource (always-valid invariants: lengths) and on the request
+  envelopes (presence: `required`, `uuid`, bounded `page_size`). The Go
+  path enforces them in the validate interceptor, so handlers check
+  nothing; the TypeScript path's stores still check presence (it can
+  adopt `@bufbuild/protovalidate`).
+- **handler → store → adapter on the backend.** Go: handlers in
+  `internal/server/<resource>.go`, stores in `internal/store/<resources>.go`,
+  adapters in `internal/store/adapters.go` over the sqlc output, the
+  schema in `db/migrations/` (goose) and the queries in `db/queries/`
+  (sqlc). TypeScript: `src/handlers/`, `src/core/<resource>/store.ts`,
+  `src/core/<resource>/adapter.ts`, `src/db/schema.ts` (Drizzle).
+- **Cross-cutting behaviour is interceptors, declared once** (Go:
+  `internal/server/mux.go`): Recover, RequestID, Logging, auth, validate,
+  in that order. A new RPC gets all of them.
+- **Identity is a seam.** `internal/auth` ships the `Authenticator`
+  interface, the gating interceptor with `Health` on its open list, and
+  `DevAuthenticator` (`DEV_USER`). Production refuses `DEV_USER` and will
+  not start until the project wires a real authenticator; the stack's Go
+  document (Auth) has the two shapes that have been walked.
+- **Typed config, validated at boot.** Go: `internal/config` (a struct
+  with env tags, `Validate()`, a masked `Summary()`); TypeScript: Typebox
+  + `@fastify/env` in `src/config.ts`.
+- **Lists page by cursor; removal is archival.** `page_size`,
+  `page_token`, `next_page_token` on every list; `archived_at` set through
+  Update, rows kept, lists leave archived rows out unless asked. A hard
+  Delete RPC is the leaf-data option add-resource documents.
+- **Root-relative imports on the TypeScript backend.** `tsconfig.json`
+  sets `baseUrl: "src"`, so import from `db/...`, `core/...`,
+  `handlers/...` — not `../../db/...`.
 - **Connect client is a singleton.** `interface/src/data/api/client.ts`
   exports `client` — import it from any data-layer file. React Query
   hooks under `src/data/queries/` wrap it for caching.
@@ -233,16 +285,21 @@ and explain that they can use add-resource whenever they're ready.
 
 Specific to bootstrap:
 
-- **Don't edit `packages/protocol-buffers/src/`.** It's regenerated from
-  `proto/` by `pnpm proto:gen`. The biome config already excludes it.
+- **Don't edit generated code.** `packages/protocol-buffers/src/`,
+  `go/gen/` and `go/internal/store/storedb/` are regenerated from `proto/`
+  and `go/db/`; the biome config and the gitignores already exclude them.
 - **`docker-compose.yaml` defaults to user `postgres` / password
-  `postgres`.** Fine for dev. Remind the user to swap for any deployment
-  beyond a laptop.
+  `postgres`.** Fine for dev, and what `pnpm dev:backend` on the Go path
+  connects to. Remind the user to swap for any deployment beyond a laptop.
 - **`pnpm install` runs `postinstall` which runs
   `proto:gen && proto:descriptor && build`.** First install can take a
   minute. If `proto:gen` fails, check that `node_modules/.bin/protoc-gen-es`
   exists — if not, run `pnpm install` again or check the buf catalog
   versions.
+- **A fresh Go clone does not compile until `go generate .` has run.**
+  Editors show unresolved imports for `gen/` and `storedb/` until then;
+  that is the cost of never committing generated code, and the README
+  says so.
 - **The docs site won't build without its descriptor.**
   `packages/docs-site/src/generated/descriptor.json` is generated and
   gitignored, so a fresh clone needs `pnpm proto:descriptor` before
@@ -250,7 +307,7 @@ Specific to bootstrap:
   the site fails with a missing import, that step was skipped.
 
 Project-wide gotchas the user will hit *after* bootstrap (Drizzle's
-interactive rename prompt; proto field-number reuse vs `reserved`;
+interactive rename prompt; sqlc reading the schema from the migrations;
 empty-string-vs-NULL) live in
 `../maybloom-stack-shared/references/gotchas.md` and
 `../maybloom-stack-shared/references/proto-conventions.md`.
@@ -264,57 +321,66 @@ Point the user there once they're past the initial scaffold.
 ├── pnpm-workspace.yaml          # workspaces + dependency catalog
 ├── tsconfig.json                # base; each package extends
 ├── biome.json                   # lint + format (replaces eslint+prettier)
-├── buf.yaml, buf.gen.yaml       # proto module + Connect-ES codegen
-├── docker-compose.yaml          # local Postgres for prod-like dev
+├── buf.yaml                     # two modules: proto/ and the vendored protovalidate
+├── buf.gen.yaml                 # the TypeScript target, include_imports on
+├── docker-compose.yaml          # local Postgres (the Go path's dev database)
+├── CLAUDE.md                    # agent guidance, with the Delegation section
+├── go.work, scripts/go, scripts/golangci-lint   # Go path: workspace file, Docker wrappers
+├── third_party/protovalidate/buf/validate/validate.proto   # vendored, lint-ignored
 ├── proto/<slug>/
-│   ├── resources/v1/notes.proto # data model
+│   ├── common/v1/               # value types, once two resources share one
+│   ├── resources/v1/notes.proto # data model, with its buf.validate invariants
 │   └── service/v1/
-│       ├── notes.proto          # request/response messages
+│       ├── health.proto         # the open RPC: ok + version
+│       ├── notes.proto          # request/response envelopes, presence rules, paging
 │       └── service.proto        # the single service definition
+├── go/                          # --backend go
+│   ├── cmd/<slug>/main.go       # main, run(ctx, cfg), the logger
+│   ├── internal/
+│   │   ├── config/              # env struct + Validate + Summary
+│   │   ├── auth/                # Authenticator, the gating interceptor, DevAuthenticator
+│   │   ├── postgres/            # pool + goose migrate on open
+│   │   ├── store/               # store.go, adapters.go, paging.go, notes.go (+ storedb/, generated)
+│   │   ├── server/              # mux.go, interceptors.go, service.go, notes.go
+│   │   └── version/             # the build stamp
+│   ├── db/migrations/           # goose SQL: the schema of record
+│   ├── db/queries/              # sqlc queries
+│   ├── gen/                     # buf output (gitignored)
+│   ├── buf.gen.yaml, sqlc.yaml, generate.go   # `go generate .` runs both generators
+│   ├── go.mod, go.sum           # tools pinned as `go tool`; versions are a floor
+│   ├── .golangci.yml            # everything on, each disable with a reason
+│   ├── Dockerfile               # build from the repo root; alpine, non-root, /healthz
+│   └── README.md, .env.example  # the module's living docs and its settings
 └── packages/
     ├── protocol-buffers/        # generated TypeScript lives in src/
-    ├── backend/
+    ├── backend/                 # --backend typescript (Fastify + Drizzle + PGlite)
     │   ├── src/
     │   │   ├── main.ts          # service registration + RPC plumbing
     │   │   ├── server.ts        # Fastify bootstrap + shutdown signals
     │   │   ├── config.ts        # Typebox env schema
     │   │   ├── context.ts       # Connect context keys (kRequestId, kUserId)
     │   │   ├── routes.ts        # non-RPC HTTP routes (root, health)
-    │   │   ├── db/
-    │   │   │   ├── config.ts    # initDb(): pglite | postgres
-    │   │   │   ├── plugin.ts    # Fastify plugin: migrate + decorate
-    │   │   │   └── schema.ts    # Drizzle table definitions
-    │   │   ├── core/
-    │   │   │   ├── utils/timestamps.ts
-    │   │   │   └── notes/
-    │   │   │       ├── adapter.ts  # proto <-> row
-    │   │   │       └── store.ts    # business logic
-    │   │   ├── handlers/        # one file per RPC method
-    │   │   └── types/fastify.d.ts  # FastifyInstance.config + .db
-    │   ├── drizzle.config.ts    # drizzle-kit migrations target
-    │   └── Dockerfile           # multi-stage build (build → runner)
-    └── interface/
-        ├── app/                 # Expo Router file-based routes
-        │   ├── _layout.tsx      # QueryClientProvider + Stack
-        │   └── index.tsx        # example NotesScreen
-        ├── src/data/
-        │   ├── api/
-        │   │   ├── client.ts    # singleton Connect client
-        │   │   └── notes.ts     # thin domain wrappers
-        │   ├── queries/
-        │   │   └── useNotes.ts  # React Query hooks
-        │   └── queryClient.ts
-        ├── app.json             # Expo metadata
-        └── babel.config.js
+    │   │   ├── db/              # config.ts (pglite | postgres), plugin.ts, schema.ts
+    │   │   ├── core/notes/      # adapter.ts, store.ts
+    │   │   ├── handlers/        # one file per RPC, health.ts included
+    │   │   └── types/fastify.d.ts
+    │   ├── drizzle.config.ts
+    │   └── Dockerfile
+    ├── interface/
+    │   ├── app/                 # Expo Router file-based routes
+    │   │   ├── _layout.tsx      # QueryClientProvider + Stack
+    │   │   └── index.tsx        # example NotesScreen: list, create, archive
+    │   ├── src/data/
+    │   │   ├── api/client.ts    # singleton Connect client, default URL on the backend's port
+    │   │   ├── api/notes.ts     # thin domain wrappers (paged list, archive)
+    │   │   ├── queries/useNotes.ts  # React Query hooks
+    │   │   └── queryClient.ts
+    │   ├── app.json
+    │   └── babel.config.js
     └── docs-site/               # static site rendered from the contract
-        ├── src/
-        │   ├── contract.ts      # walks the descriptor set, extracts comments
-        │   ├── generated/       # descriptor.json (gitignored, from buf build)
-        │   ├── layouts/Layout.astro
-        │   ├── pages/
-        │   │   ├── index.astro          # service + RPC table, message index
-        │   │   └── messages/[name].astro # a page per message
-        │   └── styles/global.css
-        ├── astro.config.mjs     # static output
-        └── Dockerfile           # build → nginx, like every other surface
+        ├── src/contract.ts      # walks the descriptor set, extracts comments
+        ├── src/generated/       # descriptor.json (gitignored, from buf build)
+        ├── src/pages/           # index.astro, messages/[name].astro
+        ├── astro.config.mjs
+        └── Dockerfile
 ```

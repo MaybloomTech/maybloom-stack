@@ -18,7 +18,8 @@ records what has worked in production so far, not decisions locked for
 good. When a real constraint contradicts a rule here, the rule is the
 part under review — only the contract core is fixed.
 
-The bootstrap skill scaffolds this blueprint complete, with a working
+The bootstrap skill scaffolds this blueprint complete with
+`--backend typescript`, with a working
 example resource wired through every layer.
 
 ## Entry files

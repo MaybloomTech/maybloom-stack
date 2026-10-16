@@ -75,10 +75,8 @@ across the whole loop worth more than the Go defaults above:
 
 It is a validated path in production, not a fallback: the blueprint in
 [Backend: TypeScript](./backend-typescript.md) is complete and the
-bootstrap skill still scaffolds it. A Go-first scaffold is the next
-change to the skills, and until it lands a new Go-backed repo is
-`maybloom-stack-bootstrap` followed by `maybloom-stack-bootstrap-go`,
-with the TypeScript backend package removed.
+bootstrap skill scaffolds it with `--backend typescript`. Without the
+flag a new repo gets the Go backend, since October 2026.
 
 ## The rule that makes the choice cheap
 
