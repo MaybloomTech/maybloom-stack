@@ -1,0 +1,16 @@
+# Go codegen for the contract at ../proto: messages (protoc-gen-go) and the
+# connect-go service scaffolding, both pinned as `go tool` binaries in go.mod,
+# so this runs with no network and no JS toolchain (the TypeScript target is
+# the root buf.gen.yaml, run by pnpm). Run from go/, through generate.go:
+#
+#   go generate .
+#
+# Output lands in go/gen (gitignored, regenerated on every build).
+version: v2
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: gen
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: gen
+    opt: paths=source_relative

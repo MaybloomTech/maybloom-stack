@@ -1,0 +1,71 @@
+package store
+
+import (
+	"errors"
+	"fmt"
+
+	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgtype"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	resourcesv1 "__GO_MODULE__/gen/__APP_SLUG__/resources/v1"
+	"__GO_MODULE__/internal/store/storedb"
+)
+
+// Pure functions between sqlc rows and proto messages. The only place both
+// shapes are known; no I/O. pgtype carries the NULL side: a Valid: false
+// value scans as NULL and becomes an unset optional field on the way out.
+
+func uuidString(u pgtype.UUID) string {
+	if !u.Valid {
+		return ""
+	}
+	return u.String()
+}
+
+// timestamp is nil for a NULL column, so the proto optional field is unset
+// rather than the epoch.
+func timestamp(t pgtype.Timestamptz) *timestamppb.Timestamp {
+	if !t.Valid {
+		return nil
+	}
+	return timestamppb.New(t.Time)
+}
+
+func parseUUID(s string) (pgtype.UUID, error) {
+	var u pgtype.UUID
+	if err := u.Scan(s); err != nil {
+		return u, fmt.Errorf("bad id %q: %w", s, err)
+	}
+	return u, nil
+}
+
+// argUUID parses an id a request carried: a bad one is the caller's mistake
+// (CodeInvalidArgument), not the database's.
+func argUUID(s string) (pgtype.UUID, error) {
+	u, err := parseUUID(s)
+	if err != nil {
+		return u, connect.NewError(connect.CodeInvalidArgument, errors.New("id is not a uuid"))
+	}
+	return u, nil
+}
+
+func noteToProto(n storedb.Note) *resourcesv1.Note {
+	return &resourcesv1.Note{
+		Id:         uuidString(n.ID),
+		Title:      n.Title,
+		Body:       n.Body,
+		CreatedBy:  n.CreatedBy,
+		CreatedAt:  timestamp(n.CreatedAt),
+		UpdatedAt:  timestamp(n.UpdatedAt),
+		ArchivedAt: timestamp(n.ArchivedAt),
+	}
+}
+
+func notesToProto(rows []storedb.Note) []*resourcesv1.Note {
+	out := make([]*resourcesv1.Note, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, noteToProto(r))
+	}
+	return out
+}

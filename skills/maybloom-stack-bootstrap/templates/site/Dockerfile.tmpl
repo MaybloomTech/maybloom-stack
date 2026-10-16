@@ -7,11 +7,16 @@ RUN corepack enable
 
 # The descriptor set the site renders is produced by buf from proto/, so the
 # protos have to be in the image even though nothing here imports them.
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json buf.yaml buf.gen.yaml ./
+# .npmrc carries pnpm settings the lockfile records; a frozen install
+# without it refuses with a settings mismatch.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc buf.yaml buf.gen.yaml ./
 COPY proto ./proto
+COPY third_party ./third_party
 COPY packages/protocol-buffers ./packages/protocol-buffers
 COPY packages/docs-site ./packages/docs-site
-RUN pnpm install --frozen-lockfile --filter __ORG_SCOPE__/docs-site...
+# --ignore-scripts: the root postinstall would build every package; the two
+# steps this image needs run below.
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter __ORG_SCOPE__/docs-site...
 RUN pnpm proto:descriptor
 RUN pnpm --filter __ORG_SCOPE__/docs-site build
 

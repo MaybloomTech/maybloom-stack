@@ -22,7 +22,7 @@ server-state cache, screens on top — transfers to other frameworks, and
 the skills carry a language-neutral version of it for projects that
 choose differently.
 
-The bootstrap skill scaffolds this blueprint with a working example screen
+The bootstrap skill scaffolds this blueprint, on either backend, with a working example screen
 wired to the example resource.
 
 ## Structure

@@ -1,0 +1,93 @@
+# The __APP_NAME__ backend
+
+One Go process: the Connect API (`__APP_NAME__Service`, contract in
+`../proto`), `/healthz` and `/readyz`. Layout follows the Maybloom Stack's Go
+blueprint (github.com/MaybloomTech/maybloom-stack, docs/backend-go.md):
+
+```
+cmd/__APP_SLUG__/    main: config, run(ctx, cfg)
+internal/config/     env struct + Validate
+internal/postgres/   pgx pool + goose migrations on boot
+internal/store/      stores + adapters over the sqlc output (storedb/, generated)
+internal/auth/       the Authenticator seam, the gating interceptor, the development identity
+internal/server/     Connect handlers, interceptors, the mux
+internal/version/    the build stamp
+db/migrations/       goose SQL, the schema of record (append-only)
+db/queries/          sqlc queries
+gen/                 buf output (generated)
+```
+
+Generated code (`gen/`, `internal/store/storedb/`) is never committed; every
+build regenerates it with the `go tool` binaries pinned in `go.mod`, through
+the one entry point in `generate.go`.
+
+## Working on it
+
+With Go installed, from this directory:
+
+```sh
+go generate .        # contract (buf), data layer (sqlc)
+go build ./... && go vet ./... && go test ./...
+../scripts/golangci-lint run    # .golangci.yml, from the pinned image
+```
+
+Without Go, `../scripts/go` runs the same commands in the `golang:1.26.7-alpine`
+image the Dockerfile uses (the patch is pinned with `go.mod`'s and `go.work`'s go lines; raise the four together), with cached modules (`scripts/go generate .`,
+`scripts/go test ./...`).
+
+The contract's `buf.validate` constraints are enforced by the innermost
+interceptor (`connectrpc.com/validate`), so handlers never check presence or
+ranges by hand; `buf/validate/validate.proto` is vendored in
+`../third_party/protovalidate` so generation needs no network.
+
+Store and server tests need a Postgres and skip without one. The compose
+service creates a second database, `__APP_SLUG___test`, when its volume is
+first initialised (`docker/postgres/`), so the tests never touch development
+data. The two test packages share it and each migrates it on open, so they
+run one at a time (`-p 1`). `pnpm test:backend` at the repo root is the same
+run through `scripts/go` on the compose network, so it works on a machine
+without Go:
+
+```sh
+docker compose up -d db
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG___test go test -p 1 ./...
+```
+
+Production needs a real `auth.Authenticator` wired in `cmd/__APP_SLUG__/main.go` (and its rule in `config.Validate`); the scaffold refuses to start without `DEV_USER` until then, and refuses `DEV_USER` in production.
+
+Run it against that database with a development identity (every request is
+that user):
+
+```sh
+pnpm dev:backend     # from the repo root: `scripts/go run` on the compose network, port 8080 published, DEV_USER=dev, CORS for the Expo dev server
+curl -s -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:8080/__APP_SLUG__.service.v1.__APP_NAME__Service/Health
+```
+
+## Configuration
+
+Environment variables, validated at boot (`internal/config`); `.env.example`
+lists them with their defaults.
+
+| Variable | Meaning |
+|---|---|
+| `ADDR` | listen address, default `:8080` |
+| `ENVIRONMENT` | `production` or `development`; production refuses `DEV_USER` and an http `PUBLIC_URL` |
+| `PUBLIC_URL` | where browsers reach the app |
+| `DATABASE_URL` | pgx URL; migrations run against it on boot |
+| `DEV_USER` | development only: every request is this user. Production needs a real `auth.Authenticator` wired in `cmd/__APP_SLUG__/main.go` (the stack's Go document, Auth) and refuses to start until it has one |
+| `CORS_ORIGINS` | browser origins allowed from another origin, comma-separated; empty means none |
+| `LOG_FORMAT` | `json` (production default) or `text` |
+| `LOG_LEVEL` | `debug`, `info` (default), `warn` or `error`; `debug` logs every RPC |
+| `MAX_REQUEST_BYTES` | cap on any request body, default 1 MiB |
+
+## The Note example
+
+`Note` is the teaching specimen the scaffold ships: `db/migrations/00001_notes.sql`
+is its table, `db/queries/notes.sql` its queries, `internal/store/notes.go` the
+store over them, `internal/server/notes.go` the handlers. Lists are
+keyset-paged on `(created_at, id)` behind an opaque `page_token`
+(`internal/store/paging.go`); a note leaves the default list through
+`ArchiveNote`, the example's answer to a question every resource answers
+for itself (a hard Delete, a soft delete, an archive, something else). Add
+real resources with the `maybloom-stack-add-resource` skill and delete Note
+when it has nothing left to teach.

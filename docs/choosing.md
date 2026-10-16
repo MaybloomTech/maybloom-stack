@@ -54,6 +54,12 @@ restarted on it. What it buys:
   an identity provider and a task board. Go's stdlib HTTP client, its
   concurrency, and its footprint fit that shape exactly.
 
+The scaffold ships this backend without being asked (`--backend
+typescript` is the flag, not the other way round) because a default that
+has to be requested is not one: the templates follow the module shape the
+reference implementation runs, so a new service starts where a proven one
+stands rather than where a tutorial ends.
+
 The costs, stated plainly: a second toolchain in a repo whose interface is
 TypeScript, a second set of idioms to hold, and a dev database that is a
 container rather than an in-process library. The contract keeps both
@@ -75,10 +81,8 @@ across the whole loop worth more than the Go defaults above:
 
 It is a validated path in production, not a fallback: the blueprint in
 [Backend: TypeScript](./backend-typescript.md) is complete and the
-bootstrap skill still scaffolds it. A Go-first scaffold is the next
-change to the skills, and until it lands a new Go-backed repo is
-`maybloom-stack-bootstrap` followed by `maybloom-stack-bootstrap-go`,
-with the TypeScript backend package removed.
+bootstrap skill scaffolds it with `--backend typescript`. Without the
+flag a new repo gets the Go backend, since October 2026.
 
 ## The rule that makes the choice cheap
 
@@ -95,6 +99,17 @@ transport is identical. This means:
   contract layer alone: a new service package under `proto/<slug>/`, a
   plugin block in `buf.gen.yaml`, the service's own directory. What else
   moves is below, under *When one service becomes two*.
+
+## What the stack leaves to the app
+
+Not every shape is a stack decision. How a resource leaves the default
+view is the clearest case: a hard delete, a soft delete the reads filter
+on, an archive with a way back, or something else, each is right for some
+resource and wrong for others, so the stack asks the question (what
+happens to the resource, and to the rows that point at it?) and asks that
+the answer be a dedicated RPC with its rule in its comment. The Note
+example answers with `ArchiveNote`; your resources answer for themselves.
+[The contract](./contracts.md) has the question in full.
 
 ## Signals the choice was wrong
 

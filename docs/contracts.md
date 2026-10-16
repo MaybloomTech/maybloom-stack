@@ -50,17 +50,33 @@ service. See [Choosing a runtime](./choosing.md).
 
 - Every RPC has a dedicated `<Verb><Resource>Request` and
   `<Verb><Resource>Response`, including empty ones (`message
-  DeleteNoteResponse {}`), so fields can be added later without a breaking
+  HealthRequest {}`), so fields can be added later without a breaking
   change. `google.protobuf.Empty` is never used.
 - Create and update requests carry the whole resource:
   `CreateNoteRequest { resources.v1.Note note = 1; }`. Clients read, modify,
   and write. Field masks arrive only when a real conflict problem demands
   them.
-- Get requests take an id. List requests are a bag of `optional` filter
-  scalars; list responses hold one `repeated` field.
+- Get requests take an id. List requests carry the paging trio and then
+  a bag of `optional` filter scalars; list responses hold one `repeated`
+  field and `next_page_token`.
 - The standard resource tail is `created_by`, `created_at`,
-  `optional updated_at`, `optional archived_at`. Archival is the norm;
-  hard delete is an explicit, per-resource decision.
+  `optional updated_at`, and whatever the resource's answer to the next
+  point needs (`optional archived_at` for an archive).
+- How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+  The stack takes no position because the right answer depends on what
+  points at the row and on what the people using the app expect to get
+  back; a default would be wrong for half of them.
 - Timestamps are `google.protobuf.Timestamp`. Seconds-since-epoch integers
   and floats are forbidden; they are the single worst fossil observed in
   ported systems.
@@ -81,41 +97,51 @@ service. See [Choosing a runtime](./choosing.md).
   about the caller (`viewer_may_edit`) goes on the response envelope; a
   flag about a member of the resource (`has_access` on a linked person)
   stays on the resource as output-only.
-- List requests carry bounds from the first version: a `limit` and, for
-  time-ordered data, a window. An empty list request that reads a whole
-  table is cheap to fix before a client exists and expensive after.
+- List requests page by cursor from the first version: `page_size`
+  (validated, 0 for the default), an opaque `page_token`, and
+  `next_page_token` on the answer, empty on the last page; no offset and
+  no total. The token is the keyset of the last row (`created_at, id`),
+  so an insert between two pages cannot shift the rest. For time-ordered
+  data add a window. An empty list request that reads a whole table is
+  cheap to fix before a client exists and expensive after.
+- Calendar dates are `YYYY-MM-DD` strings and today is the client's to
+  supply; the server has no time zone to resolve a day in.
 
-## Validation and side effects in the contract
+## Validation in the contract
 
-Two options carry behaviour, not just shape, and both backends act on them:
+**protovalidate constraints** (`buf.validate` field options) are the input
+validation, and the contract is where they live. Both paths enforce them
+in an interceptor (`connectrpc.com/validate` in Go, `@bufbuild/protovalidate`
+behind a Connect interceptor in TypeScript), so handlers and stores check
+nothing the contract states and the two backends refuse the same requests
+with the same code. On the Go path that interceptor is innermost and logging sits outside
+auth, so a request refused for either reason is still one log line with
+its request id; a refusal that leaves no trace is the harder kind to
+debug.
+Constraints distribute by message role: always-valid invariants (lengths,
+enum membership) on the resource, presence on the request envelopes (ids
+`uuid`, `page_size` bounded), and a message-typed request field the handler
+dereferences marked `required`, because that is the only nil guard once
+handlers stop checking.
 
-- **protovalidate constraints** (`buf.validate` field options) are the
-  input validation. The Go path enforces them in an interceptor; the
-  TypeScript path can with `@bufbuild/protovalidate`. Constraints
-  distribute by message role: always-valid invariants (lengths, enum
-  membership) on the resource, presence on the request envelopes, and a
-  message-typed request field the handler dereferences marked `required`,
-  because that is the only nil guard once handlers stop checking.
-- **`option idempotency_level = NO_SIDE_EFFECTS`** marks a read. An audit
-  interceptor skips it, and connect-go also accepts it over HTTP GET, which
-  makes it cacheable; a credential-returning read marked this way needs
-  `Cache-Control: no-store`. The default fails safe: an unmarked read is
-  over-logged, a mutation is never missed.
+Audit is opt-in per service: the contract carries no marker for it, and
+an audit interceptor keeps its own list of the RPCs it records.
 
 ## Field number policy
 
-While a project is pre-launch, removed field numbers are reused and
-`reserved` is unnecessary; the wire never leaves the building. The moment a
-project has shipped clients you cannot atomically upgrade, removed numbers
-become `reserved N;` permanently. The concrete trigger is the first build a
-non-developer installs. Write the date down when it happens, and add
-`buf breaking --against` the default branch to CI the same day.
+A removed field's number and name are `reserved`, from the first commit.
+Reusing numbers while a project is unshipped is tempting; the moment it
+ships is easy to miss and the cost of missing it is corrupted
+deserialization on clients already on the network, so there is one rule. Add `buf breaking --against` the
+default branch to CI once clients you do not control exist.
 
 ## Codegen
 
-`buf.yaml` declares the module and its deps (googleapis for well-known
-types). Each language target gets a plugin block, and the validated shape
-is one template per toolchain:
+`buf.yaml` declares two modules: `proto/`, and `third_party/protovalidate`,
+which vendors `buf/validate/validate.proto` as a lint-ignored module so
+the constraints resolve with no registry dependency, in CI and in the Go
+image build alike. Each language target gets a plugin block, and the
+validated shape is one template per toolchain:
 
 ```yaml
 # buf.gen.yaml at the repo root: the TypeScript target, run by pnpm

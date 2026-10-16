@@ -1,0 +1,130 @@
+package store
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	resourcesv1 "__GO_MODULE__/gen/__APP_SLUG__/resources/v1"
+	"__GO_MODULE__/internal/store/storedb"
+)
+
+// The Note store: one method per RPC, proto in and proto out, Connect codes
+// for what the caller got wrong and internalError for what the database did.
+// The validate interceptor has already enforced the contract's field rules by
+// the time a request reaches here.
+
+const (
+	defaultNotePage = 50
+	maxNotePage     = 200
+)
+
+// NoteFilter is a ListNotes request as the store sees it.
+type NoteFilter struct {
+	PageSize        int
+	PageToken       string
+	IncludeArchived bool
+}
+
+// NotePage is one page of notes; NextPageToken is "" on the last page.
+type NotePage struct {
+	Notes         []*resourcesv1.Note
+	NextPageToken string
+}
+
+// noteNotFound is made per call, never kept in a package variable: the
+// RequestID interceptor writes into an error's Meta, so one shared error
+// would be one header map written by every request that misses at once.
+func noteNotFound() error {
+	return connect.NewError(connect.CodeNotFound, errors.New("note not found"))
+}
+
+// CreateNote writes a note for createdBy (the caller: handlers take it from
+// the identity on the context, never from the request).
+func (s *Store) CreateNote(ctx context.Context, createdBy string, in *resourcesv1.Note) (*resourcesv1.Note, error) {
+	row, err := s.q.CreateNote(ctx, s.pool, storedb.CreateNoteParams{
+		Title:     in.GetTitle(),
+		Body:      in.GetBody(),
+		CreatedBy: createdBy,
+	})
+	if err != nil {
+		return nil, internalError("could not create the note", err)
+	}
+	return noteToProto(row), nil
+}
+
+func (s *Store) GetNote(ctx context.Context, id string) (*resourcesv1.Note, error) {
+	uid, err := argUUID(id)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.GetNote(ctx, s.pool, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, noteNotFound()
+	}
+	if err != nil {
+		return nil, internalError("could not read the note", err)
+	}
+	return noteToProto(row), nil
+}
+
+func (s *Store) ListNotes(ctx context.Context, f NoteFilter) (NotePage, error) {
+	w, err := newPageWindow(f.PageSize, f.PageToken, defaultNotePage, maxNotePage)
+	if err != nil {
+		return NotePage{}, err
+	}
+	rows, err := s.q.ListNotes(ctx, s.pool, storedb.ListNotesParams{
+		IncludeArchived: f.IncludeArchived,
+		BeforeCreatedAt: w.before,
+		BeforeID:        w.beforeID,
+		PageSize:        w.limit,
+	})
+	if err != nil {
+		return NotePage{}, internalError("could not list the notes", err)
+	}
+	rows, next := trimPage(w, rows, func(r storedb.Note) (time.Time, pgtype.UUID) { return r.CreatedAt.Time, r.ID })
+	return NotePage{Notes: notesToProto(rows), NextPageToken: next}, nil
+}
+
+// UpdateNote replaces title and body; the server keeps the rest.
+func (s *Store) UpdateNote(ctx context.Context, in *resourcesv1.Note) (*resourcesv1.Note, error) {
+	uid, err := argUUID(in.GetId())
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.UpdateNote(ctx, s.pool, storedb.UpdateNoteParams{
+		ID:    uid,
+		Title: in.GetTitle(),
+		Body:  in.GetBody(),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, noteNotFound()
+	}
+	if err != nil {
+		return nil, internalError("could not update the note", err)
+	}
+	return noteToProto(row), nil
+}
+
+// ArchiveNote sets archived_at (kept if already set) and leaves the row in
+// place; ListNotes leaves it out unless asked. This is the example's answer
+// to how a note leaves the default view, one of several a resource may
+// give. UnarchiveNote, the mirror, is added when a screen needs it.
+func (s *Store) ArchiveNote(ctx context.Context, id string) (*resourcesv1.Note, error) {
+	uid, err := argUUID(id)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.ArchiveNote(ctx, s.pool, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, noteNotFound()
+	}
+	if err != nil {
+		return nil, internalError("could not archive the note", err)
+	}
+	return noteToProto(row), nil
+}

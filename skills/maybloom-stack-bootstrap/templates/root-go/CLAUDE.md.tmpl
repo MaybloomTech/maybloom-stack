@@ -1,0 +1,67 @@
+# CLAUDE.md
+
+Guidance for coding agents in this repository. The stack's conventions
+are the `maybloom-stack` skills; this file holds only what is specific to
+__APP_NAME__. Record decisions here as they are made, so the next session
+inherits them instead of rediscovering them.
+
+## Project overview
+
+__APP_NAME__ is a maybloom-stack monorepo. The proto contract in
+`proto/__APP_SLUG__/` is the API; `go/` serves it (connect-go, sqlc + pgx,
+goose on Postgres), `packages/interface` (Expo Router) consumes it, and
+`packages/docs-site` renders it. Generated code
+(`packages/protocol-buffers/src/`, `go/gen/`, `go/internal/store/storedb/`)
+is never committed; `pnpm install` and `go generate .` produce it.
+
+## Commands
+
+From the repo root:
+
+```bash
+pnpm install            # also generates the TypeScript contract and builds
+pnpm proto:gen          # buf generate, after any proto change (TypeScript side)
+pnpm typecheck
+pnpm lint               # buf lint + biome
+docker compose up -d db # the development Postgres
+pnpm dev:backend        # scripts/go run on the compose network (no Go needed), DEV_USER=dev, :8080 published
+pnpm dev:interface
+```
+
+In `go/` (or through `scripts/go` and `scripts/golangci-lint`, which run
+the pinned toolchains in Docker for a machine without Go):
+
+```bash
+go generate .           # contract (buf) and data layer (sqlc), after any proto or SQL change
+go build ./... && go vet ./... && go test ./...
+scripts/golangci-lint run
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG___test go test -p 1 ./...  # the compose test database; the two packages share it, one at a time
+```
+
+## Delegation (the `maybloom-stack-delegate` skill has the roster and rules)
+
+- **Protected paths** (architect-only, no subagents):
+  `go/internal/auth/`, `go/internal/config/`, `go/internal/postgres/`,
+  `go/internal/server/mux.go`, `go/internal/server/interceptors.go`,
+  `packages/interface/src/data/api/client.ts`. Add session and permission
+  files here as they appear.
+- **Commands run from:** the repo root for pnpm, `go/` for Go.
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`; in `go/`: `go generate
+  .`, `go vet ./...`, `go test ./...`, `scripts/golangci-lint run`.
+- **Mechanic checks:** `pnpm lint`, `go vet ./...`, or the CI job the chore
+  touches.
+
+## Rules a change must honour
+
+- Migrations are append-only; one schema change each; sqlc reads the
+  schema from them, so the migration comes before the query.
+- A new RPC is added to the proto first, then the handler, then the
+  interface; the generated handler interface refuses to compile until
+  every declared RPC has a method, so let the compiler be the checklist.
+- Input rules are `buf.validate` options in the contract, enforced by the
+  validate interceptor. Handlers do not check presence or ranges by hand.
+- Lists are cursor-paged (`page_size`, `page_token`, `next_page_token`);
+  how a resource leaves the default view is a per-resource decision made
+  as a dedicated RPC with its rule in its comment (Note: `ArchiveNote`),
+  never a flag on Update.
+- __LICENSE_RULE__

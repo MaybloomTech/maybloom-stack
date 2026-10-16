@@ -1,0 +1,74 @@
+# golangci-lint v2 for go/, run through scripts/golangci-lint (pinned image).
+# Everything on, minus a short list where each line says why. funlen is kept
+# but scoped to the transport layer (internal/server) by the exclusion rule
+# below: handlers stay thin, domain code may be long when it reads well.
+version: "2"
+linters:
+  default: all
+  disable:
+    - depguard # nothing to guard against yet; needs a list to be useful
+    - err113 # sentinel errors exist where a caller branches on them; the rest are fmt.Errorf
+    - exhaustruct # zero values are the point of most struct literals here
+    - exhaustruct_v5 # same
+    - noinlineerr # `if err := f(); err != nil` is the idiom
+    - nilnil # a store read answers nil, nil for "no such row" where that is not an error
+    - gochecknoglobals # sentinel errors and lookup tables are package globals on purpose
+    - godox # a TODO is allowed to exist
+    - ireturn # store methods return proto messages by pointer; the rule has no opinion worth having here
+    - lll # long lines are fine when they are one statement
+    - mnd # 45*time.Minute is clearer than a constant named for it, most of the time
+    - nlreturn # blank lines before return are noise
+    - nonamedreturns # named returns document multi-value functions
+    - tagliatelle # tags follow the wire formats they describe
+    - varnamelen # short names in short scopes are idiomatic
+    - wrapcheck # every error across a package boundary is already wrapped by hand
+    - wsl # whitespace opinions
+    - wsl_v5 # whitespace opinions
+    - testpackage # tests sit next to what they test, in the same package
+    - paralleltest # t.Parallel is used where tests are independent; not every test is
+    - cyclop # covered well enough by gocognit
+    - gomodguard # deprecated in favour of gomodguard_v2, which stays on
+    - gocyclo # covered well enough by gocognit
+  settings:
+    revive:
+      rules:
+        # Doc comments are written where they say something; a comment that
+        # restates the name is worse than none.
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+    gocognit:
+      # The functions above the default are flat lists of checks (config
+      # validation, for one).
+      min-complexity: 50
+    funlen:
+      lines: 80
+      statements: 50
+    exhaustive:
+      default-signifies-exhaustive: true
+    gosec:
+      excludes:
+        - G115 # int -> int32 for row counts and page sizes
+  exclusions:
+    generated: lax
+    rules:
+      # funlen only on the Connect handlers and the HTTP handlers around them.
+      - linters:
+          - funlen
+        path-except: '^internal/server/[^/]+\.go$'
+      - linters:
+          - funlen
+        path: '_test\.go$'
+      # Tests may be long, repeat themselves and use dynamic errors.
+      - linters:
+          - gocognit
+          - dupl
+          - goconst
+          - forcetypeassert
+          - maintidx
+        path: '_test\.go$'
+formatters:
+  enable:
+    - gofmt
+    - goimports

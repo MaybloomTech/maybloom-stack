@@ -2,28 +2,36 @@ syntax = "proto3";
 
 package __APP_SLUG__.resources.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
+option go_package = "__GO_MODULE__/gen/__APP_SLUG__/resources/v1;resourcesv1";
+
 // A free-form note authored by a user. The example resource shipped with the
-// __APP_NAME__ stack — keep it as a reference until you've added a real one,
-// then feel free to delete.
+// __APP_NAME__ stack: keep it as a reference until you have added a real one,
+// then delete it.
 //
 // The comments on these fields are not decoration. They travel with the
 // contract into every generated language, and the docs site renders them, so
 // a rule about a field can be written once here and reach everyone who
-// consumes it.
+// consumes it. The buf.validate rules are enforced by the backend before any
+// handler runs; always-valid invariants (lengths) live here on the resource,
+// presence rules live on the request envelopes in service/v1.
 message Note {
   // Server-assigned identifier. Clients leave this empty when creating.
   string id = 1;
 
-  // Short human-readable label. Required; the store rejects an empty title.
-  string title = 2;
+  // Short human-readable label. Never empty: a note is found by its title.
+  string title = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 200
+  }];
 
-  // The note itself. May be empty — a title-only note is a valid note.
-  string body = 3;
+  // The note itself. May be empty; a title-only note is a valid note.
+  string body = 3 [(buf.validate.field).string.max_len = 20000];
 
   // The user who created it, taken from the authenticated request rather
-  // than from the client's word for it.
+  // than from the client's word for it. Output only.
   string created_by = 4;
 
   // Set once, by the server, at creation.
@@ -32,4 +40,10 @@ message Note {
   // Absent until the first edit. `optional` is what makes "never edited"
   // distinguishable from "edited at the epoch".
   optional google.protobuf.Timestamp updated_at = 6;
+
+  // Set by ArchiveNote. An archived note keeps its row and its id; lists
+  // leave it out unless asked. Archiving is the answer this example gives to
+  // "how does a note leave the default view"; a real resource answers for
+  // itself (see service/v1/notes.proto, ArchiveNote).
+  optional google.protobuf.Timestamp archived_at = 7;
 }

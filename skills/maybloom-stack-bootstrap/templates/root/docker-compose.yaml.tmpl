@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17.0-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
@@ -10,7 +10,17 @@ services:
       - "5432:5432"
     volumes:
       - db:/var/lib/postgresql/data
+      # Runs once, when the volume is first created: the test database
+      # beside the dev one (`docker compose down -v` to recreate both).
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
 
 volumes:
   db:
     driver: local
+
+# Named so `scripts/go` (the Go toolchain in Docker) can join it and reach
+# the database as `db`; the root package.json's dev:backend and test:backend
+# use it.
+networks:
+  default:
+    name: __APP_SLUG__-dev

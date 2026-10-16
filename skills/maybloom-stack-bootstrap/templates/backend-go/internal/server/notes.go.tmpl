@@ -1,0 +1,88 @@
+package server
+
+import (
+	"context"
+	"errors"
+
+	"connectrpc.com/connect"
+
+	servicev1 "__GO_MODULE__/gen/__APP_SLUG__/service/v1"
+	"__GO_MODULE__/internal/auth"
+	"__GO_MODULE__/internal/store"
+)
+
+// The Note handlers: read the identity the interceptor put on the context,
+// call the store, wrap the answer. Presence and ranges are the validate
+// interceptor's (the contract's buf.validate rules), so there is nothing
+// left to check here; a handler past twenty lines is logic leaking in.
+
+// caller is the identity the auth interceptor put on the context. The gate
+// already refused the anonymous, so the nil case is a wiring mistake (the
+// procedure on the open list, the interceptor missing from the chain), and a
+// handler that writes created_by still refuses it rather than writing "".
+func caller(ctx context.Context) (*auth.Identity, error) {
+	id := auth.IdentityFrom(ctx)
+	if id == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
+	}
+	return id, nil
+}
+
+func (s *Service) CreateNote(ctx context.Context, req *connect.Request[servicev1.CreateNoteRequest]) (*connect.Response[servicev1.CreateNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	note, err := s.store.CreateNote(ctx, id.UserID, req.Msg.GetNote())
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info("note created", "user", id.UserID, "note", note.GetId())
+	return connect.NewResponse(&servicev1.CreateNoteResponse{Note: note}), nil
+}
+
+func (s *Service) GetNote(ctx context.Context, req *connect.Request[servicev1.GetNoteRequest]) (*connect.Response[servicev1.GetNoteResponse], error) {
+	note, err := s.store.GetNote(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&servicev1.GetNoteResponse{Note: note}), nil
+}
+
+func (s *Service) ListNotes(ctx context.Context, req *connect.Request[servicev1.ListNotesRequest]) (*connect.Response[servicev1.ListNotesResponse], error) {
+	page, err := s.store.ListNotes(ctx, store.NoteFilter{
+		PageSize:        int(req.Msg.GetPageSize()),
+		PageToken:       req.Msg.GetPageToken(),
+		IncludeArchived: req.Msg.GetIncludeArchived(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&servicev1.ListNotesResponse{Notes: page.Notes, NextPageToken: page.NextPageToken}), nil
+}
+
+func (s *Service) UpdateNote(ctx context.Context, req *connect.Request[servicev1.UpdateNoteRequest]) (*connect.Response[servicev1.UpdateNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	note, err := s.store.UpdateNote(ctx, req.Msg.GetNote())
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info("note updated", "user", id.UserID, "note", note.GetId())
+	return connect.NewResponse(&servicev1.UpdateNoteResponse{Note: note}), nil
+}
+
+func (s *Service) ArchiveNote(ctx context.Context, req *connect.Request[servicev1.ArchiveNoteRequest]) (*connect.Response[servicev1.ArchiveNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	note, err := s.store.ArchiveNote(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info("note archived", "user", id.UserID, "note", note.GetId())
+	return connect.NewResponse(&servicev1.ArchiveNoteResponse{Note: note}), nil
+}

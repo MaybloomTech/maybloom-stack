@@ -5,7 +5,7 @@ import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__
 // EXPO_PUBLIC_ vars are inlined at build time and visible to the bundle.
 // Override per-environment via .env or EAS build profiles.
 export const API_URL =
-  process.env.EXPO_PUBLIC___APP_SLUG_UPPER___API_URL ?? "http://localhost:3000";
+  process.env.EXPO_PUBLIC___APP_SLUG_UPPER___API_URL ?? "http://localhost:__BACKEND_PORT__";
 
 const transport = createConnectTransport({
   baseUrl: API_URL,

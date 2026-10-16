@@ -10,21 +10,37 @@ backends identically. Code illustrations use the TypeScript backend
 shapes for the same rules (`pgtype` for the NULL side of the string
 convention, the generated handler interface for the one-service rule).
 
-## Field number policy: reuse vs reserve
+## Field number policy: removed numbers are reserved
 
-See `gotchas.md` for the full rationale. The short version:
+A removed field's number (and name) is marked `reserved` in the message,
+always, from the first commit. There is no pre-launch regime that reuses
+numbers: the moment a project ships is easy to miss and the cost of
+missing it is corrupted deserialization on clients already on the
+network. Add `buf breaking
+--against` the default branch to CI once clients you do not control
+exist; `gotchas.md` has the history.
 
-- **In active development** (no external proto consumers): reuse
-  removed field numbers. Don't add `reserved N;`.
-- **Once shipped to clients you don't control**: mark removed numbers
-  `reserved` so they can never be reintroduced with a different type.
-  The concrete trigger is the first build a non-developer installs;
-  record the date and add `buf breaking --against` the default branch
-  to CI the same day.
+## Layout and the Go package option
 
-Check which regime the project is in before removing a field, and ask
-if it is not obvious. Guessing wrong in the shipped direction corrupts
-deserialization for clients already on the network.
+`proto/<slug>/resources/v1` holds the nouns, `common/v1` holds value
+types once two resources share one (the scaffold creates it empty),
+`service/v1` holds one envelope file per resource plus `health.proto`
+and `service.proto`, which declares the one service. Every file carries
+
+```proto
+option go_package = "<GO_MODULE>/gen/<slug>/<pkg>/v1;<pkg>v1";
+```
+
+on both backend paths, so a Go service can join later without touching
+the contract. The `Health` RPC (`HealthRequest {}` → `ok`, `version`) is
+in every contract: buf refuses an empty service, it is the one procedure
+open to anonymous callers, and it is where a client reads which build is
+serving.
+
+The rules in this file (`buf.validate`) resolve against
+`third_party/protovalidate/buf/validate/validate.proto`, vendored as a
+second, lint-ignored module in `buf.yaml`, so generation needs no
+registry; the TypeScript target emits it through `include_imports`.
 
 ## Empty strings vs absent strings vs NULL
 
@@ -51,7 +67,7 @@ column is nullable; never apply it to columns that are `notNull`.
 
 ## Enums
 
-Convention from the maybloom resources protos:
+The convention:
 
 ```proto
 enum UserKind {
@@ -137,18 +153,41 @@ registrations, which the conventions don't currently support.
 - Selectors are surrogate ids (`string id`, or `int32 event_id` on an
   integer-keyed system), never a unique name, even where a REST URL
   used the name. The name is a read-only display field on the resource.
-- List requests are bounded from the first version: a `limit` with a
-  validated cap and, for time-ordered data, a `min_time`/`max_time`
-  window. An empty list request that reads a whole table is a smell.
+- List requests page by cursor from the first version: `int32 page_size`
+  (validated `gte: 0, lte: <cap>`; 0 means the default), `string
+  page_token` (opaque, from the previous answer), and `string
+  next_page_token` on the response, empty on the last page. No offset,
+  no `total_size`: a count is a second query the client rarely needs,
+  and an offset shifts under inserts. For time-ordered data add a
+  `min_time`/`max_time` window. The token is the keyset of the last row
+  (`created_at, id`), encoded by the server; a token the service did not
+  issue is `CodeInvalidArgument`. An empty list request that reads a
+  whole table is a smell.
+- How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+- Calendar dates (a due date, a day in a schedule) are `YYYY-MM-DD`
+  strings, never timestamps, and "today" is supplied by the client,
+  because the server has no time zone to resolve it in.
 - Derived read-only fields go where the thing they describe lives: a
   fact about the caller (`viewer_may_edit`) on the response envelope, a
   fact about a member of the resource (`has_access` on a link) on the
   resource, output-only and documented as such.
 
-## Validation constraints and the read marker
+## Validation constraints
 
-Two options carry behaviour, and the Go path enforces both through
-interceptors (the TypeScript path can with `@bufbuild/protovalidate`):
+`buf.validate` options carry the input rules, and the Go path enforces
+them in the validate interceptor (the TypeScript path can with
+`@bufbuild/protovalidate`; until then its stores check presence):
 
 ```proto
 import "buf/validate/validate.proto";
@@ -159,19 +198,15 @@ message CreateBookRequest {
   resources.v1.Book book = 1 [(buf.validate.field).required = true];
 }
 
-service AppService {
-  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS; // a read: audit skips it, GET allowed
-  }
+message GetBookRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
 }
 ```
 
 Rules: always-valid invariants (lengths, enum membership) on the resource
 message, presence on the request envelopes, since create and update reuse
-the resource message with most of it unset. Mark every read
-`NO_SIDE_EFFECTS` as it is written; the default fails safe (an unmarked
-read is over-audited, never a missed mutation). A read that returns a
-credential must not be marked without `Cache-Control: no-store`, because
-the marker also makes it GET-able and cacheable. Vendoring
-`buf/validate/validate.proto` into a second, lint-excluded buf module
-keeps generation free of any registry dependency.
+the resource message with most of it unset. Ids on request envelopes are
+`uuid`; `page_size` is bounded.
+
+Audit is opt-in and has no marker in the contract: a service that audits
+mutations keeps its own list of the RPCs it records.

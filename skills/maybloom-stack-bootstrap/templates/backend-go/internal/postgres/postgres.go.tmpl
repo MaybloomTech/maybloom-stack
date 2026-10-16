@@ -1,0 +1,69 @@
+// Package postgres opens the pool and applies the embedded goose migrations
+// on boot, so callers can assume the schema exists rather than racing the
+// first request. Migrate-on-boot is right for one instance; revisit it the
+// day two replicas race to migrate.
+package postgres
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+
+	"__GO_MODULE__/db"
+)
+
+func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping database: %w", err)
+	}
+	if err := Migrate(ctx, pool, 0); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return pool, nil
+}
+
+// Migrate applies the embedded migrations up to version, or all of them
+// when version is 0 (a test stops early to put data through a migration).
+func Migrate(ctx context.Context, pool *pgxpool.Pool, version int64) error {
+	migrations, err := fs.Sub(db.Migrations, "migrations")
+	if err != nil {
+		return fmt.Errorf("migrations fs: %w", err)
+	}
+	// stdlib.OpenDBFromPool borrows connections from the pool for goose's
+	// database/sql view; closing that *sql.DB when the migration is done
+	// hands them back and leaves the pool itself open for the stores.
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer sqlDB.Close() //nolint:errcheck // nothing to do with a close error after the migrations ran
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations, goose.WithVerbose(false))
+	if err != nil {
+		return fmt.Errorf("goose provider: %w", err)
+	}
+	var applied []*goose.MigrationResult
+	if version == 0 {
+		applied, err = provider.Up(ctx)
+	} else {
+		applied, err = provider.UpTo(ctx, version)
+	}
+	if err != nil {
+		return fmt.Errorf("apply migrations: %w", err)
+	}
+	current, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
+	// The one line a boot says about the schema (run() set the default
+	// logger before opening the pool).
+	slog.InfoContext(ctx, "migrations applied", "applied", len(applied), "version", current)
+	return nil
+}

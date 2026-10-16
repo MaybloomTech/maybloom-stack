@@ -82,13 +82,27 @@ they mean for a new operation.
   the client polls. Server streaming is a stack-wide decision a project
   makes once (see `core.md`), never something one RPC adopts on its own;
   if the project has not made it, this RPC is unary.
-- **Reads say so.** A read-only RPC carries
-  `option idempotency_level = NO_SIDE_EFFECTS;` so audit interceptors skip
-  it, remembering that connect-go then also serves it over GET.
-- **Input rules go in the contract.** Where the backend runs protovalidate
-  (the Go path does), mark a message-typed request field the handler
-  dereferences `required` and put bounds on ids and limits as
-  `buf.validate` options rather than in handler code.
+- **Lists page by cursor.** A list RPC carries `page_size` (validated,
+  0 for the default), an opaque `page_token`, and answers
+  `next_page_token`, empty on the last page; never an offset and never a
+  total. `ListNotes` in the bootstrap scaffold is the shape.
+- **Leaving the default view is a verb RPC of its own.** How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+  The worked example below is that RPC.
+- **Input rules go in the contract.** Both paths run protovalidate in an
+  interceptor: mark a message-typed request field the handler
+  dereferences `required`, put `string.uuid` on ids and bounds on limits
+  as `buf.validate` options rather than in handler code.
 
 Add the two messages to `proto/<APP_SLUG>/service/v1/<resources>.proto`
 next to the CRUD envelopes for the same resource, and the `rpc` line to
@@ -139,9 +153,9 @@ rather than a field.
 
 One thin function (TypeScript: a file in `src/handlers/`; Go: a method on
 the server struct). Read identity from request context, call the store,
-shape the response; validate presence only where the contract does not
-(the TypeScript path without protovalidate). If it needs more than about
-twenty lines, the rule has leaked out of the store.
+shape the response; the contract's rules were enforced before it ran. If
+it needs more than about twenty lines, the rule has leaked out of the
+store.
 
 Identity comes from the context the auth interceptor populated, never from
 the request body — an RPC that trusts a client-supplied `user_id` is an
@@ -167,13 +181,90 @@ method; `go build ./...` is the checklist.
 - **screen** — the control that triggers it, plus the disabled/failed
   states the new error codes make possible.
 
+## Worked example: `ArchiveNote`
+
+The bootstrap's Note answers "how does a note leave the default view" with
+an archive, and ships it as a verb RPC. Every layer of it is in the
+scaffold; this is the path through them.
+
+**Proto** (`proto/<APP_SLUG>/service/v1/notes.proto`, `service.proto`):
+
+```proto
+// Archive a note: sets archived_at (kept if already set) and leaves the
+// row and its id in place; ListNotes leaves it out unless include_archived
+// is set. Errors: CodeNotFound for an unknown id.
+message ArchiveNoteRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+message ArchiveNoteResponse {
+  <APP_SLUG>.resources.v1.Note note = 1;
+}
+
+rpc ArchiveNote(ArchiveNoteRequest) returns (ArchiveNoteResponse);
+```
+
+The request carries an id, not a `Note`; the response carries the note as
+it now is. The resource already has `optional archived_at`, and
+`ListNotesRequest` already has `include_archived`, so step 2 (schema) is
+empty.
+
+**Store**, Go (`go/db/queries/notes.sql`, `internal/store/notes.go`):
+
+```sql
+-- name: ArchiveNote :one
+UPDATE notes
+SET archived_at = COALESCE(archived_at, now()), updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+```
+
+```go
+func (s *Store) ArchiveNote(ctx context.Context, id string) (*resourcesv1.Note, error) {
+	uid, err := argUUID(id)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.ArchiveNote(ctx, s.pool, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, noteNotFound()
+	}
+	if err != nil {
+		return nil, internalError("could not archive the note", err)
+	}
+	return noteToProto(row), nil
+}
+```
+
+TypeScript (`src/core/notes/store.ts`): the same `coalesce` in a Drizzle
+`update(...).set({ archivedAt: sql\`coalesce(${notes.archivedAt}, now())\`,
+updatedAt: new Date() })`, `NotFound` when no row comes back.
+
+The rule the RPC exists for is the `COALESCE`: archiving twice keeps the
+first timestamp. `UpdateNote` never touches `archived_at`. The mirror,
+`UnarchiveNote` (`SET archived_at = NULL`), is documented and not shipped;
+add it the day a screen needs it, the same way.
+
+**Handler**: read the caller from the context (a mutation with no caller
+is `Unauthenticated`), call the store, wrap the note. Go: a method on
+`Service` in `internal/server/notes.go`; TypeScript: `src/handlers/archiveNote.ts`,
+added to the service object in `main.ts`.
+
+**Client**: `archiveNote(id)` in `src/data/api/notes.ts` calls
+`client.archiveNote({ id })`; `useArchiveNote` is a `useMutation` that
+invalidates the notes list key, because the operation changes list
+membership; the screen's Archive button calls `mutate(item.id)`.
+
+**Verify**: archive, then list (the note is gone), then list with
+`include_archived: true` (it is back, first); archive it again and compare
+`archived_at`; archive an unknown id and read `not_found`.
+
 ## Verification before claiming done
 
 1. Typecheck the whole repo (or `go build ./...` and `go vet ./...`). On
    both paths the generated service type is what proves the RPC is wired.
 2. Call it for real — a test through the generated client, or curl
    (Connect is POST + JSON:
-   `curl -X POST http://localhost:3001/<APP_SLUG>.service.v1.<APP_NAME>Service/<Method> -H 'content-type: application/json' -d '{...}'`).
+   `curl -X POST http://localhost:<PORT>/<APP_SLUG>.service.v1.<APP_NAME>Service/<Method> -H 'content-type: application/json' -d '{...}'`, where the port is the backend's: 8080 on the Go path, 3000 on TypeScript).
 3. Exercise the failure the rule exists for, not just the happy path:
    check out a book that is already out and confirm the error code is the
    one you chose.

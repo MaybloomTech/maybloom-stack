@@ -2,25 +2,23 @@ syntax = "proto3";
 
 package __APP_SLUG__.service.v1;
 
+import "__APP_SLUG__/service/v1/health.proto";
 import "__APP_SLUG__/service/v1/notes.proto";
 
-// The single Connect-RPC service for __APP_NAME__. Add new RPC methods here as
-// you grow; keep request/response messages in sibling files (one per resource).
+option go_package = "__GO_MODULE__/gen/__APP_SLUG__/service/v1;servicev1";
+
+// The single Connect-RPC service for __APP_NAME__. Layout: resources/v1 holds
+// the nouns, common/v1 holds value types once two resources share one,
+// service/v1 holds one envelope file per resource plus this file. Add new RPCs
+// here, grouped by resource under comment headers, as they arrive.
 service __APP_NAME__Service {
-  // Create a note. The server assigns the id and created_at, and takes
-  // created_by from the authenticated request.
+  // Backend
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Notes
   rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
-
-  // Replace a note. The request carries the whole resource, so a field left
-  // empty is written as empty rather than ignored.
-  rpc UpdateNote(UpdateNoteRequest) returns (UpdateNoteResponse);
-
-  // Fetch one note by id. Returns NOT_FOUND if it does not exist.
   rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
-
-  // Every note, newest first.
   rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
-
-  // Delete a note by id. Returns NOT_FOUND if it was not there to delete.
-  rpc DeleteNote(DeleteNoteRequest) returns (DeleteNoteResponse);
+  rpc UpdateNote(UpdateNoteRequest) returns (UpdateNoteResponse);
+  rpc ArchiveNote(ArchiveNoteRequest) returns (ArchiveNoteResponse);
 }

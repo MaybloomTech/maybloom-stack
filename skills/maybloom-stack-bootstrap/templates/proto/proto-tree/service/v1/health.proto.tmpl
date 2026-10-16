@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package __APP_SLUG__.service.v1;
+
+option go_package = "__GO_MODULE__/gen/__APP_SLUG__/service/v1;servicev1";
+
+// Answered without touching the store or the session: the one RPC open to
+// anonymous callers, so a client can prove the whole path works before it
+// signs in, and read which build is serving.
+message HealthRequest {}
+
+message HealthResponse {
+  // Serving or not; a single process has no degraded state.
+  bool ok = 1;
+  // The build's git short SHA or tag, stamped at build time; "dev" otherwise.
+  string version = 2;
+}

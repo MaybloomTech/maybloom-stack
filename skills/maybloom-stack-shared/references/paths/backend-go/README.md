@@ -7,8 +7,7 @@ adapter), and the interface are identical — a generated client cannot tell
 the two backends apart. This file defines the per-layer patterns so the
 skills that walk the pipeline (add-resource, add-rpc, extend-resource,
 bootstrap-go) can do so on a Go service without reading any external
-codebase. Two production services walked this path in 2026 and the
-patterns below are theirs.
+codebase. The patterns below are the ones a production service runs.
 
 Sections: Detecting a Go backend · Layer map · Codegen · Migration
 (goose) · Queries (sqlc) · Adapter · Store · Handlers · Validation ·
@@ -25,9 +24,10 @@ go/
   internal/
     config/               env struct + Validate()
     server/               Connect handlers, interceptors, mux wiring
-    store/                sqlc-generated package + stores + adapters
+    store/                stores, adapters, paging, over the sqlc output (storedb/, generated)
     postgres/             pool setup, goose migrate on boot
-    auth/                 the login, whatever shape it takes
+    auth/                 the Authenticator seam and the gating interceptor; the login, whatever shape it takes
+    version/              the build stamp
   gen/                    buf output (gitignored, regenerated on build)
   db/
     db.go                 //go:embed migrations/*.sql
@@ -35,7 +35,12 @@ go/
     queries/              sqlc query files
   buf.gen.yaml            the Go codegen targets (local go-tool plugins)
   sqlc.yaml
+  generate.go             `go generate .` runs buf then sqlc
 ```
+
+The bootstrap skill scaffolds exactly this (`templates/backend-go/`), with
+`Note` as the specimen in every layer; read its files as the live
+exemplar before writing a new resource.
 
 A larger service may package by domain instead (`internal/<domain>/`
 holding that domain's handlers, store and adapters, with a `Service`
@@ -55,12 +60,12 @@ where each layer lives and which generator runs:
 | Step | TypeScript | Go |
 |---|---|---|
 | Proto | `proto/<APP_SLUG>/...` | identical — same files, same conventions |
-| Codegen | `pnpm proto:gen` | `go tool buf generate ../proto --template buf.gen.yaml`, run from `go/` (below) |
+| Codegen | `pnpm proto:gen` | `go generate .`, run from `go/` (buf, then sqlc; below) |
 | Schema + migration | `src/db/schema.ts` + drizzle-kit | `db/migrations/000N_*.sql` (goose) — migrations ARE the schema |
 | Queries | Drizzle query builder, inline in store | `db/queries/<resources>.sql` + `go tool sqlc generate` |
-| Adapter | `src/core/<resources>/adapter.ts` | `internal/store/<resources>_adapter.go` |
+| Adapter | `src/core/<resources>/adapter.ts` | `internal/store/adapters.go` (or `<resources>_adapter.go` once long) |
 | Store | `src/core/<resources>/store.ts` | `internal/store/<resources>.go` |
-| Handlers | `src/handlers/<method>.ts`, one file per RPC | `internal/server/<resource>.go`, one method per RPC |
+| Handlers | `src/handlers/<method>.ts`, one file per RPC | `internal/server/<resources>.go`, one method per RPC |
 | Wiring | add each handler to the ServiceImpl object in `main.ts` | nothing — the generated handler interface enforces exhaustiveness |
 | Interface | React Query hooks + screen | identical — the client is generated from the same proto |
 
@@ -109,17 +114,25 @@ one logical change per file, schema statements only:
 ```sql
 -- +goose Up
 CREATE TABLE <resources> (
-    id         text PRIMARY KEY,
-    title      text NOT NULL,
-    body       text NOT NULL DEFAULT '',
-    created_by text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title       text NOT NULL,
+    body        text NOT NULL DEFAULT '',
+    created_by  text NOT NULL DEFAULT '',
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz,
+    archived_at timestamptz
 );
+CREATE INDEX <resources>_created_at_idx ON <resources> (created_at DESC, id DESC);
 
 -- +goose Down
 DROP TABLE <resources>;
 ```
+
+Ids are uuids the database assigns (`RETURNING *` hands them back), the
+list's keyset `(created_at, id)` has its index from day one, and
+`archived_at` is there when the resource's answer to leaving the default
+view is an archive (the Note example's); a hard-deleted resource has no
+such column.
 
 Column mapping follows the same table as the Drizzle reference: proto
 `string` → `text`, `int32` → `integer`, `bool` → `boolean`,
@@ -130,7 +143,8 @@ migration. `Down` sections are best-effort dev conveniences.
 Migrations are embedded (`go/db/db.go`, a tiny package beside the
 directory, because embed paths cannot reach up the tree) and applied on
 boot through `goose.NewProvider(...).Up(ctx)`, so there is no separate
-"apply" step in dev — boot the server and watch the log. Migrations are
+"apply" step in dev — boot the server; the log says `migrations applied
+applied=N version=M`. Migrations are
 schema-only; seed data is a store function switched by config.
 
 ## Queries (sqlc)
@@ -139,88 +153,80 @@ New file `db/queries/<resources>.sql`, one named query per store need:
 
 ```sql
 -- name: Create<Resource> :one
-INSERT INTO <resources> (id, title, body, created_by)
-VALUES ($1, $2, $3, $4)
+INSERT INTO <resources> (title, body, created_by)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: Update<Resource> :one
 UPDATE <resources>
-SET title = $2, body = $3, updated_at = now()
-WHERE id = $1
+SET title = sqlc.arg(title), body = sqlc.arg(body), updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: Archive<Resource> :one
+-- Sets archived_at once; a second archive keeps the first timestamp.
+UPDATE <resources>
+SET archived_at = COALESCE(archived_at, now()), updated_at = now()
+WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: Get<Resource> :one
 SELECT * FROM <resources> WHERE id = $1;
 
 -- name: List<Resources> :many
-SELECT * FROM <resources> ORDER BY created_at DESC;
-
--- name: Delete<Resource> :execrows
-DELETE FROM <resources> WHERE id = $1;
+-- Newest first, keyset-paged on (created_at, id); archived rows only when asked.
+SELECT * FROM <resources>
+WHERE (sqlc.arg(include_archived)::bool OR archived_at IS NULL)
+  AND (sqlc.narg(before_created_at)::timestamptz IS NULL
+       OR (created_at, id) < (sqlc.narg(before_created_at), sqlc.narg(before_id)::uuid))
+ORDER BY created_at DESC, id DESC
+LIMIT sqlc.arg(page_size);
 ```
+
+`Update` never touches `archived_at`; the verb RPC that answers "how does
+this resource leave the default view" has its own query. For an archive
+that is the `COALESCE` above (the bootstrap's `db/queries/notes.sql` is
+the full set). For a hard delete, leaf data only, it is `-- name:
+Delete<Resource> :execrows` with `DELETE ... WHERE id = $1`; `:execrows`
+lets the store tell "deleted" from "was never there". For a soft delete it
+is `SET deleted_at = now()` and a `deleted_at IS NULL` on every read.
 
 Then regenerate:
 
 ```bash
-cd go && go tool sqlc generate
+cd go && go generate .
 ```
 
 sqlc reads the schema from `db/migrations/` (that's why the migration must
 exist first) and writes into `internal/store/storedb/`: a
 `<Resource>` row struct, `Create<Resource>Params`, and `Querier` methods.
-`:execrows` on Delete lets the store distinguish "deleted" from "was never
-there".
 
 ## Adapter
 
-`internal/store/<resources>_adapter.go`. Pure functions, no I/O, the only
-place both shapes are known — same rules as TypeScript:
+`internal/store/adapters.go` (one file while it is short; a
+`<resources>_adapter.go` beside it once it is not). Pure functions, no
+I/O, the only place both shapes are known — same rules as TypeScript:
 
 ```go
-package store
-
-import (
-    "strings"
-
-    "github.com/jackc/pgx/v5/pgtype"
-    "google.golang.org/protobuf/types/known/timestamppb"
-
-    resourcesv1 "<GO_MODULE>/gen/<APP_SLUG>/resources/v1"
-    "<GO_MODULE>/internal/store/storedb"
-)
-
-func <resource>RowToProto(row storedb.<Resource>) *resourcesv1.<Resource> {
+func <resource>ToProto(r storedb.<Resource>) *resourcesv1.<Resource> {
     return &resourcesv1.<Resource>{
-        Id:        row.ID,
-        Title:     row.Title,
-        Body:      row.Body,
-        CreatedBy: row.CreatedBy.String, // pgtype.Text zero value is ""
-        CreatedAt: timestamppb.New(row.CreatedAt.Time),
-        UpdatedAt: tsOrNil(row.UpdatedAt),
+        Id:         uuidString(r.ID),
+        Title:      r.Title,
+        Body:       r.Body,
+        CreatedBy:  r.CreatedBy,
+        CreatedAt:  timestamp(r.CreatedAt),
+        UpdatedAt:  timestamp(r.UpdatedAt),
+        ArchivedAt: timestamp(r.ArchivedAt),
     }
 }
 
-func <resource>ToCreateParams(msg *resourcesv1.<Resource>, id string) storedb.Create<Resource>Params {
-    return storedb.Create<Resource>Params{
-        ID:        id,
-        Title:     msg.GetTitle(),
-        Body:      msg.GetBody(),
-        CreatedBy: textOrNull(msg.GetCreatedBy()),
-    }
-}
-
-// textOrNull maps proto's empty-string default to SQL NULL for nullable
-// columns; tsOrNil returns nil when the timestamptz is not Valid, so the
-// proto optional field is unset rather than epoch.
+// The helpers the bootstrap's adapters.go ships: uuidString ("" for an
+// invalid pgtype.UUID), timestamp (nil for a NULL column, so the proto
+// optional field is unset rather than epoch), argUUID (a request id that
+// does not parse is CodeInvalidArgument), and for nullable text columns
+// textOrNull, which maps proto's empty-string default to SQL NULL:
 func textOrNull(s string) pgtype.Text {
     return pgtype.Text{String: s, Valid: strings.TrimSpace(s) != ""}
-}
-
-func tsOrNil(t pgtype.Timestamptz) *timestamppb.Timestamp {
-    if !t.Valid {
-        return nil
-    }
-    return timestamppb.New(t.Time)
 }
 ```
 
@@ -237,47 +243,75 @@ throwing `ConnectError`):
 
 ```go
 func (s *Store) Get<Resource>(ctx context.Context, id string) (*resourcesv1.<Resource>, error) {
-    row, err := s.q.Get<Resource>(ctx, s.db, id)
+    uid, err := argUUID(id)
+    if err != nil {
+        return nil, err
+    }
+    row, err := s.q.Get<Resource>(ctx, s.pool, uid)
     if errors.Is(err, pgx.ErrNoRows) {
-        return nil, connect.NewError(connect.CodeNotFound,
-            errors.New("<resource> not found"))
+        return nil, connect.NewError(connect.CodeNotFound, errors.New("<resource> not found"))
     }
     if err != nil {
-        return nil, fmt.Errorf("get <resource> %s: %w", id, err)
+        return nil, internalError("could not read the <resource>", err)
     }
-    return <resource>RowToProto(row), nil
+    return <resource>ToProto(row), nil
 }
 
-func (s *Store) Create<Resource>(ctx context.Context, msg *resourcesv1.<Resource>) (*resourcesv1.<Resource>, error) {
-    id := msg.GetId()
-    if id == "" {
-        id = uuid.NewString()
-    }
-    row, err := s.q.Create<Resource>(ctx, s.db, <resource>ToCreateParams(msg, id))
+func (s *Store) Create<Resource>(ctx context.Context, createdBy string, in *resourcesv1.<Resource>) (*resourcesv1.<Resource>, error) {
+    row, err := s.q.Create<Resource>(ctx, s.pool, storedb.Create<Resource>Params{
+        Title: in.GetTitle(), Body: in.GetBody(), CreatedBy: createdBy,
+    })
     if err != nil {
-        return nil, fmt.Errorf("create <resource>: %w", err)
+        return nil, internalError("could not create the <resource>", err)
     }
-    return <resource>RowToProto(row), nil
+    return <resource>ToProto(row), nil
+}
+
+func (s *Store) List<Resources>(ctx context.Context, f <Resource>Filter) (<Resource>Page, error) {
+    w, err := newPageWindow(f.PageSize, f.PageToken, default<Resource>Page, max<Resource>Page)
+    if err != nil {
+        return <Resource>Page{}, err
+    }
+    rows, err := s.q.List<Resources>(ctx, s.pool, storedb.List<Resources>Params{
+        IncludeArchived: f.IncludeArchived, BeforeCreatedAt: w.before, BeforeID: w.beforeID, PageSize: w.limit,
+    })
+    if err != nil {
+        return <Resource>Page{}, internalError("could not list the <resources>", err)
+    }
+    rows, next := trimPage(w, rows, func(r storedb.<Resource>) (time.Time, pgtype.UUID) { return r.CreatedAt.Time, r.ID })
+    return <Resource>Page{<Resources>: <resources>ToProto(rows), NextPageToken: next}, nil
 }
 ```
+
+`newPageWindow`, `trimPage` and the token codec live in `paging.go`,
+shipped by the bootstrap; `internalError` (a `CodeInternal` whose message
+is public and whose cause is logged, never sent) in `store.go`. The id
+comes from the database, not from `uuid.NewString()`, and `createdBy` is
+an argument because the handler, not the store, knows who is calling.
 
 Conventions:
 
 - `CodeNotFound` for missing rows (never a 500 for an unknown id),
   `CodeAlreadyExists` for unique violations (match SQLSTATE 23505 via
-  `pgconn.PgError` + `errors.As`), `CodeFailedPrecondition` for a
+  `pgconn.PgError` + `errors.AsType`), `CodeFailedPrecondition` for a
   well-formed request the current state forbids, `CodeInvalidArgument`
-  only for what protovalidate cannot express.
+  only for what protovalidate cannot express (a page token the service
+  did not issue, an id that does not parse).
 - **connect-go sends `err.Error()` to the client.** A plain wrapped error
   returned from a handler reaches the wire as `CodeUnknown` with the full
   message, and `connect.NewError(CodeInternal, fmt.Errorf("...: %w", err))`
-  sends the driver's text too. Wrap causes with `%w` inside the store so
-  `errors.Is`/`errors.As` work, and hide them at the edge: either let the
-  handler map unexpected errors to a fixed public message, or use a small
-  wrapper whose `Error()` is the public text and whose `Unwrap()` is the
-  cause, with the logging interceptor logging the cause. The message the
+  sends the driver's text too. The scaffold's `rpcerr.Internal(public,
+  cause)` (`internalError` inside the store) is the answer: `Error()` is the public text, `Unwrap()` the
+  cause, and the logging interceptor logs the cause. The message the
   client sees is part of the contract; the cause never is.
-- Multi-table mutations go through `RunInTx(ctx, pool, func(ctx, tx) error)`
+- **Make errors per call, never in a package variable.** The `RequestID`
+  interceptor writes the id into the error's `Meta()`, so a shared
+  `var errNotFound = connect.NewError(...)` is one header map every
+  missing request writes at once. `func noteNotFound() error` is the
+  shape.
+- Multi-table mutations go through `RunInTx(ctx, func(ctx, tx) error)`
+  (added to `store.go` with the first one; the shape is in the module
+  skeleton, Transactions)
   — the helper that retries serialization failures (SQLSTATE 40001,
   40P01). Every generated query method takes a `DBTX`
   (`emit_methods_with_db_argument`), so the same `Querier` works against
@@ -290,43 +324,36 @@ Conventions:
 
 ## Handlers
 
-`internal/server/<resource>.go` — one method per RPC on the service
+`internal/server/<resources>.go` — one method per RPC on the `Service`
 struct. The struct must satisfy the generated
 `servicev1connect.<APP_NAME>ServiceHandler` interface, which is the same
 exhaustiveness guarantee as `ServiceImpl<typeof <APP_NAME>Service>`: the
 build fails until every declared RPC has a method.
 
 ```go
-func (s *Server) Create<Resource>(
+func (s *Service) Create<Resource>(
     ctx context.Context,
     req *connect.Request[servicev1.Create<Resource>Request],
 ) (*connect.Response[servicev1.Create<Resource>Response], error) {
-    input := req.Msg.Get<Resource>()
-    if input == nil {
-        return nil, connect.NewError(connect.CodeInvalidArgument,
-            errors.New("<resource> is required"))
+    id := auth.IdentityFrom(ctx) // set by the auth interceptor
+    if id == nil {
+        return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
     }
-    if userID, ok := UserID(ctx); ok { // set by the auth interceptor
-        input.CreatedBy = userID
-    }
-    created, err := s.store.Create<Resource>(ctx, input)
+    created, err := s.store.Create<Resource>(ctx, id.UserID, req.Msg.Get<Resource>())
     if err != nil {
         return nil, err
     }
-    return connect.NewResponse(&servicev1.Create<Resource>Response{
-        <Resource>: created,
-    }), nil
+    return connect.NewResponse(&servicev1.Create<Resource>Response{<Resource>: created}), nil
 }
 ```
 
 Handlers read identity from the context the auth interceptor populated,
 call the store, wrap in `connect.NewResponse`. The twenty-line rule
-applies: more logic than that belongs in the store. Auth, logging,
-request IDs, panic recovery and validation are interceptors declared once
-at handler construction — a new RPC gets all of them for free, no
-per-route wiring. The `nil` check on `input` above is what the validate
-interceptor makes unnecessary once the field is marked `required` (next
-section); keep it only on a service that has not adopted protovalidate.
+applies: more logic than that belongs in the store. Recovery, the request
+id, logging, auth and validation are interceptors declared once at
+handler construction — a new RPC gets all of them for free, no per-route
+wiring. There is no `nil` check on the request's resource: the field is
+`required` in the contract and the validate interceptor is the nil guard.
 
 ## Validation
 
@@ -341,25 +368,31 @@ message Create<Resource>Request {
   resources.v1.<Resource> <resource> = 1 [(buf.validate.field).required = true];
 }
 message List<Resources>Request {
-  int32 limit = 1 [(buf.validate.field).int32 = {gt: 0, lte: 200}];
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
+  string page_token = 2;
 }
 ```
 
 ```go
 interceptors := connect.WithInterceptors(
-    Recover(log), RequestID(), auth.Interceptor(...), Logging(log),
+    RequestID(), Recover(log), Logging(log), auth.Interceptor(...),
     validate.NewInterceptor(), // last = innermost; single return value
 )
 ```
 
-Rules: a message-typed request field the handler dereferences is
-`required` (getters are nil-safe, field access on a nil message is not,
-and the recovery interceptor would turn that panic into a 500 any client
-can trigger); always-valid invariants (lengths, enum membership) go on the
-resource message, presence goes on the request envelopes; list reads carry
-a bounded `limit` from the first version. Mark read RPCs
-`option idempotency_level = NO_SIDE_EFFECTS;` so an audit interceptor can
-skip them, remembering that connect-go then also serves them over GET.
+That order is the stack's: the request id outermost so every line and
+every error carries it, recovery inside it so a panic is logged with the
+id and the error it becomes carries the header, logging outside auth so a
+refused request is logged, an audit interceptor (opt-in) between auth and
+validate when a service wants one. Each is a full `connect.Interceptor`
+with `WrapStreamingHandler`, never a `UnaryInterceptorFunc`, which
+streaming RPCs would bypass. Rules: a message-typed request field
+the handler dereferences is `required` (getters are nil-safe, field
+access on a nil message is not, and the recovery interceptor would turn
+that panic into a 500 any client can trigger); always-valid invariants
+(lengths, enum membership) go on the resource message, presence goes on
+the request envelopes; list reads carry a bounded `page_size` from the
+first version.
 
 ## Wiring
 
@@ -371,17 +404,19 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
 
 ## Verification before claiming done
 
-1. `go tool buf generate ../proto --template buf.gen.yaml` (from `go/`)
-   ran cleanly and populated `go/gen/<APP_SLUG>/...`; `go tool buf lint
-   ../proto` is clean.
-2. `go tool sqlc generate` (from `go/`) ran cleanly — it validates every
-   query against the schema; a typo'd column fails here, not at runtime.
-3. `go build ./...` and `go vet ./...` pass.
-4. The server boots (`go run ./cmd/<service>`) — the new goose migration
-   applies on boot; watch the log for it.
-5. Each RPC works end-to-end, via the generated connect-go client from a
-   test, or curl (Connect speaks POST + JSON:
-   `curl -X POST http://localhost:3001/<APP_SLUG>.service.v1.<APP_NAME>Service/Get<Resource> -H 'content-type: application/json' -d '{"id":"..."}'`).
+1. `go generate .` (from `go/`) ran cleanly: buf populated
+   `go/gen/<APP_SLUG>/...` and sqlc validated every query against the
+   schema (a typo'd column fails here, not at runtime); `pnpm lint:proto`
+   is clean.
+2. `go build ./...`, `go vet ./...` and `scripts/golangci-lint run` pass.
+3. The server boots (`pnpm dev:backend`) — the new goose migration
+   applies on boot; the log says `migrations applied applied=N version=M`.
+4. Each RPC works end-to-end, via the generated connect-go client from a
+   test (`server_test.go` is the shape), or curl (Connect speaks POST +
+   JSON:
+   `curl -X POST http://localhost:8080/<APP_SLUG>.service.v1.<APP_NAME>Service/Get<Resource> -H 'content-type: application/json' -d '{"id":"..."}'`),
+   and a request that breaks a `buf.validate` rule answers
+   `invalid_argument`.
 
 ## Go-specific gotchas
 
@@ -409,9 +444,6 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
 - **Go 1.22 method patterns answer `OPTIONS` with 405 before middleware
   runs.** A service that enables CORS for a development client must
   register one `OPTIONS /prefix/` route, or every preflight fails.
-- **`NO_SIDE_EFFECTS` makes the RPC GET-able**, and therefore cacheable
-  by an intermediary. A credential-returning read marked that way needs
-  `Cache-Control: no-store`.
 - **A hand-built `connect.NewRequest` has an empty `Spec()`**, so an
   interceptor that branches on the method's idempotency level cannot be
   unit-tested that way; drive it through the generated handler.

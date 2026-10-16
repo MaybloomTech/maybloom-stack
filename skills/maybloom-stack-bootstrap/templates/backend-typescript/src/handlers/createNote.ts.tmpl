@@ -1,0 +1,24 @@
+import { create } from "@bufbuild/protobuf";
+import { Code, ConnectError, type MethodImpl } from "@connectrpc/connect";
+import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
+import { CreateNoteResponseSchema } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/notes_pb";
+import { kUserId } from "context";
+import { createNote as createNoteCore } from "core/notes/store";
+
+export type CreateNoteMethod = typeof __APP_NAME__Service.method.createNote;
+
+export const createNote: MethodImpl<CreateNoteMethod> = async (
+  request,
+  context,
+) => {
+  // `required` in the contract; the validate interceptor has refused a
+  // missing note already, this narrows the type.
+  const noteInput = request.note;
+  if (!noteInput) {
+    throw new ConnectError("Note is required", Code.InvalidArgument);
+  }
+  // created_by is the caller, never the client's word for it; the auth
+  // interceptor has refused an anonymous request before this runs.
+  const note = await createNoteCore(context.values.get(kUserId), noteInput);
+  return create(CreateNoteResponseSchema, { note });
+};

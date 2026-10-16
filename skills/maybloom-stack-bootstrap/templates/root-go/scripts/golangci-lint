@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Lint the go/ module with the pinned golangci-lint, run from its own image
+# the way scripts/go runs the Go toolchain. golangci advises against
+# installing the linter as a `go tool` (it would pull its whole dependency
+# graph into go.mod), so the version is pinned here and nowhere else; CI reads
+# it from this line. Generated code must exist first (`scripts/go generate .`
+# or `go generate .` in go/). Usage, from anywhere in the repo:
+#
+#   scripts/golangci-lint run
+#   scripts/golangci-lint run --fix
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LINT_IMAGE="${LINT_IMAGE:-golangci/golangci-lint:v2.14.0}"
+PROJECT="$(basename "${REPO_ROOT}")"
+
+# A named volume is root-owned when Docker creates it, and the container runs
+# as the invoking user, so each cache volume is created once here and handed
+# to that user before its first use.
+ensure_volume() {
+  if ! docker volume inspect "$1" >/dev/null 2>&1; then
+    docker volume create "$1" >/dev/null
+    docker run --rm -v "$1:/mnt" "${LINT_IMAGE}" chown "$(id -u):$(id -g)" /mnt
+  fi
+}
+ensure_volume "${PROJECT}-gomodcache"
+ensure_volume "${PROJECT}-gocache"
+ensure_volume "${PROJECT}-gohome"
+
+exec docker run --rm -i \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
+  -e GOLANGCI_LINT_CACHE=/tmp/gohome/.cache/golangci-lint \
+  -v "${PROJECT}-gomodcache:/go/pkg" \
+  -v "${PROJECT}-gocache:/tmp/gocache" \
+  -v "${PROJECT}-gohome:/tmp/gohome" \
+  -v "${REPO_ROOT}:/src" \
+  -w /src/go \
+  "${LINT_IMAGE}" golangci-lint "$@"

@@ -2,40 +2,86 @@ syntax = "proto3";
 
 package __APP_SLUG__.service.v1;
 
+import "buf/validate/validate.proto";
 import "__APP_SLUG__/resources/v1/notes.proto";
 
+option go_package = "__GO_MODULE__/gen/__APP_SLUG__/service/v1;servicev1";
+
+// Create a note. The server assigns id and created_at and takes created_by
+// from the authenticated request; whatever the client put in those fields is
+// ignored.
 message CreateNoteRequest {
-  __APP_SLUG__.resources.v1.Note note = 1;
+  // required: the handler dereferences it, and the validate interceptor is
+  // the only nil guard.
+  __APP_SLUG__.resources.v1.Note note = 1 [(buf.validate.field).required = true];
 }
 
 message CreateNoteResponse {
   __APP_SLUG__.resources.v1.Note note = 1;
 }
 
+// Fetch one note by id. Errors: CodeNotFound if it does not exist.
 message GetNoteRequest {
-  string id = 1;
+  string id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 message GetNoteResponse {
   __APP_SLUG__.resources.v1.Note note = 1;
 }
 
-message ListNotesRequest {}
+// The notes, newest first, one page at a time. Paging is cursor-based: the
+// client sends back the token from the previous answer and never computes an
+// offset, so a note created between two pages cannot shift the rest.
+message ListNotesRequest {
+  // At most this many; 0 means the default (50), 200 is the most.
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  // From the previous answer's next_page_token; empty starts at the top.
+  // Opaque: a token this service did not issue is CodeInvalidArgument.
+  string page_token = 2;
+  // Archived notes are left out unless this is set.
+  bool include_archived = 3;
+}
 
 message ListNotesResponse {
   repeated __APP_SLUG__.resources.v1.Note notes = 1;
+  // Empty when this was the last page.
+  string next_page_token = 2;
 }
 
+// Replace a note's title and body; the server keeps id, created_by,
+// created_at and archived_at and sets updated_at. Errors: CodeNotFound for
+// an unknown id.
 message UpdateNoteRequest {
-  __APP_SLUG__.resources.v1.Note note = 1;
+  // required: the handler dereferences it. The CEL rule puts the uuid check
+  // on the embedded id, the one place string.uuid cannot reach.
+  __APP_SLUG__.resources.v1.Note note = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      id: "note.id.uuid"
+      message: "note.id must be a uuid"
+      expression: "this.id.matches('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')"
+    }
+  ];
 }
 
 message UpdateNoteResponse {
   __APP_SLUG__.resources.v1.Note note = 1;
 }
 
-message DeleteNoteRequest {
-  string id = 1;
+// Archive a note: sets archived_at (kept if it was already set) and leaves
+// the row and its id in place; ListNotes leaves it out unless
+// include_archived is set. This is one answer to "how does a note leave the
+// default view", chosen for the example; an app chooses its own (a hard
+// Delete for leaf data, a soft delete the reads filter on, this, or another).
+// The mirror, UnarchiveNote, clears archived_at; add it when a screen needs
+// it. Errors: CodeNotFound for an unknown id.
+message ArchiveNoteRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-message DeleteNoteResponse {}
+message ArchiveNoteResponse {
+  __APP_SLUG__.resources.v1.Note note = 1;
+}

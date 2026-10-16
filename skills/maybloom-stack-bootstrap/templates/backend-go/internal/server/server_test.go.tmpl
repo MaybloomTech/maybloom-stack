@@ -1,0 +1,245 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
+	resourcesv1 "__GO_MODULE__/gen/__APP_SLUG__/resources/v1"
+	servicev1 "__GO_MODULE__/gen/__APP_SLUG__/service/v1"
+	"__GO_MODULE__/gen/__APP_SLUG__/service/v1/servicev1connect"
+	"__GO_MODULE__/internal/auth"
+	"__GO_MODULE__/internal/postgres"
+	"__GO_MODULE__/internal/store"
+)
+
+// RPC tests go through the generated connect-go client against the real mux,
+// so the interceptor chain is under test too. A request built by hand with
+// connect.NewRequest carries an empty Spec(), which is why the client, not
+// the handler methods, is the entry point.
+
+// anonymous is an Authenticator that knows nobody.
+type anonymous struct{}
+
+func (anonymous) Authenticate(context.Context, http.Header) (*auth.Identity, error) { return nil, nil }
+
+func newClient(t *testing.T, d Deps) servicev1connect.__APP_NAME__ServiceClient {
+	t.Helper()
+	if d.Log == nil {
+		d.Log = slog.New(slog.DiscardHandler)
+	}
+	srv := httptest.NewServer(NewMux(d))
+	t.Cleanup(srv.Close)
+	return servicev1connect.New__APP_NAME__ServiceClient(srv.Client(), srv.URL)
+}
+
+// The interceptors need no database: Health is open, validate refuses a bad
+// request before any handler, and the gate refuses the anonymous.
+func TestInterceptors(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := newClient(t, Deps{Authenticator: anonymous{}})
+
+	health, err := client.Health(ctx, connect.NewRequest(&servicev1.HealthRequest{}))
+	if err != nil || !health.Msg.GetOk() || health.Msg.GetVersion() == "" {
+		t.Fatalf("health: %v %v", health, err)
+	}
+	if health.Header().Get(requestIDHeader) == "" {
+		t.Fatal("the response carries no X-Request-Id")
+	}
+
+	_, err = client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("anonymous list: want CodeUnauthenticated, got %v", err)
+	}
+
+	signedIn := newClient(t, Deps{Authenticator: auth.DevAuthenticator{UserID: "tester"}})
+	_, err = signedIn.CreateNote(ctx, connect.NewRequest(&servicev1.CreateNoteRequest{Note: &resourcesv1.Note{Title: ""}}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty title: want CodeInvalidArgument from the validate interceptor, got %v", err)
+	}
+	_, err = signedIn.CreateNote(ctx, connect.NewRequest(&servicev1.CreateNoteRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing note: want CodeInvalidArgument (required), got %v", err)
+	}
+	_, err = signedIn.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 500}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("page_size over the cap: want CodeInvalidArgument, got %v", err)
+	}
+	_, err = signedIn.UpdateNote(ctx, connect.NewRequest(&servicev1.UpdateNoteRequest{Note: &resourcesv1.Note{Id: "not-a-uuid", Title: "x"}}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("update with a non-uuid id: want CodeInvalidArgument from the CEL rule, got %v", err)
+	}
+	_, err = signedIn.ArchiveNote(ctx, connect.NewRequest(&servicev1.ArchiveNoteRequest{Id: "not-a-uuid"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("archive with a non-uuid id: want CodeInvalidArgument, got %v", err)
+	}
+}
+
+// The Note loop over the wire: create, list, get, update, archive. Needs
+// TEST_DATABASE_URL and skips without it.
+func TestNoteLoop(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	pool, err := postgres.Open(ctx, url)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	client := newClient(t, Deps{Store: store.New(pool), Authenticator: auth.DevAuthenticator{UserID: "tester"}})
+
+	created, err := client.CreateNote(ctx, connect.NewRequest(&servicev1.CreateNoteRequest{Note: &resourcesv1.Note{Title: "Over the wire", CreatedBy: "spoofed"}}))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	note := created.Msg.GetNote()
+	if note.GetCreatedBy() != "tester" {
+		t.Fatalf("created_by must come from the identity, got %q", note.GetCreatedBy())
+	}
+
+	listed, err := client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 1}))
+	if err != nil || len(listed.Msg.GetNotes()) != 1 || listed.Msg.GetNotes()[0].GetId() != note.GetId() {
+		t.Fatalf("list: the new note should be first, got %v %v", listed, err)
+	}
+
+	got, err := client.GetNote(ctx, connect.NewRequest(&servicev1.GetNoteRequest{Id: note.GetId()}))
+	if err != nil || got.Msg.GetNote().GetTitle() != "Over the wire" {
+		t.Fatalf("get: %v %v", got, err)
+	}
+
+	note.Title = "Edited over the wire"
+	updated, err := client.UpdateNote(ctx, connect.NewRequest(&servicev1.UpdateNoteRequest{Note: note}))
+	if err != nil || updated.Msg.GetNote().GetTitle() != "Edited over the wire" || updated.Msg.GetNote().GetUpdatedAt() == nil {
+		t.Fatalf("update: %v %v", updated, err)
+	}
+
+	archived, err := client.ArchiveNote(ctx, connect.NewRequest(&servicev1.ArchiveNoteRequest{Id: note.GetId()}))
+	if err != nil || archived.Msg.GetNote().GetArchivedAt() == nil {
+		t.Fatalf("archive: %v %v", archived, err)
+	}
+	listed, err = client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 1}))
+	if err != nil || (len(listed.Msg.GetNotes()) == 1 && listed.Msg.GetNotes()[0].GetId() == note.GetId()) {
+		t.Fatalf("an archived note must leave the default list: %v %v", listed, err)
+	}
+	withArchived, err := client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 1, IncludeArchived: true}))
+	if err != nil || len(withArchived.Msg.GetNotes()) != 1 || withArchived.Msg.GetNotes()[0].GetId() != note.GetId() {
+		t.Fatalf("include_archived must show it first: %v %v", withArchived, err)
+	}
+	after, err := client.GetNote(ctx, connect.NewRequest(&servicev1.GetNoteRequest{Id: note.GetId()}))
+	if err != nil || after.Msg.GetNote().GetArchivedAt() == nil {
+		t.Fatalf("an archived note must still be readable by id: %v %v", after, err)
+	}
+
+	_, err = client.GetNote(ctx, connect.NewRequest(&servicev1.GetNoteRequest{Id: "00000000-0000-0000-0000-000000000000"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown id: want CodeNotFound, got %v", err)
+	}
+}
+
+// fakeStream is a StreamingHandlerConn for the interceptors' streaming halves:
+// the contract has no streaming RPC yet, and the day it gets one these must
+// already apply (a UnaryInterceptorFunc would not).
+type fakeStream struct {
+	procedure string
+	req, res  http.Header
+}
+
+func (f *fakeStream) Spec() connect.Spec {
+	return connect.Spec{Procedure: f.procedure, StreamType: connect.StreamTypeServer}
+}
+func (f *fakeStream) Peer() connect.Peer           { return connect.Peer{} }
+func (f *fakeStream) Receive(any) error            { return nil }
+func (f *fakeStream) RequestHeader() http.Header   { return f.req }
+func (f *fakeStream) Send(any) error               { return nil }
+func (f *fakeStream) ResponseHeader() http.Header  { return f.res }
+func (f *fakeStream) ResponseTrailer() http.Header { return http.Header{} }
+
+func TestStreamingInterceptors(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	log := slog.New(slog.DiscardHandler)
+	conn := &fakeStream{procedure: "/x.v1.Service/Watch", req: http.Header{}, res: http.Header{}}
+
+	// RequestID: on the context and the response header, then on the error.
+	var seen string
+	err := RequestID().WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		seen = RequestIDFrom(ctx)
+		return connect.NewError(connect.CodeNotFound, errors.New("gone"))
+	})(ctx, conn)
+	if seen == "" || conn.res.Get(requestIDHeader) != seen {
+		t.Fatalf("request id: context %q, header %q", seen, conn.res.Get(requestIDHeader))
+	}
+	if cerr, ok := errors.AsType[*connect.Error](err); !ok || cerr.Meta().Get(requestIDHeader) != seen {
+		t.Fatalf("the error should carry the request id: %v", err)
+	}
+
+	// A caller's id is kept only when it has the shape.
+	for _, tc := range []struct{ in, want string }{
+		{"abc-123_X", "abc-123_X"},
+		{"has space", ""},
+		{"nope\n", ""},
+		{"", ""},
+	} {
+		_, got := withRequestID(ctx, tc.in)
+		if tc.want != "" && got != tc.want {
+			t.Fatalf("withRequestID(%q) = %q, want it kept", tc.in, got)
+		}
+		if tc.want == "" && (got == tc.in || !requestIDShape.MatchString(got)) {
+			t.Fatalf("withRequestID(%q) = %q, want a fresh id", tc.in, got)
+		}
+	}
+
+	// The order: RequestID outside Recover, so the CodeInternal a panic
+	// becomes carries the request id like any other refusal.
+	chained := RequestID().WrapStreamingHandler(Recover(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error {
+		panic("boom")
+	}))
+	err = chained(ctx, conn)
+	if cerr, ok := errors.AsType[*connect.Error](err); !ok || cerr.Code() != connect.CodeInternal || cerr.Meta().Get(requestIDHeader) == "" {
+		t.Fatalf("a panic must come back as CodeInternal with the request id: %v", err)
+	}
+
+	// Recover: a panic in a stream handler is CodeInternal, not a crash.
+	err = Recover(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error {
+		panic("boom")
+	})(ctx, conn)
+	if connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("panic: want CodeInternal, got %v", err)
+	}
+
+	// Logging passes the error through unchanged.
+	want := connect.NewError(connect.CodeUnavailable, errors.New("down"))
+	err = Logging(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return want })(ctx, conn)
+	if !errors.Is(err, want) {
+		t.Fatalf("logging: want the handler's error back, got %v", err)
+	}
+
+	// auth gates streams too: anonymous is refused unless the procedure is open.
+	refused := auth.Interceptor(anonymous{}).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return nil })
+	if err := refused(ctx, conn); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("anonymous stream: want CodeUnauthenticated, got %v", err)
+	}
+	open := auth.Interceptor(anonymous{}, conn.procedure).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return nil })
+	if err := open(ctx, conn); err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	var id *auth.Identity
+	signed := auth.Interceptor(auth.DevAuthenticator{UserID: "tester"}).WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		id = auth.IdentityFrom(ctx)
+		return nil
+	})
+	if err := signed(ctx, conn); err != nil || id == nil || id.UserID != "tester" {
+		t.Fatalf("signed-in stream: identity %v, err %v", id, err)
+	}
+}

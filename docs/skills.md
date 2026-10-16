@@ -17,20 +17,21 @@ situation, rather than a generator that stamps one shape.
 
 | Skill | Job | Style |
 |---|---|---|
-| `maybloom-stack-bootstrap` | New monorepo, run once per project | 60 full file templates + a scaffold script |
+| `maybloom-stack-bootstrap` | New monorepo, run once per project; the Go backend by default, TypeScript with `--backend typescript` | Full file templates for both backends + a scaffold script |
 | `maybloom-stack-add-resource` | Nth resource, end-to-end through every layer, on either backend | Instructions + per-layer references |
 | `maybloom-stack-shared` | Reference library: cross-cutting files (the language-neutral core, gotchas, proto conventions, transaction patterns) plus one directory per validated path | Prose, loaded by the others |
 | `maybloom-stack-extend-resource` | Fields, child tables, and links on an existing resource | Instructions; leans on the shared wire and transaction references |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
-| `maybloom-stack-bootstrap-go` | Scaffold a Go service in an existing stack repo | Instructions + a module skeleton reference, following the [Go blueprint](./backend-go.md) |
+| `maybloom-stack-bootstrap-go` | Add a Go service to a stack repo that has none (scaffolded with the TypeScript backend, or contract-only) | Instructions + the commentary on bootstrap's Go templates, following the [Go blueprint](./backend-go.md) |
 | `maybloom-stack-delegate` | Split the work between model tiers: the roster, the rules, the brief template; ships with the `builder` and `mechanic` agents | Instructions, see [Delegation](./delegation.md) |
 | `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage | Instructions + the one shell script, copied into place once per machine |
 
 Bootstrap ships a complete working monorepo with one example resource wired
-through every layer, so `pnpm install` ends with a running CRUD loop. The
-example resource is a teaching specimen: its files carry comments explaining
-the pattern they demonstrate, and add-resource treats them as the live
-exemplar to imitate.
+through every layer, so install and `go generate .` end with a running
+CRUD loop: cursor-paged lists, `ArchiveNote` as a verb RPC, the Health RPC,
+`buf.validate` rules enforced before any handler. The example resource is
+a teaching specimen: its files carry comments explaining the pattern they
+demonstrate, and add-resource treats them as the live exemplar to imitate.
 
 It also ships a docs site, which is the teaching specimen for the other
 kind of client — one that never calls the service. It compiles the protos
@@ -70,8 +71,9 @@ surface usually stays put and the risk moves to wire compatibility and to
 rows already in the database. Add-rpc adds one operation, which is the
 right home for a rule about who may do something — a state change guarded
 by an RPC can enforce it, a field the client writes cannot. Bootstrap-go
-stands up the `go/` module the way bootstrap stamps the monorepo, once per
-Go service, and hands back to add-resource for everything after.
+stands up the `go/` module from bootstrap's own Go templates in a repo
+that has none, once per Go service, and hands back to add-resource for
+everything after.
 
 ## Skills are tasks, references are paths
 

@@ -7,7 +7,7 @@ import { defineCollection } from 'astro:content';
 /**
  * The stack docs live in docs/ at the repo root, so reading them on GitHub and
  * reading them on the site are the same files. A README.md would be a
- * repo-facing index rather than a page, so it stays out of the collection;
+ * repo-facing index rather than a page, so it stays out of the collection.
  * `order` drives the sidebar and prev/next.
  */
 const stack = defineCollection({

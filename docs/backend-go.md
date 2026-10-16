@@ -181,8 +181,10 @@ version of this rule that a new service should not copy.
 
 ### Lint and vulnerabilities
 
-golangci-lint v2, pinned like the generators, with `default: all` and a
-short disable list where every disable carries a one-line reason. Scope
+golangci-lint v2, pinned in `scripts/golangci-lint` (its own image, not a
+`go tool`: golangci advises against pulling its graph into `go.mod`, and
+CI reads the version from that script), with `default: all` and a short
+disable list where every disable carries a one-line reason. Scope
 `funlen` to the transport layer by an exclusion rule with a `path-except`
 so a fat route table is a named `//nolint` rather than a limit tuned high
 enough to pass it; domain code is exempt on purpose. `govulncheck` runs in
@@ -239,9 +241,11 @@ The mux the Maybloom backend builds, which is the general shape:
 func NewMux(d Deps) http.Handler {
     mux := http.NewServeMux()
     interceptors := connect.WithInterceptors(
+        RequestID(),
         Recover(d.Log),
         Logging(d.Log),
         auth.Interceptor(d.Authenticator, servicev1connect.MaybloomServiceHealthProcedure),
+        validate.NewInterceptor(),
     )
     mux.Handle(servicev1connect.NewMaybloomServiceHandler(NewService(d.Store), interceptors))
     d.OIDC.Register(mux)                       // GET /auth/login, /auth/callback, POST /auth/logout
@@ -255,20 +259,24 @@ func NewMux(d Deps) http.Handler {
 ### The interceptor spine
 
 Cross-cutting behaviour is declared once, at handler construction, and
-applies to every RPC. A new RPC arrives with logging, auth, recovery and
-validation attached; opting out is the explicit, visible act. OCF IMS's
-chain, outermost first, is the fullest one walked and its order carries the
-design:
+applies to every RPC. A new RPC arrives with recovery, a request id,
+logging, auth and validation attached; opting out is the explicit,
+visible act. The stack's order, outermost first:
 
-1. **Recovery**: a panic becomes `CodeInternal` with the stack logged,
+1. **Request id**: taken from the header when it has the shape
+   (`[A-Za-z0-9_-]{1,64}`) or generated, put in the context and on the
+   response or the error, so every log line below carries it, the panic
+   line included.
+2. **Recovery**: a panic becomes `CodeInternal` with the stack logged,
    instead of a dropped connection. connect-go does not recover panics
-   unless asked.
-2. **Request id**: generated or taken from the header, put in the context
-   and the response.
-3. **Auth**: verifies the credential and puts the identity in the context.
-4. **Logging**: one `slog` line per RPC, with the identity now available.
-5. **Audit**: records every mutating RPC, with the identity; sits outside
-   validation so a rejected request is still logged as an attempt.
+   unless asked. Inside the request id, so the error it makes carries
+   `X-Request-Id` too.
+3. **Logging**: one `slog` line per RPC. Outside auth on purpose: a
+   refused request is still logged, with its request id.
+4. **Auth**: verifies the credential and puts the identity in the context.
+5. **Audit**, opt-in: records the mutating RPCs a service chooses to, with
+   the identity; sits outside validation so a rejected request is still
+   logged as an attempt.
 6. **Validation**: `connectrpc.com/validate`, innermost, so a constraint
    violation is refused right before the handler.
 
@@ -284,14 +292,12 @@ handler asserts the identity it needs, because `Login`, `RefreshToken` and
 user and the exceptions fit in a list; populate when the exceptions are
 themselves a feature.
 
-**The audit interceptor needs a read/write signal, and the contract is
-where it lives.** `option idempotency_level = NO_SIDE_EFFECTS` on a read
-RPC tells the interceptor to skip it, and the default fails safe: an
-unmarked read is over-logged, a mutation is never missed. The same option
-has a second meaning connect-go acts on: a `NO_SIDE_EFFECTS` RPC is also
-accepted over HTTP GET, and therefore cacheable by an intermediary. A
-credential-minting read marked that way to stay out of the audit log wants
-`Cache-Control: no-store` on its response. Annotate knowing both.
+**The audit interceptor is opt-in and keeps its own list.** The contract
+carries no marker for it: an audit log is a per-service decision rather
+than a default, and a proto option doing double duty as a read marker
+would carry meanings the contract never meant. A service that audits
+names the RPCs it records in the interceptor's construction and fails
+safe from there (an unlisted mutation is logged, never silently skipped).
 
 `slog` is wired on day one. Calls to `slog` without a configured handler
 are worse than useless because they look like logging.
@@ -619,7 +625,7 @@ stage regenerates the contract, so it needs `proto/` and the buf configs as
 well as `go/`. The Maybloom backend's:
 
 ```dockerfile
-FROM golang:1.26-alpine AS build
+FROM golang:1.26.7-alpine AS build   # the patch matches go.mod and scripts/go; GOTOOLCHAIN=local
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -679,7 +685,7 @@ second run is fast:
 docker run --rm -i --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
   -v <repo>-gomodcache:/go/pkg -v <repo>-gocache:/tmp/gocache -v <repo>-gohome:/tmp/gohome \
-  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26-alpine go "$@"
+  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.7-alpine go "$@"   # the same pinned patch
 ```
 
 `scripts/go build ./...`, `scripts/go test ./...`, `scripts/go tool sqlc
@@ -709,8 +715,9 @@ Adopted, and now confirmed by the two services:
 - config as a struct + boot-time `Validate()` + redacted startup dump
 - `go tool` pinning for buf, the plugins, sqlc and goose; generated code
   uncommitted; `.git`-SHA-stamped builds; a non-root runtime image
-- the interceptor spine declared once, with protovalidate and the audit log
-  on by default and `NO_SIDE_EFFECTS` as the read marker
+- the interceptor spine declared once, with protovalidate on by default
+  and audit opt-in; cursor paging as the contract's default, and the
+  resource's own verb RPC for leaving the default view
 - integration testing through the generated client against one database
   per package
 

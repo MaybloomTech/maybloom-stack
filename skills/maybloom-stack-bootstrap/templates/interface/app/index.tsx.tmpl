@@ -10,15 +10,15 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import {
+  useArchiveNote,
   useCreateNote,
-  useDeleteNote,
   useNotes,
 } from "../src/data/queries/useNotes";
 
 export default function Home() {
   const { data: notes, isLoading, error } = useNotes();
   const createNote = useCreateNote();
-  const deleteNote = useDeleteNote();
+  const archiveNote = useArchiveNote();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
 
@@ -63,8 +63,8 @@ export default function Home() {
                 {item.body ? <Text>{item.body}</Text> : null}
               </View>
               <Button
-                title="Delete"
-                onPress={() => deleteNote.mutate(item.id)}
+                title="Archive"
+                onPress={() => archiveNote.mutate(item.id)}
               />
             </View>
           )}

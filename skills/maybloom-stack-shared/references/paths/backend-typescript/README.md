@@ -1,14 +1,16 @@
 # The TypeScript backend path
 
-The stack's default server: Fastify with the Connect-RPC plugin, Drizzle
-over Postgres, PGlite as the embedded dev database, tsx in watch mode.
+The stack's TypeScript server (`maybloom-stack-bootstrap --backend
+typescript`; Go is the default): Fastify with the Connect-RPC plugin,
+Drizzle over Postgres, PGlite as the embedded dev database, tsx in watch
+mode.
 The contract, the layer vocabulary (handler → store → adapter), and the
 client are identical to every other server path — a generated client
 cannot tell which language answered it. This directory holds the
 per-layer patterns, so the skills that walk the pipeline can do so
 without reading any external codebase.
 
-Default does not mean required. Where a project has deliberately
+Validated does not mean required. Where a project has deliberately
 deviated, imitate the project and keep only the rules in
 `../../core.md`.
 

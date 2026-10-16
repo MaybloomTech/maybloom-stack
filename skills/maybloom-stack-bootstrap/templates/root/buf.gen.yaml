@@ -1,7 +1,15 @@
 version: v2
 
+# The TypeScript contract, run by pnpm (`pnpm proto:gen`) with proto/ as the
+# input. include_imports also generates what the contract imports: the
+# vendored protovalidate (third_party/protovalidate -> buf/validate/
+# validate_pb.ts), which every file with field rules imports; without it the
+# tree has dangling relative imports. Well-known types are still not
+# generated: protoc-gen-es takes them from @bufbuild/protobuf/wkt. The Go
+# side is go/buf.gen.yaml, run by `go generate .` from go/.
 plugins:
   - local: node_modules/.bin/protoc-gen-es
     out: packages/protocol-buffers/src
+    include_imports: true
     opt:
       - target=ts

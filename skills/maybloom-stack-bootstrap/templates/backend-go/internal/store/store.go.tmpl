@@ -1,0 +1,34 @@
+// Package store is the business layer over the sqlc-generated queries in
+// storedb: stores accept and return proto messages and speak Connect error
+// codes; adapters translate rows. Nothing above this package knows a row
+// shape, nothing below it knows a proto.
+//
+// Every generated query takes a DBTX, so the same Querier runs against the
+// pool or a transaction; the first multi-table mutation adds the RunInTx
+// helper from the module skeleton (bootstrap-go, Transactions) beside it.
+package store
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"__GO_MODULE__/internal/rpcerr"
+	"__GO_MODULE__/internal/store/storedb"
+)
+
+type Store struct {
+	pool *pgxpool.Pool
+	q    *storedb.Queries
+}
+
+func New(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool, q: storedb.New()}
+}
+
+// Ping is the readiness check.
+func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
+// internalError is rpcerr.Internal: a CodeInternal whose message is public
+// and whose cause (the driver's error) is logged, never sent.
+func internalError(public string, cause error) error { return rpcerr.Internal(public, cause) }

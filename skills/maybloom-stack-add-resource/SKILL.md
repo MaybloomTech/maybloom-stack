@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-add-resource
-description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard five-RPC CRUD surface (Create / Update / Get / List / Delete) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` — or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc`. When in doubt, prefer the narrower skill.
+description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard CRUD surface (Create / Update / Get / List, plus the resource's own answer to how it leaves the default view: a hard Delete, an Archive verb, or another) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` — or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc`. When in doubt, prefer the narrower skill.
 ---
 
 # maybloom-stack-add-resource
@@ -80,9 +80,9 @@ The same logic covers the client in step 7:
 
 ## When this skill is the wrong tool
 
-This skill is shaped for *one* job: a fresh top-level resource with the full
-five-RPC CRUD surface. If the request is one of the following, stop and use
-the correct tool:
+This skill is shaped for *one* job: a fresh top-level resource with the
+standard CRUD surface. If the request is one of the following, stop and
+use the correct tool:
 
 - **Adding a field, child table, or many-to-many to an existing resource**
   (e.g. "add `editions[]` and `author_links[]` to Book"). Use
@@ -124,9 +124,24 @@ cross-link:
   column types. If unsure, ask: keep proto and schema field types aligned
   (string ↔ text, int32 ↔ integer, bool ↔ boolean, timestamp ↔
   timestamptz).
-- **RPC surface** — default to the standard five (`Create`, `Update`, `Get`,
-  `List`, `Delete`). Skip whichever the user doesn't need; add list filters,
-  reactions, etc. as they describe.
+- **RPC surface** — default to the standard four (`Create`, `Update`,
+  `Get`, `List`), then answer one question for this resource and add the
+  RPC that answers it. How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+  `List`
+  pages by cursor from the first version: `page_size`, `page_token`,
+  `next_page_token`. Skip whichever the user doesn't need; add list
+  filters, reactions, etc. as they describe.
 - **Whether the resource is user-owned** — affects the handler. If yes,
   the handler reads the session user from the request context and forces
   it onto the proto before it reaches the store. `createNote.ts` in the
@@ -174,7 +189,8 @@ files and edit one:
 - New: `proto/<APP_SLUG>/service/v1/<resources>.proto` — request/response
   messages for each RPC method.
 - Edit: `proto/<APP_SLUG>/service/v1/service.proto` — import the new file
-  and add `rpc` lines to the service body.
+  and add `rpc` lines to the service body. Every file carries the
+  `go_package` option the existing ones do.
 
 Then regenerate:
 
@@ -210,7 +226,7 @@ there is no generator output to review) and the CRUD query file in
 `go/db/queries/<resources>.sql`, then:
 
 ```bash
-cd go && go tool sqlc generate
+cd go && go generate .
 ```
 
 sqlc validates every query against the schema and writes the row structs
@@ -229,11 +245,12 @@ and `Querier` methods into `internal/store/storedb/`.
 - handles enum mapping, timestamp conversion via `core/utils/timestamps`,
   and empty-string-to-null normalization
 
-**Go** — read the "Adapter" section of `backend-go.md` (same shared
-file). Create `go/internal/store/<resources>_adapter.go`: pure functions
-between the sqlc row structs and proto messages, with `pgtype` carrying
-the NULL side of the empty-string normalization and `timestamppb` the
-timestamps. Same rules either way: the adapter is the only place both
+**Go** — read the "Adapter" section of the Go path README. Add the
+`<resource>ToProto` function to `go/internal/store/adapters.go` (or a
+`<resources>_adapter.go` beside it once that file is long): pure
+functions between the sqlc row structs and proto messages, with `pgtype`
+carrying the NULL side of the empty-string normalization and
+`timestamppb` the timestamps. Same rules either way: the adapter is the only place both
 shapes are known, and it does no I/O.
 
 ### 4. Store
@@ -241,17 +258,19 @@ shapes are known, and it does no I/O.
 **TypeScript** — read `../maybloom-stack-shared/references/paths/backend-typescript/store.md`. Create
 `packages/backend/src/core/<resources>/store.ts`. One exported async
 function per RPC: `create<Resource>`, `update<Resource>`, `get<Resource>`,
-`list<Resources>`, `delete<Resource>`. Each takes the proto request type
-(or `id: string` for get/delete) and uses the adapter + Drizzle.
+`list<Resources>`, and the one for the resource's leaving-the-view RPC
+(`archive<Resource>` or `delete<Resource>`). Each takes the proto request
+type (or `id: string` for get and the verb) and uses the adapter + Drizzle.
 
 If the resource needs to mutate other tables in the same transaction, wrap
 in `server.db.transaction(async (tx) => ...)` and pass `tx` to anything
 that needs it. The full shape is in
 `../maybloom-stack-shared/references/tx-patterns.md`.
 
-**Go** — read the "Store" section of `backend-go.md`. Create
+**Go** — read the "Store" section of the Go path README. Create
 `go/internal/store/<resources>.go`: one method per RPC, accepting and
-returning proto messages, speaking Connect error codes directly. Wrap
+returning proto messages, speaking Connect error codes directly, with
+`newPageWindow` and `trimPage` from `paging.go` for the list. Wrap
 multi-table mutations in `RunInTx` and pass the `tx` to every query —
 the transaction shapes in `tx-patterns.md` apply unchanged.
 
@@ -265,14 +284,15 @@ under `packages/backend/src/handlers/`. Each handler:
 - declares `export type <Method>Method = typeof <APP_NAME>Service.method.<method>`
 - exports `const <method>: MethodImpl<<Method>Method> = async (req, ctx) => {...}`
 - for create/update on user-owned resources, reads `kUserId` from `ctx`
-  and forces it onto the proto; for read/delete it's usually a one-line
-  call to the store
+  and forces it onto the proto; for read and the verb RPC it's usually a
+  one-line call to the store
 
-**Go** — read the "Handlers" section of `backend-go.md`. Add one method
-per RPC to the service struct in `go/internal/server/<resource>.go`,
+**Go** — read the "Handlers" section of the Go path README. Add one method
+per RPC to the service struct in `go/internal/server/<resources>.go`,
 satisfying the generated `<APP_NAME>ServiceHandler` interface. User-owned
-create/update reads the user ID the auth interceptor put on the context;
-read/delete is usually a one-line call to the store.
+create reads the identity the auth interceptor put on the context
+(`auth.IdentityFrom`); the rest are one call each to the store, since the
+validate interceptor has already enforced the contract's rules.
 
 ### 6. Wiring
 
@@ -301,8 +321,8 @@ client and cannot tell which language serves it. Read
 - `packages/interface/src/data/api/<resources>.ts` — thin functions that
   call `client.<method>(...)` and return the proto messages directly.
 - `packages/interface/src/data/queries/use<Resources>.ts` — React Query
-  hooks: one `useQuery` for list/get, one `useMutation` per create/update/
-  delete with `onSuccess: invalidateQueries({ queryKey: [...] })`.
+  hooks: one `useQuery` for list/get, one `useMutation` per create/update
+  and for the verb RPC with `onSuccess: invalidateQueries({ queryKey: [...] })`.
 - A new screen under `packages/interface/app/<resources>/` (Expo Router
   file-based) or a component under `src/components/`. Use the bootstrap's
   `app/index.tsx` (the Note screen) as a reference for the minimum shape.
@@ -328,8 +348,10 @@ end-to-end):
 4. Backend boots (`pnpm dev:backend`) without runtime errors and the
    migration applies on startup (look for `[database] PGlite migrations
    applied` in the log).
-5. From the interface (or curl/grpcurl), each RPC works: create, get, list,
-   update, delete.
+5. From the interface (or curl/grpcurl), each RPC works: create, get, list
+   (a page and its `next_page_token`), update, and the resource's own
+   leaving-the-view RPC (for an archive: the row stays and leaves the
+   default list; `include_archived` shows it).
 
 Don't claim the layer is done before each of these passes. If something
 fails, debug from the bottom up: regen, then typecheck, then runtime.

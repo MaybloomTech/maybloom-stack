@@ -86,6 +86,29 @@ Skills are read by an agent, not by a person, and the difference matters:
 - A skill that has never been run against a test prompt is unproven.
   Prefer changes you have exercised.
 
+## Maintainers' chores
+
+Two pins in the bootstrap templates are floors a new project starts from,
+and both go stale on their own:
+
+- **The Go module pins.** `skills/maybloom-stack-bootstrap/templates/backend-go/go.mod.tmpl`
+  and the `go.sum` beside it ship the versions a fresh scaffold builds
+  with, so `go generate .` works with no `go get`. Per release: scaffold a
+  throwaway project, in its `go/` run `go get -u ./...` (or raise the pins
+  by hand) and `go mod tidy`, confirm `go generate . && go build ./... &&
+  go test ./...`, and copy `go.mod`'s versions and `go.sum` back into the
+  templates. The post-scaffold checklist runs `go mod tidy`, so a stale
+  floor costs a download, not a broken build. The Go patch itself is
+  pinned in four places that must agree: `go.mod.tmpl`'s `go` line,
+  `root-go/go.work.tmpl`'s, `backend-go/Dockerfile.tmpl`'s `FROM
+  golang:<patch>-alpine` and `GO_IMAGE` in `root-go/scripts/go`; raise
+  them together (the image and the wrapper set
+  `GOTOOLCHAIN=local`, so a mismatch fails the build rather than
+  downloading a toolchain).
+- **The pnpm catalog.** `templates/root/pnpm-workspace.yaml` is the
+  same floor for the TypeScript side; the bootstrap skill's checklist
+  refreshes it the same way.
+
 ## Style
 
 Prose is plain and specific. Say what something costs and what is not yet
