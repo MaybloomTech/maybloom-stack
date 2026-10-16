@@ -29,16 +29,17 @@ type Deps struct {
 func NewMux(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
-	// Outermost first. Recover so a panic is a CodeInternal, not a dropped
-	// connection; RequestID so every line below carries it; Logging outside
-	// auth so a refused request is still logged; auth gates on the identity,
-	// Health being the one open procedure; validate innermost, so a request
-	// that breaks the contract's buf.validate rules never reaches a handler.
-	// An audit interceptor, when a service wants one, goes between auth and
-	// validate.
+	// Outermost first. RequestID first so everything below, the panic log
+	// line and the error Recover makes of it included, carries the id;
+	// Recover so a panic is a CodeInternal, not a dropped connection; Logging
+	// outside auth so a refused request is still logged; auth gates on the
+	// identity, Health being the one open procedure; validate innermost, so a
+	// request that breaks the contract's buf.validate rules never reaches a
+	// handler. An audit interceptor, when a service wants one, goes between
+	// auth and validate.
 	interceptors := connect.WithInterceptors(
-		Recover(d.Log),
 		RequestID(),
+		Recover(d.Log),
 		Logging(d.Log),
 		auth.Interceptor(d.Authenticator, servicev1connect.__APP_NAME__ServiceHealthProcedure),
 		validate.NewInterceptor(),

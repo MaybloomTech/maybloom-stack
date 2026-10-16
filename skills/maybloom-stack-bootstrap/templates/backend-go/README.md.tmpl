@@ -41,14 +41,16 @@ ranges by hand; `buf/validate/validate.proto` is vendored in
 `../third_party/protovalidate` so generation needs no network.
 
 Store and server tests need a Postgres and skip without one. The compose
-database at the repo root serves. They share that database and each package
-migrates it on open, so the packages run one at a time (`-p 1`). `pnpm
-test:backend` at the repo root is the same run through `scripts/go` on the
-compose network, so it works on a machine without Go:
+service creates a second database, `__APP_SLUG___test`, when its volume is
+first initialised (`docker/postgres/`), so the tests never touch development
+data. The two test packages share it and each migrates it on open, so they
+run one at a time (`-p 1`). `pnpm test:backend` at the repo root is the same
+run through `scripts/go` on the compose network, so it works on a machine
+without Go:
 
 ```sh
 docker compose up -d db
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test -p 1 ./...
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG___test go test -p 1 ./...
 ```
 
 Production needs a real `auth.Authenticator` wired in `cmd/__APP_SLUG__/main.go` (and its rule in `config.Validate`); the scaffold refuses to start without `DEV_USER` until then, and refuses `DEV_USER` in production.
@@ -83,6 +85,8 @@ lists them with their defaults.
 is its table, `db/queries/notes.sql` its queries, `internal/store/notes.go` the
 store over them, `internal/server/notes.go` the handlers. Lists are
 keyset-paged on `(created_at, id)` behind an opaque `page_token`
-(`internal/store/paging.go`); removal is archival through `UpdateNote` with
-`archived: true`. Add real resources with the `maybloom-stack-add-resource`
-skill and delete Note when it has nothing left to teach.
+(`internal/store/paging.go`); a note leaves the default list through
+`ArchiveNote`, the example's answer to a question every resource answers
+for itself (a hard Delete, a soft delete, an archive, something else). Add
+real resources with the `maybloom-stack-add-resource` skill and delete Note
+when it has nothing left to teach.

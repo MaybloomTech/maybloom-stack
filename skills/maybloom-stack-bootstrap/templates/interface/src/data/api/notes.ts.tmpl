@@ -34,9 +34,10 @@ export async function updateNote(note: Note) {
   return response.note;
 }
 
-// Archiving is the stack's "delete": the note keeps its row and its id and
-// leaves the default list. UpdateNote with archived: false brings it back.
-export async function archiveNote(note: Note) {
-  const response = await client.updateNote({ note, archived: true });
+// ArchiveNote is how a note leaves the default list in this example: the
+// row and its id stay, listNotes leaves it out unless asked. (A real
+// resource answers that question its own way; see the contract's comment.)
+export async function archiveNote(id: string) {
+  const response = await client.archiveNote({ id });
   return response.note;
 }

@@ -73,6 +73,14 @@ func TestInterceptors(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("page_size over the cap: want CodeInvalidArgument, got %v", err)
 	}
+	_, err = signedIn.UpdateNote(ctx, connect.NewRequest(&servicev1.UpdateNoteRequest{Note: &resourcesv1.Note{Id: "not-a-uuid", Title: "x"}}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("update with a non-uuid id: want CodeInvalidArgument from the CEL rule, got %v", err)
+	}
+	_, err = signedIn.ArchiveNote(ctx, connect.NewRequest(&servicev1.ArchiveNoteRequest{Id: "not-a-uuid"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("archive with a non-uuid id: want CodeInvalidArgument, got %v", err)
+	}
 }
 
 // The Note loop over the wire: create, list, get, update, archive. Needs
@@ -116,9 +124,17 @@ func TestNoteLoop(t *testing.T) {
 		t.Fatalf("update: %v %v", updated, err)
 	}
 
-	archived, err := client.UpdateNote(ctx, connect.NewRequest(&servicev1.UpdateNoteRequest{Note: note, Archived: true}))
+	archived, err := client.ArchiveNote(ctx, connect.NewRequest(&servicev1.ArchiveNoteRequest{Id: note.GetId()}))
 	if err != nil || archived.Msg.GetNote().GetArchivedAt() == nil {
 		t.Fatalf("archive: %v %v", archived, err)
+	}
+	listed, err = client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 1}))
+	if err != nil || (len(listed.Msg.GetNotes()) == 1 && listed.Msg.GetNotes()[0].GetId() == note.GetId()) {
+		t.Fatalf("an archived note must leave the default list: %v %v", listed, err)
+	}
+	withArchived, err := client.ListNotes(ctx, connect.NewRequest(&servicev1.ListNotesRequest{PageSize: 1, IncludeArchived: true}))
+	if err != nil || len(withArchived.Msg.GetNotes()) != 1 || withArchived.Msg.GetNotes()[0].GetId() != note.GetId() {
+		t.Fatalf("include_archived must show it first: %v %v", withArchived, err)
 	}
 	after, err := client.GetNote(ctx, connect.NewRequest(&servicev1.GetNoteRequest{Id: note.GetId()}))
 	if err != nil || after.Msg.GetNote().GetArchivedAt() == nil {
@@ -182,6 +198,16 @@ func TestStreamingInterceptors(t *testing.T) {
 		if tc.want == "" && (got == tc.in || !requestIDShape.MatchString(got)) {
 			t.Fatalf("withRequestID(%q) = %q, want a fresh id", tc.in, got)
 		}
+	}
+
+	// The order: RequestID outside Recover, so the CodeInternal a panic
+	// becomes carries the request id like any other refusal.
+	chained := RequestID().WrapStreamingHandler(Recover(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error {
+		panic("boom")
+	}))
+	err = chained(ctx, conn)
+	if cerr, ok := errors.AsType[*connect.Error](err); !ok || cerr.Code() != connect.CodeInternal || cerr.Meta().Get(requestIDHeader) == "" {
+		t.Fatalf("a panic must come back as CodeInternal with the request id: %v", err)
 	}
 
 	// Recover: a panic in a stream handler is CodeInternal, not a crash.

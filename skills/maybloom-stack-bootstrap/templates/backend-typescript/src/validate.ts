@@ -1,3 +1,4 @@
+import type { DescMessage, MessageShape } from "@bufbuild/protobuf";
 import { Code, ConnectError, type Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 
@@ -7,18 +8,35 @@ import { createValidator } from "@bufbuild/protovalidate";
 // the same code. Handlers and stores check nothing the contract states.
 const validator = createValidator();
 
-export const validateInterceptor: Interceptor = (next) => async (req) => {
-  if (!req.stream) {
-    const result = validator.validate(req.method.input, req.message);
-    if (result.kind === "invalid") {
-      throw new ConnectError(
-        `validation error: ${result.violations.map((v) => v.toString()).join("; ")}`,
-        Code.InvalidArgument,
-      );
-    }
-    if (result.kind === "error") {
-      throw new ConnectError("could not validate the request", Code.Internal);
-    }
+function check<D extends DescMessage>(schema: D, message: MessageShape<D>) {
+  const result = validator.validate(schema, message);
+  if (result.kind === "invalid") {
+    throw new ConnectError(
+      `validation error: ${result.violations.map((v) => v.toString()).join("; ")}`,
+      Code.InvalidArgument,
+    );
   }
+  if (result.kind === "error") {
+    throw new ConnectError("could not validate the request", Code.Internal);
+  }
+}
+
+// Each message of a client stream is checked as it arrives, so a streaming
+// RPC gets the same rules as a unary one.
+async function* checkEach<D extends DescMessage>(
+  schema: D,
+  messages: AsyncIterable<MessageShape<D>>,
+): AsyncIterable<MessageShape<D>> {
+  for await (const message of messages) {
+    check(schema, message);
+    yield message;
+  }
+}
+
+export const validateInterceptor: Interceptor = (next) => async (req) => {
+  if (req.stream) {
+    return next({ ...req, message: checkEach(req.method.input, req.message) });
+  }
+  check(req.method.input, req.message);
   return next(req);
 };

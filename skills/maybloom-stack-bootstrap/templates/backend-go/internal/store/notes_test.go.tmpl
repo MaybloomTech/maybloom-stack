@@ -49,14 +49,25 @@ func TestNotes(t *testing.T) {
 		t.Fatalf("get: %v %v", got, err)
 	}
 
-	updated, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "First, edited", Body: ""}, false)
+	updated, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "First, edited", Body: ""})
 	if err != nil || updated.GetTitle() != "First, edited" || updated.GetUpdatedAt() == nil {
 		t.Fatalf("update: %v %v", updated, err)
 	}
 
-	archived, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "First, edited"}, true)
+	archived, err := st.ArchiveNote(ctx, created.GetId())
 	if err != nil || archived.GetArchivedAt() == nil {
 		t.Fatalf("archive: %v %v", archived, err)
+	}
+	again, err := st.ArchiveNote(ctx, created.GetId())
+	if err != nil || !again.GetArchivedAt().AsTime().Equal(archived.GetArchivedAt().AsTime()) {
+		t.Fatalf("archiving twice must keep the first archived_at: %v %v", again, err)
+	}
+	edited, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "Edited while archived"})
+	if err != nil || edited.GetArchivedAt() == nil {
+		t.Fatalf("an update must not touch archived_at: %v %v", edited, err)
+	}
+	if _, err := st.ArchiveNote(ctx, "00000000-0000-0000-0000-000000000000"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("archive unknown id: want CodeNotFound, got %v", err)
 	}
 	page, err := st.ListNotes(ctx, NoteFilter{})
 	if err != nil {

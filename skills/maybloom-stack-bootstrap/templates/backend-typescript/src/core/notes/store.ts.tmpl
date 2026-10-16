@@ -29,19 +29,29 @@ export async function createNote(createdBy: string, input: Note) {
   return noteRowToProto(row);
 }
 
-// archived moves the note in or out of the archive; the row stays either
-// way. This is the stack's default shape for "delete".
-export async function updateNote(input: Note, archived: boolean) {
+// Replaces title and body; the server keeps the rest (archived_at is
+// archiveNote's).
+export async function updateNote(input: Note) {
   const [row] = await server.db
     .update(notes)
-    .set({
-      ...noteToUpdate(input),
-      archivedAt: archived
-        ? sql`coalesce(${notes.archivedAt}, now())`
-        : null,
-      updatedAt: new Date(),
-    })
+    .set({ ...noteToUpdate(input), updatedAt: new Date() })
     .where(eq(notes.id, input.id))
+    .returning();
+  if (!row) {
+    throw new ConnectError("Note not found", Code.NotFound);
+  }
+  return noteRowToProto(row);
+}
+
+// Sets archived_at (kept if already set) and leaves the row in place;
+// listNotes leaves it out unless asked. This is the example's answer to how
+// a note leaves the default view, one of several a resource may give. The
+// mirror, unarchiveNote (archivedAt: null), is added when a screen needs it.
+export async function archiveNote(id: string) {
+  const [row] = await server.db
+    .update(notes)
+    .set({ archivedAt: sql`coalesce(${notes.archivedAt}, now())`, updatedAt: new Date() })
+    .where(eq(notes.id, id))
     .returning();
   if (!row) {
     throw new ConnectError("Note not found", Code.NotFound);

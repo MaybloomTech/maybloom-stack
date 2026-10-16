@@ -14,10 +14,11 @@ import (
 
 // Cross-cutting behaviour is declared once, as interceptors on the handler,
 // so a new RPC arrives with recovery, a request id, logging, auth and
-// validation attached. The order is the design (mux.go): Recover outermost,
-// RequestID next so every log line carries it, Logging outside auth so a
-// refused request is still logged, validate innermost so a bad request never
-// reaches a handler.
+// validation attached. The order is the design (mux.go): RequestID
+// outermost so every log line and every error carries the id, the panic
+// Recover turns into CodeInternal included; Recover next; Logging outside
+// auth so a refused request is still logged; validate innermost so a bad
+// request never reaches a handler.
 //
 // Every interceptor here is a full connect.Interceptor, not a
 // UnaryInterceptorFunc: a UnaryInterceptorFunc is skipped for streaming RPCs,

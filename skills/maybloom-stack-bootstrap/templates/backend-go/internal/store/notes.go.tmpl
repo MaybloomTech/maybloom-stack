@@ -90,24 +90,41 @@ func (s *Store) ListNotes(ctx context.Context, f NoteFilter) (NotePage, error) {
 	return NotePage{Notes: notesToProto(rows), NextPageToken: next}, nil
 }
 
-// UpdateNote replaces title and body and moves the note in or out of the
-// archive. The archive is the stack's default "delete": the row stays.
-func (s *Store) UpdateNote(ctx context.Context, in *resourcesv1.Note, archived bool) (*resourcesv1.Note, error) {
+// UpdateNote replaces title and body; the server keeps the rest.
+func (s *Store) UpdateNote(ctx context.Context, in *resourcesv1.Note) (*resourcesv1.Note, error) {
 	uid, err := argUUID(in.GetId())
 	if err != nil {
 		return nil, err
 	}
 	row, err := s.q.UpdateNote(ctx, s.pool, storedb.UpdateNoteParams{
-		ID:       uid,
-		Title:    in.GetTitle(),
-		Body:     in.GetBody(),
-		Archived: archived,
+		ID:    uid,
+		Title: in.GetTitle(),
+		Body:  in.GetBody(),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, noteNotFound()
 	}
 	if err != nil {
 		return nil, internalError("could not update the note", err)
+	}
+	return noteToProto(row), nil
+}
+
+// ArchiveNote sets archived_at (kept if already set) and leaves the row in
+// place; ListNotes leaves it out unless asked. This is the example's answer
+// to how a note leaves the default view, one of several a resource may
+// give. UnarchiveNote, the mirror, is added when a screen needs it.
+func (s *Store) ArchiveNote(ctx context.Context, id string) (*resourcesv1.Note, error) {
+	uid, err := argUUID(id)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.ArchiveNote(ctx, s.pool, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, noteNotFound()
+	}
+	if err != nil {
+		return nil, internalError("could not archive the note", err)
 	}
 	return noteToProto(row), nil
 }

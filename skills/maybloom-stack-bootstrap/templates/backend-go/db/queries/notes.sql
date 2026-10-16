@@ -19,12 +19,20 @@ ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg(page_size);
 
 -- name: UpdateNote :one
--- Replaces title and body; archiving keeps the first archived_at, unarchiving
--- clears it. updated_at is set here, server-side, never by the client.
+-- Replaces title and body. updated_at is set here, server-side, never by the
+-- client; archived_at is ArchiveNote's.
 UPDATE notes
 SET title = sqlc.arg(title),
     body = sqlc.arg(body),
-    archived_at = CASE WHEN sqlc.arg(archived)::bool THEN COALESCE(archived_at, now()) ELSE NULL END,
+    updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: ArchiveNote :one
+-- Sets archived_at once: a second archive keeps the first timestamp. The
+-- mirror (UnarchiveNote: SET archived_at = NULL) is added when a screen needs it.
+UPDATE notes
+SET archived_at = COALESCE(archived_at, now()),
     updated_at = now()
 WHERE id = sqlc.arg(id)
 RETURNING *;

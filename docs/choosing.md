@@ -100,6 +100,17 @@ transport is identical. This means:
   plugin block in `buf.gen.yaml`, the service's own directory. What else
   moves is below, under *When one service becomes two*.
 
+## What the stack leaves to the app
+
+Not every shape is a stack decision. How a resource leaves the default
+view is the clearest case: a hard delete, a soft delete the reads filter
+on, an archive with a way back, or something else, each is right for some
+resource and wrong for others, so the stack asks the question (what
+happens to the resource, and to the rows that point at it?) and asks that
+the answer be a dedicated RPC with its rule in its comment. The Note
+example answers with `ArchiveNote`; your resources answer for themselves.
+[The contract](./contracts.md) has the question in full.
+
 ## Signals the choice was wrong
 
 - An Astro site is fetching from a backend at runtime: promote that page to

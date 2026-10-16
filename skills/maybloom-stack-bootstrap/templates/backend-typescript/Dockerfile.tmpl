@@ -24,7 +24,11 @@ RUN pnpm deploy --filter __ORG_SCOPE__/backend --prod /deploy
 
 FROM node:24-alpine AS runner
 
-ENV NODE_ENV=production
+# The git short SHA, from `--build-arg VERSION=...`; the Health RPC reports
+# it through the config, and the label names the build.
+ARG VERSION=dev
+ENV NODE_ENV=production VERSION=${VERSION}
+LABEL org.opencontainers.image.revision="${VERSION}"
 WORKDIR /app
 
 COPY --from=build /deploy /app

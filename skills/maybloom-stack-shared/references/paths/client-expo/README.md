@@ -43,9 +43,10 @@ export async function update<Resource>(
   return response.<resource>;
 }
 
-// Archiving is the stack's "delete": the row stays, the list leaves it out.
-export async function archive<Resource>(<resource>: <Resource>) {
-  const response = await client.update<Resource>({ <resource>, archived: true });
+// The resource's leaving-the-view RPC (here an archive: the row stays, the
+// list leaves it out). A verb RPC takes an id, not the whole resource.
+export async function archive<Resource>(id: string) {
+  const response = await client.archive<Resource>({ id });
   return response.<resource>;
 }
 ```
@@ -166,7 +167,7 @@ export default function <Resources>Screen() {
         renderItem={({ item }) => (
           <View>
             <Text>{item.title}</Text>
-            <Button title="Archive" onPress={() => archive.mutate(item)} />
+            <Button title="Archive" onPress={() => archive.mutate(item.id)} />
           </View>
         )}
       />

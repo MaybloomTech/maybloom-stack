@@ -50,7 +50,7 @@ service. See [Choosing a runtime](./choosing.md).
 
 - Every RPC has a dedicated `<Verb><Resource>Request` and
   `<Verb><Resource>Response`, including empty ones (`message
-  DeleteNoteResponse {}`), so fields can be added later without a breaking
+  HealthRequest {}`), so fields can be added later without a breaking
   change. `google.protobuf.Empty` is never used.
 - Create and update requests carry the whole resource:
   `CreateNoteRequest { resources.v1.Note note = 1; }`. Clients read, modify,
@@ -60,14 +60,23 @@ service. See [Choosing a runtime](./choosing.md).
   a bag of `optional` filter scalars; list responses hold one `repeated`
   field and `next_page_token`.
 - The standard resource tail is `created_by`, `created_at`,
-  `optional updated_at`, `optional archived_at`. Archival is the norm,
-  done through the resource's Update with `bool archived` (set keeps the
-  first `archived_at`, clear brings the row back); hard delete is an
-  explicit, per-resource decision for leaf data, and the only reason a
-  `Delete<Resource>` RPC exists. Archive is the default because the data
-  these apps hold is the household's record: a row that leaves a list can
-  come back, and nothing downstream (an audit line, a reference from
-  another resource) is left pointing at nothing.
+  `optional updated_at`, and whatever the resource's answer to the next
+  point needs (`optional archived_at` for an archive).
+- How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+  The stack takes no position because the right answer depends on what
+  points at the row and on what the people using the app expect to get
+  back; a default would be wrong for half of them.
 - Timestamps are `google.protobuf.Timestamp`. Seconds-since-epoch integers
   and floats are forbidden; they are the single worst fossil observed in
   ported systems.

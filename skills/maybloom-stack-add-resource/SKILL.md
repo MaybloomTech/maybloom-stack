@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-add-resource
-description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard CRUD surface (Create / Update / Get / List, with archival through Update; a hard Delete only for leaf data) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` — or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc`. When in doubt, prefer the narrower skill.
+description: Use ONLY when the user wants to introduce a brand-new TOP-LEVEL resource — its own proto message, its own DB table, and the standard CRUD surface (Create / Update / Get / List, plus the resource's own answer to how it leaves the default view: a hard Delete, an Archive verb, or another) — to a project on the maybloom stack (the monorepo from `maybloom-stack-bootstrap`, or any repo whose boundary types are proto + Connect-RPC following its conventions). Covers the validated implementations — TypeScript (Fastify + Drizzle) and Go (connect-go + sqlc + pgx) — and, via the shared core reference, projects that implement the contract in any other Connect-RPC language on either the client or the server. Triggers on "add a Book resource", "scaffold CRUD for Loan", "wire up a new top-level entity end-to-end". Does NOT cover (a) adding fields or sub-tables to an existing resource — that's `maybloom-stack-extend-resource` — or (b) adding a single non-CRUD RPC like `CheckOutBook` or a sub-resource list like `ListBookEvents` — that's `maybloom-stack-add-rpc`. When in doubt, prefer the narrower skill.
 ---
 
 # maybloom-stack-add-resource
@@ -125,11 +125,20 @@ cross-link:
   (string ↔ text, int32 ↔ integer, bool ↔ boolean, timestamp ↔
   timestamptz).
 - **RPC surface** — default to the standard four (`Create`, `Update`,
-  `Get`, `List`), with removal as archival: `Update` carries `bool
-  archived`, the resource carries `optional archived_at`, the row stays,
-  and `List` leaves archived rows out unless `include_archived` is set.
-  Add a hard `Delete` RPC only when the resource is leaf data nothing
-  else references (a draft, an upload) and say so in its comment. `List`
+  `Get`, `List`), then answer one question for this resource and add the
+  RPC that answers it. How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
+  `List`
   pages by cursor from the first version: `page_size`, `page_token`,
   `next_page_token`. Skip whichever the user doesn't need; add list
   filters, reactions, etc. as they describe.
@@ -249,8 +258,9 @@ shapes are known, and it does no I/O.
 **TypeScript** — read `../maybloom-stack-shared/references/paths/backend-typescript/store.md`. Create
 `packages/backend/src/core/<resources>/store.ts`. One exported async
 function per RPC: `create<Resource>`, `update<Resource>`, `get<Resource>`,
-`list<Resources>`, `delete<Resource>`. Each takes the proto request type
-(or `id: string` for get/delete) and uses the adapter + Drizzle.
+`list<Resources>`, and the one for the resource's leaving-the-view RPC
+(`archive<Resource>` or `delete<Resource>`). Each takes the proto request
+type (or `id: string` for get and the verb) and uses the adapter + Drizzle.
 
 If the resource needs to mutate other tables in the same transaction, wrap
 in `server.db.transaction(async (tx) => ...)` and pass `tx` to anything
@@ -274,8 +284,8 @@ under `packages/backend/src/handlers/`. Each handler:
 - declares `export type <Method>Method = typeof <APP_NAME>Service.method.<method>`
 - exports `const <method>: MethodImpl<<Method>Method> = async (req, ctx) => {...}`
 - for create/update on user-owned resources, reads `kUserId` from `ctx`
-  and forces it onto the proto; for read/delete it's usually a one-line
-  call to the store
+  and forces it onto the proto; for read and the verb RPC it's usually a
+  one-line call to the store
 
 **Go** — read the "Handlers" section of the Go path README. Add one method
 per RPC to the service struct in `go/internal/server/<resources>.go`,
@@ -311,8 +321,8 @@ client and cannot tell which language serves it. Read
 - `packages/interface/src/data/api/<resources>.ts` — thin functions that
   call `client.<method>(...)` and return the proto messages directly.
 - `packages/interface/src/data/queries/use<Resources>.ts` — React Query
-  hooks: one `useQuery` for list/get, one `useMutation` per create/update/
-  archive with `onSuccess: invalidateQueries({ queryKey: [...] })`.
+  hooks: one `useQuery` for list/get, one `useMutation` per create/update
+  and for the verb RPC with `onSuccess: invalidateQueries({ queryKey: [...] })`.
 - A new screen under `packages/interface/app/<resources>/` (Expo Router
   file-based) or a component under `src/components/`. Use the bootstrap's
   `app/index.tsx` (the Note screen) as a reference for the minimum shape.
@@ -339,8 +349,9 @@ end-to-end):
    migration applies on startup (look for `[database] PGlite migrations
    applied` in the log).
 5. From the interface (or curl/grpcurl), each RPC works: create, get, list
-   (a page and its `next_page_token`), update, archive (the row stays and
-   leaves the default list).
+   (a page and its `next_page_token`), update, and the resource's own
+   leaving-the-view RPC (for an archive: the row stays and leaves the
+   default list; `include_archived` shows it).
 
 Don't claim the layer is done before each of these passes. If something
 fails, debug from the bottom up: regen, then typecheck, then runtime.

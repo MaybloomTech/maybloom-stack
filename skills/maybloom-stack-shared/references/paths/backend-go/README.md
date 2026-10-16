@@ -131,7 +131,9 @@ DROP TABLE <resources>;
 
 Ids are uuids the database assigns (`RETURNING *` hands them back), the
 list's keyset `(created_at, id)` has its index from day one, and
-`archived_at` is there because removal is archival.
+`archived_at` is there when the resource's answer to leaving the default
+view is an archive (the Note example's); a hard-deleted resource has no
+such column.
 
 Column mapping follows the same table as the Drizzle reference: proto
 `string` → `text`, `int32` → `integer`, `bool` → `boolean`,
@@ -157,9 +159,14 @@ RETURNING *;
 
 -- name: Update<Resource> :one
 UPDATE <resources>
-SET title = sqlc.arg(title), body = sqlc.arg(body),
-    archived_at = CASE WHEN sqlc.arg(archived)::bool THEN COALESCE(archived_at, now()) ELSE NULL END,
-    updated_at = now()
+SET title = sqlc.arg(title), body = sqlc.arg(body), updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: Archive<Resource> :one
+-- Sets archived_at once; a second archive keeps the first timestamp.
+UPDATE <resources>
+SET archived_at = COALESCE(archived_at, now()), updated_at = now()
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
@@ -176,12 +183,13 @@ ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg(page_size);
 ```
 
-The Update sets `archived_at = CASE WHEN sqlc.arg(archived)::bool THEN
-COALESCE(archived_at, now()) ELSE NULL END` beside the columns it
-replaces: archival is the default removal, and the bootstrap's
-`db/queries/notes.sql` is the full set. A hard delete, for leaf data
-only, is `-- name: Delete<Resource> :execrows` with `DELETE ... WHERE id =
-$1`; `:execrows` lets the store tell "deleted" from "was never there".
+`Update` never touches `archived_at`; the verb RPC that answers "how does
+this resource leave the default view" has its own query. For an archive
+that is the `COALESCE` above (the bootstrap's `db/queries/notes.sql` is
+the full set). For a hard delete, leaf data only, it is `-- name:
+Delete<Resource> :execrows` with `DELETE ... WHERE id = $1`; `:execrows`
+lets the store tell "deleted" from "was never there". For a soft delete it
+is `SET deleted_at = now()` and a `deleted_at IS NULL` on every read.
 
 Then regenerate:
 
@@ -367,14 +375,15 @@ message List<Resources>Request {
 
 ```go
 interceptors := connect.WithInterceptors(
-    Recover(log), RequestID(), Logging(log), auth.Interceptor(...),
+    RequestID(), Recover(log), Logging(log), auth.Interceptor(...),
     validate.NewInterceptor(), // last = innermost; single return value
 )
 ```
 
-That order is the stack's: logging outside auth so a
-refused request is logged, the request id outermost after recovery so
-every line carries it, an audit interceptor (opt-in) between auth and
+That order is the stack's: the request id outermost so every line and
+every error carries it, recovery inside it so a panic is logged with the
+id and the error it becomes carries the header, logging outside auth so a
+refused request is logged, an audit interceptor (opt-in) between auth and
 validate when a service wants one. Each is a full `connect.Interceptor`
 with `WrapStreamingHandler`, never a `UnaryInterceptorFunc`, which
 streaming RPCs would bypass. Rules: a message-typed request field

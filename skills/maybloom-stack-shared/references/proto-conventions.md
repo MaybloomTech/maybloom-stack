@@ -163,11 +163,18 @@ registrations, which the conventions don't currently support.
   (`created_at, id`), encoded by the server; a token the service did not
   issue is `CodeInvalidArgument`. An empty list request that reads a
   whole table is a smell.
-- Removal is archival by default: the resource carries `optional
-  google.protobuf.Timestamp archived_at`, the Update request carries
-  `bool archived`, the row stays, and lists leave archived rows out
-  unless `include_archived` is set. A hard `Delete<Resource>` RPC is the
-  option for leaf data nothing references, named as such in its comment.
+- How a resource leaves the default view is the app's decision, not the
+  stack's. Ask it when the resource arrives: what should happen to the
+  resource, and to the rows that point at it? Some common answers, as
+  illustrations only: a hard `Delete<Resource>` RPC that removes the row
+  (leaf data nothing references); a soft delete, a `deleted_at` the reads
+  filter on, with no way back; archive as a first-class state through a
+  dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+  takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+  screen needs it). The list is not exhaustive and an app may do otherwise.
+  What the stack asks is that the answer be its own RPC with its rule in its
+  comment, never a flag on `Update`. The Note example gives one answer,
+  `ArchiveNote`.
 - Calendar dates (a due date, a day in a schedule) are `YYYY-MM-DD`
   strings, never timestamps, and "today" is supplied by the client,
   because the server has no time zone to resolve it in.

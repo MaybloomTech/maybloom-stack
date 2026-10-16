@@ -25,8 +25,9 @@ scaffolding the user can run the full loop end-to-end before adding their
 own resources. Note demonstrates the contract conventions as they stand:
 `buf.validate` rules on the resource and the envelopes, a `Health` RPC
 open to anonymous callers, cursor paging (`page_size`, opaque
-`page_token`, `next_page_token`), and archival through `UpdateNote` with
-`archived: true` in place of a Delete RPC.
+`page_token`, `next_page_token`), and `ArchiveNote` as one answer to how
+a resource leaves the default view, a question each real resource answers
+for itself.
 
 The docs site is the worked example on the client side that the interface
 isn't: it never calls the service. It compiles the protos to a descriptor
@@ -260,10 +261,12 @@ These are the patterns embedded in the templates. When the user asks
 - **Typed config, validated at boot.** Go: `internal/config` (a struct
   with env tags, `Validate()`, a masked `Summary()`); TypeScript: Typebox
   + `@fastify/env` in `src/config.ts`.
-- **Lists page by cursor; removal is archival.** `page_size`,
-  `page_token`, `next_page_token` on every list; `archived_at` set through
-  Update, rows kept, lists leave archived rows out unless asked. A hard
-  Delete RPC is the leaf-data option add-resource documents.
+- **Lists page by cursor.** `page_size`, `page_token`, `next_page_token`
+  on every list.
+- **Leaving the default view is the resource's own verb RPC.** Hard
+  delete, soft delete, archive or another: the app decides per resource
+  (add-resource poses the question); never a flag on Update. Note ships
+  `ArchiveNote` with `include_archived` on its list.
 - **Root-relative imports on the TypeScript backend.** `tsconfig.json`
   sets `baseUrl: "src"`, so import from `db/...`, `core/...`,
   `handlers/...` — not `../../db/...`.

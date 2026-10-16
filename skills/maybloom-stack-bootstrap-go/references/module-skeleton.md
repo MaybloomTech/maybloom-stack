@@ -152,11 +152,12 @@ per route — that is what makes a new RPC arrive with recovery, a request
 id, logging, auth and validation already attached. The order is the
 design:
 
-1. `Recover` — outermost: a panic becomes `CodeInternal`, logged with the
-   request id, instead of a dropped connection.
-2. `RequestID` — the caller's `X-Request-Id` or a fresh one, on the
-   context for every log line below and on the response (or the error)
-   for the caller.
+1. `RequestID` — outermost: the caller's `X-Request-ID` when it matches
+   `[A-Za-z0-9_-]{1,64}`, a fresh one otherwise, on the context for every
+   log line below and on the response (or the error) for the caller.
+2. `Recover` — a panic becomes `CodeInternal` instead of a dropped
+   connection, logged with the request id and carrying it in the error's
+   `Meta` because `RequestID` is outside it.
 3. `Logging` — one line per RPC, outside auth so a refused request is
    still logged. Internal-class codes log at Error with the cause chain;
    refusals at Warn with the code only.

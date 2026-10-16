@@ -46,6 +46,7 @@ pnpm dev:interface
   interface; the generated service type refuses to compile until every
   declared RPC has a handler, so let the compiler be the checklist.
 - Lists are cursor-paged (`page_size`, `page_token`, `next_page_token`);
-  removal is archival (`archived_at` through Update) unless the resource is
-  leaf data with a documented hard Delete.
+  how a resource leaves the default view is a per-resource decision made
+  as a dedicated RPC with its rule in its comment (Note: `ArchiveNote`),
+  never a flag on Update.
 - __LICENSE_RULE__

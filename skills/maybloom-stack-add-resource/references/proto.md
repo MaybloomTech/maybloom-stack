@@ -28,7 +28,7 @@ message <Resource> {
   string created_by = 5;
   google.protobuf.Timestamp created_at = 6;
   optional google.protobuf.Timestamp updated_at = 7;
-  // Set through Update with archived: true; the row stays.
+  // Only if this resource archives (see below): set by Archive<Resource>.
   optional google.protobuf.Timestamp archived_at = 8;
 }
 ```
@@ -36,8 +36,8 @@ message <Resource> {
 Conventions to follow:
 
 - IDs are `string` (UUIDs; the database assigns them on the Go path).
-- `created_at` is non-optional. `updated_at` and `archived_at` are
-  `optional` so newly created rows can omit them.
+- `created_at` is non-optional. `updated_at` (and `archived_at`, when the
+  resource archives) are `optional` so newly created rows can omit them.
 - `created_by` is `string` (a user ID); in handlers, the session user is
   forced onto it for create flows.
 - Always-valid invariants (lengths, enum membership) go here as
@@ -91,6 +91,7 @@ message List<Resources>Request {
   }];
   // From the previous answer's next_page_token; empty starts at the top.
   string page_token = 2;
+  // Only if this resource archives.
   bool include_archived = 3;
   // Add filters after these as needed; keep them all optional.
 }
@@ -100,19 +101,52 @@ message List<Resources>Response {
   string next_page_token = 2;
 }
 
-// archived moves the resource in or out of the archive: true sets
-// archived_at (kept if already set), false clears it.
+// Replaces the mutable fields; the server keeps id, created_by, created_at
+// and sets updated_at. The CEL rule is the uuid check on the embedded id.
 message Update<Resource>Request {
-  <APP_SLUG>.resources.v1.<Resource> <resource> = 1 [(buf.validate.field).required = true];
-  bool archived = 2;
+  <APP_SLUG>.resources.v1.<Resource> <resource> = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      id: "<resource>.id.uuid"
+      message: "<resource>.id must be a uuid"
+      expression: "this.id.matches('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')"
+    }
+  ];
 }
 message Update<Resource>Response {
   <APP_SLUG>.resources.v1.<Resource> <resource> = 1;
 }
 ```
 
-Only for leaf data nothing else references, and named as a hard delete in
-its comment, a fifth pair:
+Then the fifth pair, the resource's own answer to how it leaves the
+default view. How a resource leaves the default view is the app's decision, not the
+stack's. Ask it when the resource arrives: what should happen to the
+resource, and to the rows that point at it? Some common answers, as
+illustrations only: a hard `Delete<Resource>` RPC that removes the row
+(leaf data nothing references); a soft delete, a `deleted_at` the reads
+filter on, with no way back; archive as a first-class state through a
+dedicated verb RPC (`Archive<Resource>(id)` sets `archived_at`, `List`
+takes `include_archived`, and `Unarchive<Resource>` mirrors it when a
+screen needs it). The list is not exhaustive and an app may do otherwise.
+What the stack asks is that the answer be its own RPC with its rule in its
+comment, never a flag on `Update`. The Note example gives one answer,
+`ArchiveNote`.
+
+Two of the answers, as they look in a contract. An archive, the Note
+example's:
+
+```proto
+// Sets archived_at (kept if already set); the row and its id stay, and
+// List leaves it out unless include_archived is set. Errors: CodeNotFound.
+message Archive<Resource>Request {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+message Archive<Resource>Response {
+  <APP_SLUG>.resources.v1.<Resource> <resource> = 1;
+}
+```
+
+A hard delete, for leaf data nothing references, named as such:
 
 ```proto
 // Removes the row. <Resource> is leaf data: nothing references it.
@@ -122,13 +156,13 @@ message Delete<Resource>Request {
 message Delete<Resource>Response {}
 ```
 
-Empty messages (`{}`) are fine for Delete responses. Don't invent fields
-you don't need yet.
+Named empty messages (`{}`) are fine for responses with nothing to say.
+Don't invent fields you don't need yet.
 
 ## 3. Edit `proto/<APP_SLUG>/service/v1/service.proto`
 
-Add an import and four `rpc` lines under a comment header for the
-resource (five, with the leaf-data Delete):
+Add an import and five `rpc` lines under a comment header for the
+resource (the four CRUD ones and the resource's verb):
 
 ```proto
 import "<APP_SLUG>/service/v1/<resources>.proto";

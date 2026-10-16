@@ -13,7 +13,7 @@ export. Plural table name, plural variable name; matches the proto's
 | `string body = ...;` (required, default empty) | `text("body").notNull().default("")` |
 | `optional string description = ...;` | `text("description")` (nullable, no default) |
 | `int32 quantity = ...;` | `integer("quantity").notNull()` |
-| `bool archived = ...;` | `boolean("archived").notNull().default(false)` |
+| `bool pinned = ...;` | `boolean("pinned").notNull().default(false)` |
 | `google.protobuf.Timestamp created_at = ...;` | `timestamp("created_at", { withTimezone: true }).notNull().defaultNow()` |
 | `optional google.protobuf.Timestamp updated_at = ...;` | `timestamp("updated_at", { withTimezone: true })` |
 | Foreign key to another resource | `text("author_id").references(() => authors.id)` |

@@ -31,17 +31,28 @@ export async function create<Resource>(createdBy: string, input: <Resource>) {
   return <resource>RowToProto(row);
 }
 
-// archived moves the row in or out of the archive; the row stays either
-// way. This is the stack's default shape for "delete".
-export async function update<Resource>(input: <Resource>, archived: boolean) {
+export async function update<Resource>(input: <Resource>) {
   const [row] = await server.db
     .update(<resources>)
-    .set({
-      ...<resource>ToUpdate(input),
-      archivedAt: archived ? sql`coalesce(${<resources>.archivedAt}, now())` : null,
-      updatedAt: new Date(),
-    })
+    .set({ ...<resource>ToUpdate(input), updatedAt: new Date() })
     .where(eq(<resources>.id, input.id))
+    .returning();
+  if (!row) {
+    throw new ConnectError("<Resource> not found", Code.NotFound);
+  }
+  return <resource>RowToProto(row);
+}
+
+// The resource's leaving-the-view RPC, here an archive: archived_at is set
+// once (a second archive keeps the first), the row stays, and the list
+// leaves it out unless asked. A hard delete would be a .delete(...) with
+// NotFound when nothing came back; a soft delete sets deleted_at and every
+// read filters on it.
+export async function archive<Resource>(id: string) {
+  const [row] = await server.db
+    .update(<resources>)
+    .set({ archivedAt: sql`coalesce(${<resources>.archivedAt}, now())`, updatedAt: new Date() })
+    .where(eq(<resources>.id, id))
     .returning();
   if (!row) {
     throw new ConnectError("<Resource> not found", Code.NotFound);

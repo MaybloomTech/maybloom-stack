@@ -28,7 +28,7 @@ situation, rather than a generator that stamps one shape.
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so install and `go generate .` end with a running
-CRUD loop: cursor-paged lists, archival through Update, the Health RPC,
+CRUD loop: cursor-paged lists, `ArchiveNote` as a verb RPC, the Health RPC,
 `buf.validate` rules enforced before any handler. The example resource is
 a teaching specimen: its files carry comments explaining the pattern they
 demonstrate, and add-resource treats them as the live exemplar to imitate.

@@ -28,6 +28,19 @@ export const configSchema = Type.Object({
   // needed. server.ts refuses it in production and refuses to boot without
   // it until a real identity is set in main.ts's contextValues.
   DEV_USER: Type.Optional(Type.String()),
+  // Browser origins allowed to call the API from another origin (the Expo
+  // dev server), comma-separated. Empty means no CORS plugin at all, which
+  // is production: the web export is served from the API's own origin.
+  CORS_ORIGINS: Type.String({ default: "" }),
+  // The build serving: the Dockerfile stamps it from --build-arg VERSION;
+  // "dev" otherwise. Health reports it.
+  VERSION: Type.String({ default: "dev" }),
 });
+
+export function corsOrigins(config: { CORS_ORIGINS: string }): string[] {
+  return config.CORS_ORIGINS.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
 
 export type Config = Static<typeof configSchema>;

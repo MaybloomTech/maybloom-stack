@@ -5,6 +5,7 @@ import { routes } from "routes";
 import { kRequestId, kUserId } from "context";
 import { bootstrapServer } from "server";
 import { validateInterceptor } from "validate";
+import { archiveNote } from "handlers/archiveNote";
 import { createNote } from "handlers/createNote";
 import { updateNote } from "handlers/updateNote";
 import { getNote } from "handlers/getNote";
@@ -22,6 +23,7 @@ bootstrapServer(async (app) => {
     health,
     createNote,
     updateNote,
+    archiveNote,
     getNote,
     listNotes,
   };
@@ -32,14 +34,14 @@ bootstrapServer(async (app) => {
     },
     interceptors: [validateInterceptor],
     // Who is calling and which request this is, for every handler. The
-    // identity is the development user until a real credential is read
-    // here (server.ts holds the rule that refuses to boot without one).
+    // request id is Fastify's (server.ts: the caller's X-Request-Id when it
+    // has the shape, a fresh one otherwise; on every log line and echoed on
+    // the response). The identity is the development user until a real
+    // credential is read here (server.ts holds the rule that refuses to
+    // boot without one).
     contextValues: (req) => {
       const contextValues = createContextValues();
-      const requestId = req.headers["x-request-id"];
-      if (typeof requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(requestId)) {
-        contextValues.set(kRequestId, requestId);
-      }
+      contextValues.set(kRequestId, req.id);
       contextValues.set(kUserId, app.config.DEV_USER);
       return contextValues;
     },

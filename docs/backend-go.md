@@ -263,11 +263,14 @@ applies to every RPC. A new RPC arrives with recovery, a request id,
 logging, auth and validation attached; opting out is the explicit,
 visible act. The stack's order, outermost first:
 
-1. **Recovery**: a panic becomes `CodeInternal` with the stack logged,
+1. **Request id**: taken from the header when it has the shape
+   (`[A-Za-z0-9_-]{1,64}`) or generated, put in the context and on the
+   response or the error, so every log line below carries it, the panic
+   line included.
+2. **Recovery**: a panic becomes `CodeInternal` with the stack logged,
    instead of a dropped connection. connect-go does not recover panics
-   unless asked.
-2. **Request id**: taken from the header or generated, put in the context
-   and on the response, so every log line below carries it.
+   unless asked. Inside the request id, so the error it makes carries
+   `X-Request-Id` too.
 3. **Logging**: one `slog` line per RPC. Outside auth on purpose: a
    refused request is still logged, with its request id.
 4. **Auth**: verifies the credential and puts the identity in the context.
@@ -713,8 +716,8 @@ Adopted, and now confirmed by the two services:
 - `go tool` pinning for buf, the plugins, sqlc and goose; generated code
   uncommitted; `.git`-SHA-stamped builds; a non-root runtime image
 - the interceptor spine declared once, with protovalidate on by default
-  and audit opt-in; cursor paging and archival through Update as the
-  contract's defaults
+  and audit opt-in; cursor paging as the contract's default, and the
+  resource's own verb RPC for leaving the default view
 - integration testing through the generated client against one database
   per package
 

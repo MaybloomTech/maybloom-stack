@@ -66,10 +66,23 @@ func (s *Service) UpdateNote(ctx context.Context, req *connect.Request[servicev1
 	if err != nil {
 		return nil, err
 	}
-	note, err := s.store.UpdateNote(ctx, req.Msg.GetNote(), req.Msg.GetArchived())
+	note, err := s.store.UpdateNote(ctx, req.Msg.GetNote())
 	if err != nil {
 		return nil, err
 	}
-	s.log.Info("note updated", "user", id.UserID, "note", note.GetId(), "archived", note.GetArchivedAt() != nil)
+	s.log.Info("note updated", "user", id.UserID, "note", note.GetId())
 	return connect.NewResponse(&servicev1.UpdateNoteResponse{Note: note}), nil
+}
+
+func (s *Service) ArchiveNote(ctx context.Context, req *connect.Request[servicev1.ArchiveNoteRequest]) (*connect.Response[servicev1.ArchiveNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	note, err := s.store.ArchiveNote(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info("note archived", "user", id.UserID, "note", note.GetId())
+	return connect.NewResponse(&servicev1.ArchiveNoteResponse{Note: note}), nil
 }

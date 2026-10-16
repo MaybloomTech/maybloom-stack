@@ -1,11 +1,24 @@
+import { randomUUID } from "node:crypto";
 import fastifyEnv from "@fastify/env";
 import fastifyCors from "@fastify/cors";
 import { fastify } from "fastify";
-import { Environment, configSchema } from "config";
+import { Environment, configSchema, corsOrigins } from "config";
 import dbPlugin from "db/plugin";
+
+// What a caller's X-Request-Id may look like; anything else is replaced by
+// a fresh id, so a log line or a response header never carries a stranger's
+// text.
+const REQUEST_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const server = fastify({
   logger: true,
+  // Every log line carries reqId; the onSend hook below echoes it, and
+  // main.ts hands it to handlers as kRequestId.
+  requestIdHeader: false,
+  genReqId: (req) => {
+    const id = req.headers["x-request-id"];
+    return typeof id === "string" && REQUEST_ID.test(id) ? id : randomUUID();
+  },
 });
 
 let isInitialized = false;
@@ -31,11 +44,21 @@ export async function bootstrapServer(callback: BootstrapCallback) {
     );
   }
   server.log.warn({ user: server.config.DEV_USER }, "DEV_USER is set: every request is this user");
-  await server.register(fastifyCors, {
-    origin: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    credentials: true,
+  // Echoed on every response, Connect or not. onRequest, because the Connect
+  // plugin writes its own response and an onSend header would miss it.
+  server.addHook("onRequest", async (request, reply) => {
+    reply.header("x-request-id", request.id);
   });
+  // CORS only for the listed development origins; production lists none and
+  // serves the web export from this origin, so no browser needs it.
+  const origins = corsOrigins(server.config);
+  if (origins.length > 0) {
+    await server.register(fastifyCors, {
+      origin: origins,
+      methods: ["GET", "POST", "OPTIONS"],
+      exposedHeaders: ["x-request-id"],
+    });
+  }
   await server.register(dbPlugin);
 
   server.get("/healthz", async () => ({ status: "ok" }));

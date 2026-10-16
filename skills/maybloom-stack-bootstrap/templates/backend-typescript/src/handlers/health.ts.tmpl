@@ -2,14 +2,16 @@ import { create } from "@bufbuild/protobuf";
 import type { MethodImpl } from "@connectrpc/connect";
 import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
 import { HealthResponseSchema } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/health_pb";
+import { server } from "server";
 
 export type HealthMethod = typeof __APP_NAME__Service.method.health;
 
 // Answered without touching the database or the session: the one RPC a client
 // may call before it signs in, and where it reads which build is serving.
-// VERSION is stamped into the image's environment at build time.
+// VERSION comes through the config (the Dockerfile stamps it from the
+// build arg; "dev" otherwise).
 export const health: MethodImpl<HealthMethod> = async () =>
   create(HealthResponseSchema, {
     ok: true,
-    version: process.env.VERSION ?? "dev",
+    version: server.config.VERSION,
   });

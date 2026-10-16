@@ -41,9 +41,9 @@ message Note {
   // distinguishable from "edited at the epoch".
   optional google.protobuf.Timestamp updated_at = 6;
 
-  // Set when the note was archived (UpdateNote with archived: true) and
-  // cleared when it was brought back. An archived note keeps its row and its
-  // id; lists leave it out unless asked. This is the stack's default shape
-  // for "delete": nothing that was ever referenced disappears.
+  // Set by ArchiveNote. An archived note keeps its row and its id; lists
+  // leave it out unless asked. Archiving is the answer this example gives to
+  // "how does a note leave the default view"; a real resource answers for
+  // itself (see service/v1/notes.proto, ArchiveNote).
   optional google.protobuf.Timestamp archived_at = 7;
 }
