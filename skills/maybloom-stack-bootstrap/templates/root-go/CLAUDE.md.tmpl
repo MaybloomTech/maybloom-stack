@@ -24,7 +24,7 @@ pnpm proto:gen          # buf generate, after any proto change (TypeScript side)
 pnpm typecheck
 pnpm lint               # buf lint + biome
 docker compose up -d db # the development Postgres
-pnpm dev:backend        # go run with the compose database and DEV_USER=dev
+pnpm dev:backend        # scripts/go run on the compose network (no Go needed), DEV_USER=dev, :8080 published
 pnpm dev:interface
 ```
 

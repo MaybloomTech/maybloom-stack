@@ -2,7 +2,11 @@
 
 Create `packages/backend/src/core/<resources>/store.ts`. The store holds
 the actual business logic. Handlers should be one or two lines that wrap a
-store function.
+store function. Presence and ranges (a required message, a `uuid` id, a
+title's length, the `page_size` cap) are the contract's `buf.validate`
+rules, enforced by `src/validate.ts` before any handler runs, so the store
+never checks them again; it throws for what the contract cannot express (a
+row that is not there, a page token it did not issue).
 
 ## Pattern
 
@@ -20,9 +24,6 @@ import {
 } from "core/<resources>/adapter";
 
 export async function create<Resource>(createdBy: string, input: <Resource>) {
-  if (!input.title.trim()) {
-    throw new ConnectError("Title is required", Code.InvalidArgument);
-  }
   const [row] = await server.db
     .insert(<resources>)
     .values(<resource>ToInsert(input, randomUUID(), createdBy))
@@ -33,9 +34,6 @@ export async function create<Resource>(createdBy: string, input: <Resource>) {
 // archived moves the row in or out of the archive; the row stays either
 // way. This is the stack's default shape for "delete".
 export async function update<Resource>(input: <Resource>, archived: boolean) {
-  if (!input.id) {
-    throw new ConnectError("<Resource> id is required", Code.InvalidArgument);
-  }
   const [row] = await server.db
     .update(<resources>)
     .set({

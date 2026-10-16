@@ -14,3 +14,10 @@ services:
 volumes:
   db:
     driver: local
+
+# Named so `scripts/go` (the Go toolchain in Docker) can join it and reach
+# the database as `db`; the root package.json's dev:backend and test:backend
+# use it.
+networks:
+  default:
+    name: __APP_SLUG__-dev

@@ -101,10 +101,11 @@ service. See [Choosing a runtime](./choosing.md).
 ## Validation in the contract
 
 **protovalidate constraints** (`buf.validate` field options) are the input
-validation, and the contract is where they live. The Go path enforces them
-in an interceptor, so handlers check nothing; the TypeScript path can with
-`@bufbuild/protovalidate`, and until it does its stores check presence.
-On the Go path that interceptor is innermost and logging sits outside
+validation, and the contract is where they live. Both paths enforce them
+in an interceptor (`connectrpc.com/validate` in Go, `@bufbuild/protovalidate`
+behind a Connect interceptor in TypeScript), so handlers and stores check
+nothing the contract states and the two backends refuse the same requests
+with the same code. On the Go path that interceptor is innermost and logging sits outside
 auth, so a request refused for either reason is still one log line with
 its request id; a refusal that leaves no trace is the harder kind to
 debug.

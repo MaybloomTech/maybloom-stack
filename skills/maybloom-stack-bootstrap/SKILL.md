@@ -184,8 +184,10 @@ start dev servers.
    pnpm dev:backend
    ```
 
-   **Go**: runs `go run` against the compose database with `DEV_USER=dev`
-   and CORS for the Expo dev server. The log shows `starting`, the
+   **Go**: runs `scripts/go run` (the toolchain in Docker, so no Go on
+   the machine is needed) joined to the compose network, with the
+   database as `db`, port 8080 published, `DEV_USER=dev` and CORS for the
+   Expo dev server. The log shows `starting`, the
    `DEV_USER` warning, and `listening` on `:8080`; migrations applied on
    open. `/healthz` and `/readyz` answer, and `Health` over Connect:
 
@@ -237,10 +239,10 @@ These are the patterns embedded in the templates. When the user asks
   does the same.
 - **Input rules live in the contract.** `buf.validate` options on the
   resource (always-valid invariants: lengths) and on the request
-  envelopes (presence: `required`, `uuid`, bounded `page_size`). The Go
-  path enforces them in the validate interceptor, so handlers check
-  nothing; the TypeScript path's stores still check presence (it can
-  adopt `@bufbuild/protovalidate`).
+  envelopes (presence: `required`, `uuid`, bounded `page_size`). Both
+  paths enforce them in a validate interceptor (`connectrpc.com/validate`,
+  `@bufbuild/protovalidate` in `src/validate.ts`), so handlers and stores
+  check nothing the contract states.
 - **handler → store → adapter on the backend.** Go: handlers in
   `internal/server/<resource>.go`, stores in `internal/store/<resources>.go`,
   adapters in `internal/store/adapters.go` over the sqlc output, the

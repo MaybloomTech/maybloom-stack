@@ -15,12 +15,14 @@ are in `../../maybloom-stack-shared/references/paths/backend-go/README.md`.
 
 It is the shape the reference implementation runs in production, with
 the plugin's own prescriptions kept where that app lacks them (the
-request id, the public-message error wrapper, `emit_empty_slices`).
+request id, the public-message error wrapper in `internal/rpcerr`,
+`emit_empty_slices`).
 
 Sections: Dependencies and tool pinning · go.mod and go.sum · Codegen
 entry point · Config · Migrations and the pool · run() · Identity · Server
-and interceptors · Health · sqlc.yaml · Lint · Dockerfile and the Docker
-wrappers · Tests and the dev database · What to check as you go.
+and interceptors · Health · sqlc.yaml · Transactions · Lint · Dockerfile
+and the Docker wrappers · Tests and the dev database · What to check as
+you go.
 
 Placeholders: `__GO_MODULE__`, `__APP_SLUG__` (also the binary and the
 `cmd/` directory), `__APP_NAME__`. The port is 8080.
@@ -209,11 +211,62 @@ auth interceptor's open list.
 `db/queries`, output `internal/store/storedb` with `sql_package: pgx/v5`.
 Three options carry weight: `emit_methods_with_db_argument` makes every
 generated method take a `DBTX`, so the same `Querier` works against the
-pool or a transaction, which is what lets `RunInTx` exist;
+pool or a transaction, which is what lets a transaction helper exist;
 `emit_interface` generates the `Querier` interface that is the seam tests
 substitute; `emit_empty_slices` makes an empty `:many` answer `[]` rather
 than `nil`, so adapters never special-case it. For MariaDB: `engine:
 mysql`, `sql_package: database/sql`, and the adapters use `sql.Null*`.
+
+## Transactions
+
+The scaffold ships no transaction helper: the Note store has no
+multi-table mutation, and a helper nothing calls is a helper nothing
+tests. The first mutation that touches two tables adds this to `store.go`
+and passes the `tx` to every query inside `fn` (every generated method
+takes a `DBTX`, so the same `Querier` runs against the pool or the
+transaction):
+
+```go
+// RunInTx runs fn in a transaction and retries serialization failures
+// (SQLSTATE 40001, 40P01) a few times. fn must be idempotent and must use
+// the tx it is handed.
+func (s *Store) RunInTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	const attempts = 3
+	var err error
+	for range attempts {
+		err = s.runOnce(ctx, fn)
+		if err == nil || !retryable(err) {
+			return err
+		}
+	}
+	return fmt.Errorf("transaction gave up after %d attempts: %w", attempts, err)
+}
+
+func (s *Store) runOnce(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	if err := fn(ctx, tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+func retryable(err error) bool {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+	}
+	return false
+}
+```
+
+For MariaDB the retryable codes are 1213 and 1205. The patterns that run
+inside it are in `../../maybloom-stack-shared/references/tx-patterns.md`.
 
 ## Lint
 
@@ -295,6 +348,6 @@ go build ./... && go vet ./... && ../scripts/golangci-lint run
 go test ./...                    # interceptor and config tests; store and wire tests skip
 docker compose up -d db          # at the repo root
 TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test -p 1 ./...   # one package at a time: they share the database
-pnpm dev:backend                 # at the repo root: migrations apply on boot; watch the log
+pnpm dev:backend                 # at the repo root, through scripts/go on the compose network; migrations apply on boot
 docker build -f go/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD) .
 ```

@@ -11,6 +11,8 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+
+	"__GO_MODULE__/internal/rpcerr"
 )
 
 // Identity is the caller. UserID is what stores write into created_by.
@@ -103,7 +105,9 @@ func (interceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect
 func (i interceptor) authenticate(ctx context.Context, header http.Header, procedure string) (context.Context, error) {
 	id, err := i.a.Authenticate(ctx, header)
 	if err != nil {
-		return ctx, connect.NewError(connect.CodeInternal, err)
+		// The provider's message (a token endpoint's body, a network error)
+		// is for the log, never for the caller.
+		return ctx, rpcerr.Internal("could not resolve the caller", err)
 	}
 	if id == nil && !i.open[procedure] {
 		return ctx, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))

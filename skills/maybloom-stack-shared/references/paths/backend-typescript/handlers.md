@@ -56,9 +56,13 @@ export const create<Resource>: MethodImpl<Create<Resource>Method> = async (
       Code.InvalidArgument,
     );
   }
-  // The session user, never the client's word for it; "dev" until auth
-  // is wired (kUserId is set in main.ts's contextValues).
-  const createdBy = context.values.get(kUserId) ?? "dev";
+  // The caller, never the client's word for it, and no caller is a
+  // refusal, not a default (kUserId is set in main.ts's contextValues:
+  // DEV_USER in development, a real credential once auth is wired).
+  const createdBy = context.values.get(kUserId);
+  if (!createdBy) {
+    throw new ConnectError("sign in first", Code.Unauthenticated);
+  }
   const <resource> = await create<Resource>Core(createdBy, input);
   return create(Create<Resource>ResponseSchema, { <resource> });
 };

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"regexp"
 	"time"
 
 	"connectrpc.com/connect"
@@ -96,10 +97,15 @@ func (requestIDInterceptor) WrapStreamingClient(next connect.StreamingClientFunc
 	return next
 }
 
-// withRequestID keeps the caller's id when it is plausible, mints one
+// requestIDShape is what a caller's X-Request-ID may look like; anything
+// else (too long, spaces, control characters that would end up in a log line
+// or a header) is replaced by a fresh id.
+var requestIDShape = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// withRequestID keeps the caller's id when it has the shape, mints one
 // otherwise, and puts it on the context.
 func withRequestID(ctx context.Context, id string) (context.Context, string) {
-	if id == "" || len(id) > 64 {
+	if !requestIDShape.MatchString(id) {
 		id = newRequestID()
 	}
 	return context.WithValue(ctx, requestIDKey{}, id), id

@@ -9,8 +9,11 @@
 #   scripts/go generate .
 #
 # GO_IMAGE overrides the image; keep it in step with go/Dockerfile.
-# GO_DOCKER_ARGS adds docker run flags (a --network for the test database, a
-# -p to publish the port, -e for settings); TEST_DATABASE_URL passes through.
+# GO_DOCKER_ARGS adds docker run flags (a --network for the database, a -p to
+# publish the port); the backend's settings (DATABASE_URL, DEV_USER, ... and
+# TEST_DATABASE_URL) pass through when set, so `DEV_USER=dev scripts/go run
+# ./cmd/<slug>` means what it says. The root package.json's dev:backend and
+# test:backend are this script joined to the compose network.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,13 +33,21 @@ ensure_volume "${PROJECT}-gomodcache"
 ensure_volume "${PROJECT}-gocache"
 ensure_volume "${PROJECT}-gohome"
 
+# The backend's settings, when set in the calling shell. (The expansion below
+# is the bash 3 spelling of "the array, or nothing": macOS ships bash 3.2 and
+# `set -u` there treats an empty array as unbound.)
+PASS_ENV=()
+for v in ADDR ENVIRONMENT PUBLIC_URL DATABASE_URL DEV_USER CORS_ORIGINS LOG_FORMAT MAX_REQUEST_BYTES TEST_DATABASE_URL; do
+  if [ -n "${!v-}" ]; then PASS_ENV+=(-e "$v"); fi
+done
+
 # Files the toolchain writes (go.sum, generated code) must belong to the
 # invoking user, not root, so the container runs as that uid with writable
 # caches of its own.
 exec docker run --rm -i \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
-  -e TEST_DATABASE_URL="${TEST_DATABASE_URL-}" \
+  ${PASS_ENV[@]+"${PASS_ENV[@]}"} \
   ${GO_DOCKER_ARGS-} \
   -v "${PROJECT}-gomodcache:/go/pkg" \
   -v "${PROJECT}-gocache:/tmp/gocache" \

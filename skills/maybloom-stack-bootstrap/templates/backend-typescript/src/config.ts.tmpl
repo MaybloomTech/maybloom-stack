@@ -24,6 +24,10 @@ export const configSchema = Type.Object({
   DATABASE_URL: Type.String({
     default: "pglite://./.dev-db/__APP_SLUG__",
   }),
+  // Development only: every request is this user, no identity provider
+  // needed. server.ts refuses it in production and refuses to boot without
+  // it until a real identity is set in main.ts's contextValues.
+  DEV_USER: Type.Optional(Type.String()),
 });
 
 export type Config = Static<typeof configSchema>;

@@ -1,7 +1,7 @@
 import fastifyEnv from "@fastify/env";
 import fastifyCors from "@fastify/cors";
 import { fastify } from "fastify";
-import { configSchema } from "config";
+import { Environment, configSchema } from "config";
 import dbPlugin from "db/plugin";
 
 export const server = fastify({
@@ -19,6 +19,18 @@ export async function bootstrapServer(callback: BootstrapCallback) {
 
   await server.register(fastifyEnv, { schema: configSchema, dotenv: true });
   server.log.level = server.config.LOG_LEVEL;
+  // The authenticator rule, checked before the database opens: production
+  // never takes DEV_USER, and until a real identity is wired (kUserId in
+  // main.ts's contextValues) nothing else can say who the caller is.
+  if (server.config.ENVIRONMENT === Environment.PRODUCTION && server.config.DEV_USER) {
+    throw new Error("DEV_USER is not allowed in production");
+  }
+  if (!server.config.DEV_USER) {
+    throw new Error(
+      "no authenticator: set DEV_USER in development, or set kUserId from a real credential in main.ts (contextValues) and change this rule",
+    );
+  }
+  server.log.warn({ user: server.config.DEV_USER }, "DEV_USER is set: every request is this user");
   await server.register(fastifyCors, {
     origin: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

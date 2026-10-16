@@ -36,6 +36,8 @@ ARG VERSION=dev
 RUN adduser -D -u 10001 __APP_SLUG__
 COPY --from=build /out/__APP_SLUG__ /usr/local/bin/__APP_SLUG__
 USER __APP_SLUG__
+# The image pins the listen address so the HEALTHCHECK below can name the
+# port; change both together, or map a different host port with -p instead.
 ENV ADDR=:8080
 EXPOSE 8080
 LABEL org.opencontainers.image.revision="${VERSION}"

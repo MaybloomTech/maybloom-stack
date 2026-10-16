@@ -11,6 +11,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY buf.yaml buf.gen.yaml ./
 COPY proto proto
+# buf.yaml names two modules: proto/ and the vendored buf/validate.
+COPY third_party third_party
 COPY packages/backend packages/backend
 COPY packages/protocol-buffers packages/protocol-buffers
 

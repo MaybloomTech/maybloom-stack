@@ -292,8 +292,8 @@ Conventions:
 - **connect-go sends `err.Error()` to the client.** A plain wrapped error
   returned from a handler reaches the wire as `CodeUnknown` with the full
   message, and `connect.NewError(CodeInternal, fmt.Errorf("...: %w", err))`
-  sends the driver's text too. The scaffold's `internalError(public,
-  cause)` is the answer: `Error()` is the public text, `Unwrap()` the
+  sends the driver's text too. The scaffold's `rpcerr.Internal(public,
+  cause)` (`internalError` inside the store) is the answer: `Error()` is the public text, `Unwrap()` the
   cause, and the logging interceptor logs the cause. The message the
   client sees is part of the contract; the cause never is.
 - **Make errors per call, never in a package variable.** The `RequestID`
@@ -301,7 +301,9 @@ Conventions:
   `var errNotFound = connect.NewError(...)` is one header map every
   missing request writes at once. `func noteNotFound() error` is the
   shape.
-- Multi-table mutations go through `RunInTx(ctx, pool, func(ctx, tx) error)`
+- Multi-table mutations go through `RunInTx(ctx, func(ctx, tx) error)`
+  (added to `store.go` with the first one; the shape is in the module
+  skeleton, Transactions)
   — the helper that retries serialization failures (SQLSTATE 40001,
   40P01). Every generated query method takes a `DBTX`
   (`emit_methods_with_db_argument`), so the same `Querier` works against

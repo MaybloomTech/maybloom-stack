@@ -11,14 +11,18 @@ export const createNote: MethodImpl<CreateNoteMethod> = async (
   request,
   context,
 ) => {
+  // `required` in the contract; the validate interceptor has refused a
+  // missing note already, this narrows the type.
   const noteInput = request.note;
   if (!noteInput) {
     throw new ConnectError("Note is required", Code.InvalidArgument);
   }
-  // created_by is the session user, never the client's word for it. Until
-  // the deployment wires auth (kUserId is set in main.ts's contextValues),
-  // the fallback is a fixed development identity.
-  const createdBy = context.values.get(kUserId) ?? "dev";
+  // created_by is the caller, never the client's word for it, and a request
+  // with no caller is refused rather than written as anyone.
+  const createdBy = context.values.get(kUserId);
+  if (!createdBy) {
+    throw new ConnectError("sign in first", Code.Unauthenticated);
+  }
   const note = await createNoteCore(createdBy, noteInput);
   return create(CreateNoteResponseSchema, { note });
 };

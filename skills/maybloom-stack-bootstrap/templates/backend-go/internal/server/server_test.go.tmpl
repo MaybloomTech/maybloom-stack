@@ -168,6 +168,22 @@ func TestStreamingInterceptors(t *testing.T) {
 		t.Fatalf("the error should carry the request id: %v", err)
 	}
 
+	// A caller's id is kept only when it has the shape.
+	for _, tc := range []struct{ in, want string }{
+		{"abc-123_X", "abc-123_X"},
+		{"has space", ""},
+		{"nope\n", ""},
+		{"", ""},
+	} {
+		_, got := withRequestID(ctx, tc.in)
+		if tc.want != "" && got != tc.want {
+			t.Fatalf("withRequestID(%q) = %q, want it kept", tc.in, got)
+		}
+		if tc.want == "" && (got == tc.in || !requestIDShape.MatchString(got)) {
+			t.Fatalf("withRequestID(%q) = %q, want a fresh id", tc.in, got)
+		}
+	}
+
 	// Recover: a panic in a stream handler is CodeInternal, not a crash.
 	err = Recover(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error {
 		panic("boom")

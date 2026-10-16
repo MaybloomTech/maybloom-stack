@@ -2,8 +2,9 @@ import { createContextValues, type ServiceImpl } from "@connectrpc/connect";
 import { fastifyConnectPlugin } from "@connectrpc/connect-fastify";
 import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
 import { routes } from "routes";
-import { kRequestId } from "context";
+import { kRequestId, kUserId } from "context";
 import { bootstrapServer } from "server";
+import { validateInterceptor } from "validate";
 import { createNote } from "handlers/createNote";
 import { updateNote } from "handlers/updateNote";
 import { getNote } from "handlers/getNote";
@@ -15,8 +16,8 @@ bootstrapServer(async (app) => {
   // a four-step dance: declare it in the proto, regen, write a handler, and
   // wire it in here. The TypeScript compiler will refuse to build until the
   // shape of this object matches the service definition. The contract's
-  // buf.validate rules are not enforced on this path (@bufbuild/protovalidate
-  // can; see the stack's contracts document), so stores check presence.
+  // buf.validate rules are enforced by validateInterceptor before any
+  // handler runs, so handlers and stores check nothing the contract states.
   const __APP_SLUG__Service: ServiceImpl<typeof __APP_NAME__Service> = {
     health,
     createNote,
@@ -29,12 +30,17 @@ bootstrapServer(async (app) => {
     routes: (router) => {
       router.service(__APP_NAME__Service, __APP_SLUG__Service);
     },
+    interceptors: [validateInterceptor],
+    // Who is calling and which request this is, for every handler. The
+    // identity is the development user until a real credential is read
+    // here (server.ts holds the rule that refuses to boot without one).
     contextValues: (req) => {
       const contextValues = createContextValues();
       const requestId = req.headers["x-request-id"];
-      if (typeof requestId === "string") {
+      if (typeof requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(requestId)) {
         contextValues.set(kRequestId, requestId);
       }
+      contextValues.set(kUserId, app.config.DEV_USER);
       return contextValues;
     },
   });
