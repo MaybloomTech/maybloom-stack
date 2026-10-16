@@ -75,7 +75,7 @@ flags.
 | Prompt | Variable | Example | Notes |
 |---|---|---|---|
 | What's the display name? | `__APP_NAME__` | `Foobar` | PascalCase. Becomes the Expo app name and the Connect service name (`FoobarService`). |
-| Slug? | `__APP_SLUG__` | `foobar` | lowercase, dashes ok, no spaces. Drives the proto package, the npm package basenames, the database name, the Go binary name, the Android package, etc. |
+| Slug? | `__APP_SLUG__` | `foobar` | lowercase letters and digits, starting with a letter; no dashes or spaces (it is a proto package segment and a TypeScript identifier, so `my-app` is refused). Drives the proto package, the npm package basenames, the database name, the Go binary name, the Android package, etc. |
 | npm org / scope? | `__ORG_SCOPE__` | `@foobar-tech` | Must start with `@`. Becomes `@foobar-tech/interface`, `@foobar-tech/protocol-buffers`, and `@foobar-tech/backend` on the TypeScript path. |
 | Where to scaffold? | `--out` | `~/workspace/foobar` | Must be empty or non-existent. |
 | Which backend? | `--backend` | `go` | `go` (default) or `typescript`. Don't ask when the user has no preference: say the scaffold is Go and move on. |

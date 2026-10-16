@@ -50,28 +50,66 @@ func IdentityFrom(ctx context.Context) *Identity {
 	return id
 }
 
-// Interceptor gates: it resolves the caller on every RPC and rejects
-// anonymous calls with CodeUnauthenticated, except for the procedures in
-// open (the health check). The alternative shape, which populates and lets
-// each handler assert, fits a service whose anonymous RPCs are a feature.
-func Interceptor(a Authenticator, open ...string) connect.UnaryInterceptorFunc {
+// Interceptor gates: it resolves the caller on every RPC, unary and
+// streaming, and rejects anonymous calls with CodeUnauthenticated, except for
+// the procedures in open (the health check). The alternative shape, which
+// populates and lets each handler assert, fits a service whose anonymous
+// RPCs are a feature.
+//
+// It is a full connect.Interceptor on purpose: a UnaryInterceptorFunc is not
+// applied to streaming RPCs, so the first stream in the contract would be
+// open to everyone.
+func Interceptor(a Authenticator, open ...string) connect.Interceptor {
 	openSet := make(map[string]bool, len(open))
 	for _, p := range open {
 		openSet[p] = true
 	}
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			id, err := a.Authenticate(ctx, req.Header())
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
-			}
-			if id == nil && !openSet[req.Spec().Procedure] {
-				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
-			}
-			if id != nil {
-				ctx = WithIdentity(ctx, id)
-			}
-			return next(ctx, req)
+	return interceptor{a: a, open: openSet}
+}
+
+type interceptor struct {
+	a    Authenticator
+	open map[string]bool
+}
+
+func (i interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		ctx, err := i.authenticate(ctx, req.Header(), req.Spec().Procedure)
+		if err != nil {
+			return nil, err
 		}
+		return next(ctx, req)
 	}
+}
+
+func (i interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		ctx, err := i.authenticate(ctx, conn.RequestHeader(), conn.Spec().Procedure)
+		if err != nil {
+			return err
+		}
+		return next(ctx, conn)
+	}
+}
+
+// WrapStreamingClient is the identity: the server makes no outbound RPCs.
+func (interceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+// authenticate is the gate itself, shared by both RPC shapes: the identity on
+// the context, or the error that refuses the call. Errors are made here, per
+// call, because the RequestID interceptor writes into an error's Meta.
+func (i interceptor) authenticate(ctx context.Context, header http.Header, procedure string) (context.Context, error) {
+	id, err := i.a.Authenticate(ctx, header)
+	if err != nil {
+		return ctx, connect.NewError(connect.CodeInternal, err)
+	}
+	if id == nil && !i.open[procedure] {
+		return ctx, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
+	}
+	if id != nil {
+		ctx = WithIdentity(ctx, id)
+	}
+	return ctx, nil
 }

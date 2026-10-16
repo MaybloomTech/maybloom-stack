@@ -16,10 +16,22 @@ import (
 // interceptor's (the contract's buf.validate rules), so there is nothing
 // left to check here; a handler past twenty lines is logic leaking in.
 
-func (s *Service) CreateNote(ctx context.Context, req *connect.Request[servicev1.CreateNoteRequest]) (*connect.Response[servicev1.CreateNoteResponse], error) {
+// caller is the identity the auth interceptor put on the context. The gate
+// already refused the anonymous, so the nil case is a wiring mistake (the
+// procedure on the open list, the interceptor missing from the chain), and a
+// handler that writes created_by still refuses it rather than writing "".
+func caller(ctx context.Context) (*auth.Identity, error) {
 	id := auth.IdentityFrom(ctx)
 	if id == nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
+	}
+	return id, nil
+}
+
+func (s *Service) CreateNote(ctx context.Context, req *connect.Request[servicev1.CreateNoteRequest]) (*connect.Response[servicev1.CreateNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
 	}
 	note, err := s.store.CreateNote(ctx, id.UserID, req.Msg.GetNote())
 	if err != nil {
@@ -50,10 +62,14 @@ func (s *Service) ListNotes(ctx context.Context, req *connect.Request[servicev1.
 }
 
 func (s *Service) UpdateNote(ctx context.Context, req *connect.Request[servicev1.UpdateNoteRequest]) (*connect.Response[servicev1.UpdateNoteResponse], error) {
+	id, err := caller(ctx)
+	if err != nil {
+		return nil, err
+	}
 	note, err := s.store.UpdateNote(ctx, req.Msg.GetNote(), req.Msg.GetArchived())
 	if err != nil {
 		return nil, err
 	}
-	s.log.Info("note updated", "user", auth.IdentityFrom(ctx).UserID, "note", note.GetId(), "archived", note.GetArchivedAt() != nil)
+	s.log.Info("note updated", "user", id.UserID, "note", note.GetId(), "archived", note.GetArchivedAt() != nil)
 	return connect.NewResponse(&servicev1.UpdateNoteResponse{Note: note}), nil
 }

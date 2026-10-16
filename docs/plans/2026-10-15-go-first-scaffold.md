@@ -79,7 +79,16 @@ installed) against a Postgres 17 container: `pnpm install`, `buf
 generate`, `go generate .`, `go build`, `go vet`, `go test`, boot, and the
 Note loop over Connect (create, list, get, update, archive). The
 TypeScript path once, to prove the flag. `-race` is not run here: the
-alpine image has no cgo. It runs in CI, which STACK-7 scaffolds.
+alpine image has no cgo. It runs in CI, which STACK-7 scaffolds, as
+`go test -race -p 1 ./...`: the store and server packages share the test
+database and each migrates it on open, so they run one package at a time.
+
+Review of the PR (2026-10-16) added: interceptors as full
+`connect.Interceptor` values (streaming RPCs were bypassing them), errors
+made per call (a shared `connect.Error` is written by `RequestID`'s
+`Meta()`), the authenticator rule in `config.Validate`, slugs without
+dashes, `.env.example` tracked, the TypeScript page token at microsecond
+precision, the docs-site image on 4321.
 
 ## Left to other cards
 

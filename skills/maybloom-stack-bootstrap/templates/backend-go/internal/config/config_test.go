@@ -34,6 +34,7 @@ func TestValidate(t *testing.T) {
 			c.Environment = "production"
 			c.PublicURL = "https://app.example.com"
 		}, want: "DEV_USER"},
+		{name: "no authenticator at all", edit: func(c *Config) { c.DevUser = "" }, want: "no authenticator"},
 		{name: "bad cors origin", edit: func(c *Config) { c.CORSOrigins = []string{"localhost:8081"} }, want: "CORS_ORIGINS"},
 		{name: "zero body cap", edit: func(c *Config) { c.MaxRequestBytes = 0 }, want: "MAX_REQUEST_BYTES"},
 	}

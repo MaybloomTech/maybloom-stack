@@ -35,7 +35,7 @@ the pinned toolchains in Docker for a machine without Go):
 go generate .           # contract (buf) and data layer (sqlc), after any proto or SQL change
 go build ./... && go vet ./... && go test ./...
 scripts/golangci-lint run
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test ./...  # store and server tests against the database
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test -p 1 ./...  # store and server tests share the database: one package at a time
 ```
 
 ## Delegation (the `maybloom-stack-delegate` skill has the roster and rules)

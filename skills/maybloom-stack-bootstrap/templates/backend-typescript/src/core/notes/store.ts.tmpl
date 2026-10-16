@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, lt, or, sql } from "drizzle-orm";
 import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
 import { notes } from "db/schema";
 import { server } from "server";
@@ -74,19 +74,26 @@ export interface NoteFilter {
 // keyset of the last row, opaque to the client, so a note created between
 // two pages cannot shift the rest the way an offset would. The query asks for
 // one row more than the page to learn whether another page follows.
+//
+// The cursor carries created_at as Postgres prints it (microseconds), not as
+// a JS Date: a Date keeps milliseconds, and a token rounded to the
+// millisecond would skip or repeat the rows that share one.
 export async function listNotes(filter: NoteFilter) {
   const size = Math.min(filter.pageSize > 0 ? filter.pageSize : DEFAULT_PAGE, MAX_PAGE);
   const before = decodePageToken(filter.pageToken);
   const rows = await server.db
-    .select()
+    .select({ ...getTableColumns(notes), cursor: sql<string>`${notes.createdAt}::text` })
     .from(notes)
     .where(
       and(
         filter.includeArchived ? undefined : isNull(notes.archivedAt),
         before
           ? or(
-              lt(notes.createdAt, before.createdAt),
-              and(eq(notes.createdAt, before.createdAt), lt(notes.id, before.id)),
+              lt(notes.createdAt, sql`${before.createdAt}::timestamptz`),
+              and(
+                eq(notes.createdAt, sql`${before.createdAt}::timestamptz`),
+                lt(notes.id, before.id),
+              ),
             )
           : undefined,
       ),
@@ -96,22 +103,25 @@ export async function listNotes(filter: NoteFilter) {
   const page = rows.slice(0, size);
   const last = page[page.length - 1];
   return {
-    notes: page.map(noteRowToProto),
-    nextPageToken: rows.length > size && last ? encodePageToken(last.createdAt, last.id) : "",
+    notes: page.map(({ cursor: _cursor, ...row }) => noteRowToProto(row)),
+    nextPageToken: rows.length > size && last ? encodePageToken(last.cursor, last.id) : "",
   };
 }
 
-function encodePageToken(createdAt: Date, id: string): string {
-  return Buffer.from(`${createdAt.getTime()}:${id}`).toString("base64url");
+// What `timestamptz::text` looks like, so a token that is not ours is refused
+// here with InvalidArgument rather than by the database with Internal.
+const TIMESTAMPTZ_TEXT = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/;
+
+function encodePageToken(createdAt: string, id: string): string {
+  return Buffer.from(`${createdAt}|${id}`).toString("base64url");
 }
 
-function decodePageToken(token: string): { createdAt: Date; id: string } | undefined {
+function decodePageToken(token: string): { createdAt: string; id: string } | undefined {
   if (!token) {
     return undefined;
   }
-  const [millis, id] = Buffer.from(token, "base64url").toString().split(":");
-  const createdAt = new Date(Number(millis));
-  if (!id || Number.isNaN(createdAt.getTime())) {
+  const [createdAt, id] = Buffer.from(token, "base64url").toString().split("|");
+  if (!createdAt || !id || !TIMESTAMPTZ_TEXT.test(createdAt)) {
     throw new ConnectError("page_token is not one this service issued", Code.InvalidArgument);
   }
   return { createdAt, id };

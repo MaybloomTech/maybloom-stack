@@ -76,7 +76,9 @@ PLACEHOLDER_KEYS = (
 
 BACKENDS = {"go": "8080", "typescript": "3000"}
 
-SLUG_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+# A proto package segment and a TypeScript identifier at once, so no dashes:
+# `package my-app.resources.v1` does not parse and `my-app_pb` is not a name.
+SLUG_RE = re.compile(r"^[a-z][a-z0-9]*$")
 SPDX_RE = re.compile(r"^[A-Za-z0-9.+-]+$")
 GO_MODULE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._~-]*(/[A-Za-z0-9._~-]+)+$")
 
@@ -102,7 +104,10 @@ def derive_substitutions(
     name: str, slug: str, org: str, license_id: str, backend: str, go_module: str | None
 ) -> dict[str, str]:
     if not SLUG_RE.match(slug):
-        sys.exit(f"--slug must be lowercase letters, digits, or dashes: {slug!r}")
+        sys.exit(
+            f"--slug must be lowercase letters and digits, starting with a letter, no dashes "
+            f"(it is the proto package and a TypeScript identifier): {slug!r}"
+        )
     if not org.startswith("@"):
         sys.exit(f"--org must start with '@': {org!r}")
     if backend not in BACKENDS:
@@ -127,7 +132,7 @@ def derive_substitutions(
     return {
         "__APP_NAME__": name,
         "__APP_SLUG__": slug,
-        "__APP_SLUG_UPPER__": slug.upper().replace("-", "_"),
+        "__APP_SLUG_UPPER__": slug.upper(),
         "__ORG_SCOPE__": org,
         "__GO_MODULE__": go_module,
         "__BACKEND_PORT__": BACKENDS[backend],
@@ -238,7 +243,7 @@ def write_license(templates: Path, out: Path, license_id: str, holder: str) -> b
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--name", required=True, help="Display name, e.g. 'Foobar'")
-    parser.add_argument("--slug", required=True, help="Lowercase slug, e.g. 'foobar'")
+    parser.add_argument("--slug", required=True, help="Lowercase letters and digits, e.g. 'foobar' (no dashes: proto package, TS identifier)")
     parser.add_argument("--org", required=True, help="npm scope, e.g. '@foobar-tech'")
     parser.add_argument("--out", required=True, help="Target directory (must be empty or non-existent)")
     parser.add_argument(

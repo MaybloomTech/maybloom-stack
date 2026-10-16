@@ -296,6 +296,11 @@ Conventions:
   cause)` is the answer: `Error()` is the public text, `Unwrap()` the
   cause, and the logging interceptor logs the cause. The message the
   client sees is part of the contract; the cause never is.
+- **Make errors per call, never in a package variable.** The `RequestID`
+  interceptor writes the id into the error's `Meta()`, so a shared
+  `var errNotFound = connect.NewError(...)` is one header map every
+  missing request writes at once. `func noteNotFound() error` is the
+  shape.
 - Multi-table mutations go through `RunInTx(ctx, pool, func(ctx, tx) error)`
   — the helper that retries serialization failures (SQLSTATE 40001,
   40P01). Every generated query method takes a `DBTX`
@@ -368,7 +373,9 @@ interceptors := connect.WithInterceptors(
 That order is the stack's (decided 2026-10-15): logging outside auth so a
 refused request is logged, the request id outermost after recovery so
 every line carries it, an audit interceptor (opt-in) between auth and
-validate when a service wants one. Rules: a message-typed request field
+validate when a service wants one. Each is a full `connect.Interceptor`
+with `WrapStreamingHandler`, never a `UnaryInterceptorFunc`, which
+streaming RPCs would bypass. Rules: a message-typed request field
 the handler dereferences is `required` (getters are nil-safe, field
 access on a nil message is not, and the recovery interceptor would turn
 that panic into a 500 any client can trigger); always-valid invariants

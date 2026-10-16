@@ -10,6 +10,7 @@
     "dev:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site dev",
     "build:web": "pnpm --filter __ORG_SCOPE__/interface build:web",
     "build:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site build",
+    "test:backend": "go test -C go -p 1 ./...",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm lint:proto && pnpm lint:ts",
     "lint:proto": "buf lint",
@@ -21,7 +22,7 @@
     "docker:backend:build": "docker build -f go/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD 2>/dev/null || echo dev) -t __APP_SLUG__-backend .",
     "docker:backend:run": "docker run --rm -p 8080:8080 -e DATABASE_URL -e DEV_USER=dev __APP_SLUG__-backend",
     "docker:docs-site:build": "docker build -f packages/docs-site/Dockerfile -t __APP_SLUG__-docs-site .",
-    "docker:docs-site:run": "docker run --rm -p 8080:80 __APP_SLUG__-docs-site"
+    "docker:docs-site:run": "docker run --rm -p 4321:80 __APP_SLUG__-docs-site"
   },
   "type": "module",
   "devDependencies": {

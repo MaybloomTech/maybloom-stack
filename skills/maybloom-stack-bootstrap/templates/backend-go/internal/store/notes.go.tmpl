@@ -36,7 +36,12 @@ type NotePage struct {
 	NextPageToken string
 }
 
-var errNoteNotFound = connect.NewError(connect.CodeNotFound, errors.New("note not found"))
+// noteNotFound is made per call, never kept in a package variable: the
+// RequestID interceptor writes into an error's Meta, so one shared error
+// would be one header map written by every request that misses at once.
+func noteNotFound() error {
+	return connect.NewError(connect.CodeNotFound, errors.New("note not found"))
+}
 
 // CreateNote writes a note for createdBy (the caller: handlers take it from
 // the identity on the context, never from the request).
@@ -59,7 +64,7 @@ func (s *Store) GetNote(ctx context.Context, id string) (*resourcesv1.Note, erro
 	}
 	row, err := s.q.GetNote(ctx, s.pool, uid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errNoteNotFound
+		return nil, noteNotFound()
 	}
 	if err != nil {
 		return nil, internalError("could not read the note", err)
@@ -99,7 +104,7 @@ func (s *Store) UpdateNote(ctx context.Context, in *resourcesv1.Note, archived b
 		Archived: archived,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errNoteNotFound
+		return nil, noteNotFound()
 	}
 	if err != nil {
 		return nil, internalError("could not update the note", err)

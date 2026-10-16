@@ -22,7 +22,10 @@ type Config struct {
 	// pgx pool URL. Migrations run against it on boot.
 	DatabaseURL string `env:"DATABASE_URL,required"`
 	// Development only: every request is this user, no identity provider
-	// needed. Production refuses it; it needs a real auth.Authenticator.
+	// needed. Production refuses it; it needs a real auth.Authenticator, and
+	// until one is wired (cmd/<slug>/main.go) Validate refuses to boot
+	// without DEV_USER, so a deploy fails at config time, before the
+	// database is opened or migrated.
 	DevUser string `env:"DEV_USER"`
 	// Browser origins allowed to call the API from another origin (the Expo
 	// dev server). Empty means no CORS headers at all, which is production:
@@ -71,8 +74,13 @@ func (c Config) Validate() error {
 			errs = append(errs, fmt.Errorf("CORS_ORIGINS entries are origins like http://localhost:8081, got %q", origin))
 		}
 	}
-	if c.Production() && c.DevUser != "" {
+	// The authenticator rule. Replace this case, not the one above, when a
+	// real auth.Authenticator is wired: production must never take DEV_USER.
+	switch {
+	case c.Production() && c.DevUser != "":
 		errs = append(errs, errors.New("DEV_USER is not allowed in production"))
+	case c.DevUser == "":
+		errs = append(errs, errors.New("no authenticator: set DEV_USER in development, or wire an auth.Authenticator (config.Validate, cmd/<slug>/main.go)"))
 	}
 	return errors.Join(errs...)
 }

@@ -91,6 +91,12 @@ in production), `DATABASE_URL` (required), `DEV_USER`, `CORS_ORIGINS`,
 `LOG_FORMAT`, `MAX_REQUEST_BYTES`. `config_test.go` is a table test over
 `Validate`; extend it with every setting added.
 
+The authenticator rule lives here too: `Validate` refuses to boot without
+`DEV_USER` until a real `auth.Authenticator` is wired, and refuses
+`DEV_USER` in production. It is a config rule, not a check in `run()`,
+so a misconfigured deploy fails before the database is opened or
+migrated.
+
 ## Migrations and the pool
 
 Two packages. `db/db.go` embeds the migrations, because `//go:embed`
@@ -124,12 +130,13 @@ resolves the caller from the request headers (`nil, nil` is anonymous);
 (anonymous and not on the open list is `CodeUnauthenticated`), with
 `Health` the one open procedure; `IdentityFrom(ctx)` is how a handler
 reads the caller. The scaffold ships one implementation,
-`DevAuthenticator` from `DEV_USER`. The config refuses `DEV_USER` in
-production, and `run()` refuses to start without an authenticator, so a
-production deploy fails loudly until the project wires a real one: an
-OIDC client behind the household's provider, or bearer tokens the service
-mints (the stack's Go document, Auth, has both shapes). That first auth
-decision lives in this package beside the seam.
+`DevAuthenticator` from `DEV_USER`. `config.Validate` refuses `DEV_USER`
+in production and refuses to start without one otherwise, so a production
+deploy fails loudly, at config time, until the project wires a real one:
+an OIDC client behind the household's provider, or bearer tokens the
+service mints (the stack's Go document, Auth, has both shapes). That first
+auth decision lives in this package beside the seam, with its config rule
+in `Validate`.
 
 The gating shape fits a service where most RPCs need a user and the
 exceptions fit in a list. A service whose anonymous RPCs are a feature
@@ -159,6 +166,23 @@ An audit interceptor, when a service wants one, goes between auth and
 validate; it is opt-in, and there is no read marker in the contract to
 drive it (`NO_SIDE_EFFECTS` left the conventions on 2026-10-15), so it
 keeps its own list of the RPCs it records.
+
+Two rules the interceptors impose on the rest of the module:
+
+- **Every interceptor is a full `connect.Interceptor`** (`WrapUnary`,
+  `WrapStreamingHandler`, and `WrapStreamingClient` as the identity),
+  never a `connect.UnaryInterceptorFunc`. A `UnaryInterceptorFunc` is
+  skipped for streaming RPCs, so the first stream added to the contract
+  would arrive without recovery, a request id or a log line, and would be
+  open to the anonymous. The shared logic sits in one method per
+  interceptor (`authenticate`, `logRPC`, `recover`) that both wrappers
+  call. An audit interceptor follows the same shape.
+- **Errors are made per call, never kept in a package variable.**
+  `RequestID` writes the id into the error's `Meta()` on a refusal, so a
+  shared `var errNotFound = connect.NewError(...)` would be one header map
+  written by every request that misses at once, a concurrent map write.
+  The store's `noteNotFound()` is a function for that reason; so is every
+  `connect.NewError` in `auth` and `paging.go`.
 
 The `Service` struct (`service.go`) must satisfy the generated
 `__APP_NAME__ServiceHandler` interface; one file per resource holds its
@@ -237,7 +261,15 @@ the generated client against `httptest.NewServer(NewMux(deps))`) still
 run: `Health` open, the gate refusing the anonymous, validate refusing an
 empty title and a `page_size` over the cap, the request id on the
 response. With the database, the store tests walk the Note loop and the
-paging, and the server test walks it over the wire.
+paging, and the server test walks it over the wire. The streaming halves
+of the interceptors are exercised directly with a fake
+`StreamingHandlerConn` (`TestStreamingInterceptors`), since the contract
+has no streaming RPC to drive them through.
+
+The store and server packages share `TEST_DATABASE_URL` and each migrates
+it on open, so with the database set they run one package at a time:
+`go test -p 1 ./...` (`pnpm test:backend` at the repo root). CI does the
+same with `-race` (STACK-7).
 
 The compose database at the repo root is the usual dev database; a
 throwaway `postgres:17-alpine` container on a Docker network is the shape
@@ -263,7 +295,7 @@ go mod tidy && go generate .     # go.sum against the pins; buf (gen/) then sqlc
 go build ./... && go vet ./... && ../scripts/golangci-lint run
 go test ./...                    # interceptor and config tests; store and wire tests skip
 docker compose up -d db          # at the repo root
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test ./...
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test -p 1 ./...   # one package at a time: they share the database
 pnpm dev:backend                 # at the repo root: migrations apply on boot; watch the log
 docker build -f go/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD) .
 ```

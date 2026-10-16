@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -127,5 +128,76 @@ func TestNoteLoop(t *testing.T) {
 	_, err = client.GetNote(ctx, connect.NewRequest(&servicev1.GetNoteRequest{Id: "00000000-0000-0000-0000-000000000000"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("unknown id: want CodeNotFound, got %v", err)
+	}
+}
+
+// fakeStream is a StreamingHandlerConn for the interceptors' streaming halves:
+// the contract has no streaming RPC yet, and the day it gets one these must
+// already apply (a UnaryInterceptorFunc would not).
+type fakeStream struct {
+	procedure string
+	req, res  http.Header
+}
+
+func (f *fakeStream) Spec() connect.Spec {
+	return connect.Spec{Procedure: f.procedure, StreamType: connect.StreamTypeServer}
+}
+func (f *fakeStream) Peer() connect.Peer           { return connect.Peer{} }
+func (f *fakeStream) Receive(any) error            { return nil }
+func (f *fakeStream) RequestHeader() http.Header   { return f.req }
+func (f *fakeStream) Send(any) error               { return nil }
+func (f *fakeStream) ResponseHeader() http.Header  { return f.res }
+func (f *fakeStream) ResponseTrailer() http.Header { return http.Header{} }
+
+func TestStreamingInterceptors(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	log := slog.New(slog.DiscardHandler)
+	conn := &fakeStream{procedure: "/x.v1.Service/Watch", req: http.Header{}, res: http.Header{}}
+
+	// RequestID: on the context and the response header, then on the error.
+	var seen string
+	err := RequestID().WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		seen = RequestIDFrom(ctx)
+		return connect.NewError(connect.CodeNotFound, errors.New("gone"))
+	})(ctx, conn)
+	if seen == "" || conn.res.Get(requestIDHeader) != seen {
+		t.Fatalf("request id: context %q, header %q", seen, conn.res.Get(requestIDHeader))
+	}
+	if cerr, ok := errors.AsType[*connect.Error](err); !ok || cerr.Meta().Get(requestIDHeader) != seen {
+		t.Fatalf("the error should carry the request id: %v", err)
+	}
+
+	// Recover: a panic in a stream handler is CodeInternal, not a crash.
+	err = Recover(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error {
+		panic("boom")
+	})(ctx, conn)
+	if connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("panic: want CodeInternal, got %v", err)
+	}
+
+	// Logging passes the error through unchanged.
+	want := connect.NewError(connect.CodeUnavailable, errors.New("down"))
+	err = Logging(log).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return want })(ctx, conn)
+	if !errors.Is(err, want) {
+		t.Fatalf("logging: want the handler's error back, got %v", err)
+	}
+
+	// auth gates streams too: anonymous is refused unless the procedure is open.
+	refused := auth.Interceptor(anonymous{}).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return nil })
+	if err := refused(ctx, conn); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("anonymous stream: want CodeUnauthenticated, got %v", err)
+	}
+	open := auth.Interceptor(anonymous{}, conn.procedure).WrapStreamingHandler(func(context.Context, connect.StreamingHandlerConn) error { return nil })
+	if err := open(ctx, conn); err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	var id *auth.Identity
+	signed := auth.Interceptor(auth.DevAuthenticator{UserID: "tester"}).WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		id = auth.IdentityFrom(ctx)
+		return nil
+	})
+	if err := signed(ctx, conn); err != nil || id == nil || id.UserID != "tester" {
+		t.Fatalf("signed-in stream: identity %v, err %v", id, err)
 	}
 }

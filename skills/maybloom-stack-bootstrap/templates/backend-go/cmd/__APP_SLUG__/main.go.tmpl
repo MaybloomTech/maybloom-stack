@@ -53,14 +53,11 @@ func run(ctx context.Context, cfg config.Config) error {
 	// Identity is this project's to decide: an OIDC client behind the
 	// household's provider, bearer tokens the service mints itself (the
 	// stack's Go document, Auth). Until one is wired here the server runs
-	// only with a development identity, and refuses to serve anonymously.
-	var authenticator auth.Authenticator
-	if cfg.DevUser != "" {
-		authenticator = auth.DevAuthenticator{UserID: cfg.DevUser}
-		log.Warn("DEV_USER is set: every request is this user", "user", cfg.DevUser)
-	} else {
-		return errors.New("no authenticator: set DEV_USER in development, or wire an auth.Authenticator in cmd/__APP_SLUG__/main.go")
-	}
+	// only with the development identity; config.Validate refuses to boot
+	// without DEV_USER (before the database is touched), and refuses DEV_USER
+	// in production, so wiring a real one means changing both places.
+	var authenticator auth.Authenticator = auth.DevAuthenticator{UserID: cfg.DevUser}
+	log.Warn("DEV_USER is set: every request is this user", "user", cfg.DevUser)
 
 	deps := server.Deps{Store: st, Authenticator: authenticator, CORSOrigins: cfg.CORSOrigins, Log: log}
 	srv := &http.Server{
