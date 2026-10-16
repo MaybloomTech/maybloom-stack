@@ -7,12 +7,11 @@ import { defineCollection } from 'astro:content';
 /**
  * The stack docs live in docs/ at the repo root, so reading them on GitHub and
  * reading them on the site are the same files. A README.md would be a
- * repo-facing index rather than a page, so it stays out of the collection,
- * and so do docs/plans/: the plans are the repo's own records (Date, Status,
- * Cards), not pages of the stack. `order` drives the sidebar and prev/next.
+ * repo-facing index rather than a page, so it stays out of the collection.
+ * `order` drives the sidebar and prev/next.
  */
 const stack = defineCollection({
-  loader: glob({ pattern: ['**/*.md', '!README.md', '!plans/**'], base: '../docs' }),
+  loader: glob({ pattern: ['**/*.md', '!README.md'], base: '../docs' }),
   schema: z.object({
     title: z.string(),
     description: z.string(),

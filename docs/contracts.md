@@ -64,7 +64,10 @@ service. See [Choosing a runtime](./choosing.md).
   done through the resource's Update with `bool archived` (set keeps the
   first `archived_at`, clear brings the row back); hard delete is an
   explicit, per-resource decision for leaf data, and the only reason a
-  `Delete<Resource>` RPC exists.
+  `Delete<Resource>` RPC exists. Archive is the default because the data
+  these apps hold is the household's record: a row that leaves a list can
+  come back, and nothing downstream (an audit line, a reference from
+  another resource) is left pointing at nothing.
 - Timestamps are `google.protobuf.Timestamp`. Seconds-since-epoch integers
   and floats are forbidden; they are the single worst fossil observed in
   ported systems.
@@ -101,26 +104,25 @@ service. See [Choosing a runtime](./choosing.md).
 validation, and the contract is where they live. The Go path enforces them
 in an interceptor, so handlers check nothing; the TypeScript path can with
 `@bufbuild/protovalidate`, and until it does its stores check presence.
+On the Go path that interceptor is innermost and logging sits outside
+auth, so a request refused for either reason is still one log line with
+its request id; a refusal that leaves no trace is the harder kind to
+debug.
 Constraints distribute by message role: always-valid invariants (lengths,
 enum membership) on the resource, presence on the request envelopes (ids
 `uuid`, `page_size` bounded), and a message-typed request field the handler
 dereferences marked `required`, because that is the only nil guard once
 handlers stop checking.
 
-`option idempotency_level = NO_SIDE_EFFECTS` is not used (dropped
-2026-10-15). It was a read marker for an audit interceptor, inherited from
-the first Go service; it also makes an RPC GET-able and cacheable by any
-intermediary, a second meaning the marker's users did not want. Audit is
-opt-in per service, with the interceptor keeping its own list of what it
-records.
+Audit is opt-in per service: the contract carries no marker for it, and
+an audit interceptor keeps its own list of the RPCs it records.
 
 ## Field number policy
 
-A removed field's number and name are `reserved`, from the first commit
-(decided 2026-10-15). The earlier rule reused numbers until the first
-build a non-developer installed; the moment is easy to miss and the cost
-of missing it is corrupted deserialization on clients already on the
-network, so the rule is now one rule. Add `buf breaking --against` the
+A removed field's number and name are `reserved`, from the first commit.
+Reusing numbers while a project is unshipped is tempting; the moment it
+ships is easy to miss and the cost of missing it is corrupted
+deserialization on clients already on the network, so there is one rule. Add `buf breaking --against` the
 default branch to CI once clients you do not control exist.
 
 ## Codegen

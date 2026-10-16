@@ -54,6 +54,12 @@ restarted on it. What it buys:
   an identity provider and a task board. Go's stdlib HTTP client, its
   concurrency, and its footprint fit that shape exactly.
 
+The scaffold ships this backend without being asked (`--backend
+typescript` is the flag, not the other way round) because a default that
+has to be requested is not one: the templates follow the module shape the
+reference implementation runs, so a new service starts where a proven one
+stands rather than where a tutorial ends.
+
 The costs, stated plainly: a second toolchain in a repo whose interface is
 TypeScript, a second set of idioms to hold, and a dev database that is a
 container rather than an in-process library. The contract keeps both

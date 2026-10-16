@@ -13,10 +13,10 @@ convention, the generated handler interface for the one-service rule).
 ## Field number policy: removed numbers are reserved
 
 A removed field's number (and name) is marked `reserved` in the message,
-always, from the first commit (decided 2026-10-15; the two-regime rule
-that let a pre-launch project reuse numbers is gone, because the moment
-a project ships is easy to miss and the cost of missing it is corrupted
-deserialization on clients already on the network). Add `buf breaking
+always, from the first commit. There is no pre-launch regime that reuses
+numbers: the moment a project ships is easy to miss and the cost of
+missing it is corrupted deserialization on clients already on the
+network. Add `buf breaking
 --against` the default branch to CI once clients you do not control
 exist; `gotchas.md` has the history.
 
@@ -201,8 +201,5 @@ message, presence on the request envelopes, since create and update reuse
 the resource message with most of it unset. Ids on request envelopes are
 `uuid`; `page_size` is bounded.
 
-`option idempotency_level = NO_SIDE_EFFECTS` is not used in this stack
-(dropped 2026-10-15): it was carried as a read marker for an audit
-interceptor, and it also makes the RPC GET-able and cacheable by any
-intermediary, a second meaning nobody asked for. A service that audits
-mutations keeps its own list of the RPCs it records; audit is opt-in.
+Audit is opt-in and has no marker in the contract: a service that audits
+mutations keeps its own list of the RPCs it records.

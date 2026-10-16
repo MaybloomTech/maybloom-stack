@@ -47,11 +47,11 @@ just means you're staring at output that's already done.
 mark removed fields `reserved`" vs "renumber freely."
 
 **Cause.** Both are defensible depending on whether the proto has shipped
-to clients you don't control; the stack used to switch regimes at the
-first build a non-developer installs.
+to clients you don't control, and a rule that switches regimes at that
+moment is the trap.
 
-**Fix.** Since 2026-10-15 the stack has one rule: a removed number is
-`reserved`, from the first commit. The moment a project ships is easy to
+**Fix.** The stack has one rule: a removed number is `reserved`, from the
+first commit. The moment a project ships is easy to
 miss, and the cost of missing it (corrupted deserialization on clients
 already on the network) is out of proportion to a few reserved lines in
 a young schema. The shape:

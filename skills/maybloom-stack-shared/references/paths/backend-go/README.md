@@ -370,7 +370,7 @@ interceptors := connect.WithInterceptors(
 )
 ```
 
-That order is the stack's (decided 2026-10-15): logging outside auth so a
+That order is the stack's: logging outside auth so a
 refused request is logged, the request id outermost after recovery so
 every line carries it, an audit interceptor (opt-in) between auth and
 validate when a service wants one. Each is a full `connect.Interceptor`
@@ -381,7 +381,7 @@ access on a nil message is not, and the recovery interceptor would turn
 that panic into a 500 any client can trigger); always-valid invariants
 (lengths, enum membership) go on the resource message, presence goes on
 the request envelopes; list reads carry a bounded `page_size` from the
-first version. `NO_SIDE_EFFECTS` is not used.
+first version.
 
 ## Wiring
 

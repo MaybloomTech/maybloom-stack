@@ -13,9 +13,9 @@ and dropping `.tmpl`) rather than retyping them from the excerpts here.
 Per-layer patterns — migrations, queries, adapters, stores, handlers —
 are in `../../maybloom-stack-shared/references/paths/backend-go/README.md`.
 
-It is the shape the Maybloom app settled in production in 2026, with the
-plugin's own prescriptions kept where the app lacks them (the request id,
-the public-message error wrapper, `emit_empty_slices`).
+It is the shape the reference implementation runs in production, with
+the plugin's own prescriptions kept where that app lacks them (the
+request id, the public-message error wrapper, `emit_empty_slices`).
 
 Sections: Dependencies and tool pinning · go.mod and go.sum · Codegen
 entry point · Config · Migrations and the pool · run() · Identity · Server
@@ -148,7 +148,7 @@ exceptions fit in a list. A service whose anonymous RPCs are a feature
 and declare cross-cutting behaviour **once** as interceptors rather than
 per route — that is what makes a new RPC arrive with recovery, a request
 id, logging, auth and validation already attached. The order is the
-design (decided 2026-10-15):
+design:
 
 1. `Recover` — outermost: a panic becomes `CodeInternal`, logged with the
    request id, instead of a dropped connection.
@@ -163,9 +163,8 @@ design (decided 2026-10-15):
    rules, so a bad request never reaches a handler.
 
 An audit interceptor, when a service wants one, goes between auth and
-validate; it is opt-in, and there is no read marker in the contract to
-drive it (`NO_SIDE_EFFECTS` left the conventions on 2026-10-15), so it
-keeps its own list of the RPCs it records.
+validate; it is opt-in, and there is no marker in the contract to drive
+it, so it keeps its own list of the RPCs it records.
 
 Two rules the interceptors impose on the rest of the module:
 
@@ -269,7 +268,7 @@ has no streaming RPC to drive them through.
 The store and server packages share `TEST_DATABASE_URL` and each migrates
 it on open, so with the database set they run one package at a time:
 `go test -p 1 ./...` (`pnpm test:backend` at the repo root). CI does the
-same with `-race` (STACK-7).
+same with `-race`.
 
 The compose database at the repo root is the usual dev database; a
 throwaway `postgres:17-alpine` container on a Docker network is the shape

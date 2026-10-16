@@ -261,8 +261,7 @@ func NewMux(d Deps) http.Handler {
 Cross-cutting behaviour is declared once, at handler construction, and
 applies to every RPC. A new RPC arrives with recovery, a request id,
 logging, auth and validation attached; opting out is the explicit,
-visible act. The stack's order, outermost first (decided 2026-10-15 after
-the two services had each walked a variant):
+visible act. The stack's order, outermost first:
 
 1. **Recovery**: a panic becomes `CodeInternal` with the stack logged,
    instead of a dropped connection. connect-go does not recover panics
@@ -290,14 +289,12 @@ handler asserts the identity it needs, because `Login`, `RefreshToken` and
 user and the exceptions fit in a list; populate when the exceptions are
 themselves a feature.
 
-**The audit interceptor is opt-in and keeps its own list.** OCF IMS drove
-it from `option idempotency_level = NO_SIDE_EFFECTS` on the reads; the
-stack dropped that marker on 2026-10-15, because the same option makes an
-RPC GET-able and cacheable by any intermediary, a second meaning nobody
-wanted, and because an audit log is a per-service decision rather than a
-default. A service that audits names the RPCs it records in the
-interceptor's construction and fails safe from there (an unlisted mutation
-is logged, never silently skipped).
+**The audit interceptor is opt-in and keeps its own list.** The contract
+carries no marker for it: an audit log is a per-service decision rather
+than a default, and a proto option doing double duty as a read marker
+would carry meanings the contract never meant. A service that audits
+names the RPCs it records in the interceptor's construction and fails
+safe from there (an unlisted mutation is logged, never silently skipped).
 
 `slog` is wired on day one. Calls to `slog` without a configured handler
 are worse than useless because they look like logging.
