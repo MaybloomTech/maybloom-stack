@@ -11,10 +11,11 @@
 # internal/web package before `go build` (the stack's Go document, Build).
 
 # --- build: the Go binary ----------------------------------------------------
-# The Go patch is pinned in three places that must agree: go.mod's go line,
-# this image tag and GO_IMAGE in scripts/go. GOTOOLCHAIN=local refuses to
-# download another toolchain, so a go.mod ahead of the image fails here
-# instead of fetching one silently. Raise all three together.
+# The Go patch is pinned in four places that must agree: go.mod's go line,
+# go.work's at the repo root, this image tag and GO_IMAGE in scripts/go.
+# GOTOOLCHAIN=local refuses to download another toolchain, so a go line
+# ahead of the image fails here instead of fetching one silently. Raise the
+# four together.
 FROM golang:1.26.7-alpine AS build
 ENV GOTOOLCHAIN=local
 WORKDIR /src/go

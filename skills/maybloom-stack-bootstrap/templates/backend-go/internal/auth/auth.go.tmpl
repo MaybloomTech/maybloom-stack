@@ -1,8 +1,8 @@
 // Package auth is the identity seam: who is calling, resolved once per RPC by
 // the interceptor and read by handlers from the context. The scaffold ships
 // one Authenticator, the development identity; a real one (an OIDC client
-// behind the household's provider, bearer tokens the service mints) is the
-// project's first auth decision and lives beside it here.
+// against the deployment's identity provider, bearer tokens the service
+// mints) is the project's first auth decision and lives beside it here.
 package auth
 
 import (

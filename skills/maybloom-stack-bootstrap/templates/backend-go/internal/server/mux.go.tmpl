@@ -27,6 +27,9 @@ type Deps struct {
 //	/healthz                                  liveness: answers if the process is up
 //	/readyz                                   readiness: pings the database
 func NewMux(d Deps) http.Handler {
+	if d.Log == nil {
+		d.Log = slog.Default()
+	}
 	mux := http.NewServeMux()
 
 	// Outermost first. RequestID first so everything below, the panic log

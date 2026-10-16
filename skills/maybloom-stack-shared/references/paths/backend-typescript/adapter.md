@@ -13,8 +13,9 @@ column.
 3. Convert DB row → proto for reads (`<resource>RowToProto`).
 4. Normalize proto's empty-string defaults to NULL where the DB column is
    nullable.
-5. Convert proto Timestamps to JS Dates (and back) via
-   `core/utils/timestamps`.
+5. Convert DB Dates to proto Timestamps via `core/utils/timestamps`. The
+   server owns `created_at`, `updated_at` and `archived_at`: they are read
+   here and never written from a request.
 6. Map proto enums to the DB enum string values, if applicable.
 
 ## Pattern
@@ -26,17 +27,13 @@ import {
   type <Resource>,
 } from "<ORG_SCOPE>/protocol-buffers/<APP_SLUG>/resources/v1/<resources>_pb";
 import { <resources> } from "db/schema";
-import { toDate, toTimestamp } from "core/utils/timestamps";
+import { toTimestamp } from "core/utils/timestamps";
 
 export type <Resource>Row = typeof <resources>.$inferSelect;
 export type New<Resource>Row = typeof <resources>.$inferInsert;
 
 function emptyStringToNull(value: string): string | null {
   return value.trim() === "" ? null : value;
-}
-
-function normalizeTimestamp(value?: Parameters<typeof toDate>[0]): Date | null {
-  return toDate(value) ?? null;
 }
 
 export function <resource>RowToProto(row: <Resource>Row): <Resource> {
@@ -47,29 +44,32 @@ export function <resource>RowToProto(row: <Resource>Row): <Resource> {
     createdBy: row.createdBy ?? "",
     createdAt: toTimestamp(row.createdAt),
     updatedAt: toTimestamp(row.updatedAt),
+    archivedAt: toTimestamp(row.archivedAt), // only if the resource archives
   });
 }
 
+// created_by is the caller the handler read from the context, never the
+// client's word for it, so it arrives as its own argument.
 export function <resource>ToInsert(
   <resource>: <Resource>,
   id: string,
+  createdBy: string,
 ): New<Resource>Row {
   return {
     id,
     title: <resource>.title,
     body: <resource>.body,
-    createdBy: emptyStringToNull(<resource>.createdBy),
-    updatedAt: normalizeTimestamp(<resource>.updatedAt),
+    createdBy: emptyStringToNull(createdBy),
   };
 }
 
+// Only the mutable fields; the store sets updated_at.
 export function <resource>ToUpdate(
   <resource>: <Resource>,
 ): Partial<New<Resource>Row> {
   return {
     title: <resource>.title,
     body: <resource>.body,
-    updatedAt: normalizeTimestamp(<resource>.updatedAt),
   };
 }
 ```
@@ -85,7 +85,9 @@ export function <resource>ToUpdate(
   column is nullable. If the column is `notNull`, leave the empty string
   alone.
 - `Partial<New<Resource>Row>` for updates — Drizzle's `.set({...})` accepts
-  a partial; only set what's actually changing.
+  a partial; only set what's actually changing. Timestamps are not in it:
+  the store sets `updatedAt: new Date()` beside the adapter's fields, and
+  `archived_at` belongs to the archive RPC.
 
 ## Joins / nested resources
 

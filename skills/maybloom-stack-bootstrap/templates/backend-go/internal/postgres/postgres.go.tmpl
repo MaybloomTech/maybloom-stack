@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -48,13 +49,21 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, version int64) error {
 	if err != nil {
 		return fmt.Errorf("goose provider: %w", err)
 	}
+	var applied []*goose.MigrationResult
 	if version == 0 {
-		_, err = provider.Up(ctx)
+		applied, err = provider.Up(ctx)
 	} else {
-		_, err = provider.UpTo(ctx, version)
+		applied, err = provider.UpTo(ctx, version)
 	}
 	if err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
+	current, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
+	// The one line a boot says about the schema (run() set the default
+	// logger before opening the pool).
+	slog.InfoContext(ctx, "migrations applied", "applied", len(applied), "version", current)
 	return nil
 }

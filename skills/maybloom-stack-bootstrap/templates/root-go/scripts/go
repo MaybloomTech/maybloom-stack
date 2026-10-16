@@ -8,9 +8,10 @@
 #   scripts/go test ./...
 #   scripts/go generate .
 #
-# GO_IMAGE overrides the image. Its patch is pinned with go.mod's go line and
-# go/Dockerfile's FROM; GOTOOLCHAIN=local makes a mismatch fail loudly instead
-# of downloading another toolchain. Raise the three together.
+# GO_IMAGE overrides the image. Its patch is pinned with go.mod's and
+# go.work's go lines and go/Dockerfile's FROM; GOTOOLCHAIN=local makes a
+# mismatch fail loudly instead of downloading another toolchain. Raise the
+# four together.
 # GO_DOCKER_ARGS adds docker run flags (a --network for the database, a -p to
 # publish the port); the backend's settings (DATABASE_URL, DEV_USER, ... and
 # TEST_DATABASE_URL) pass through when set, so `DEV_USER=dev scripts/go run

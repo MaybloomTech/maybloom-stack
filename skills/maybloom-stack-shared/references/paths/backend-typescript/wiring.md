@@ -9,7 +9,7 @@ Edit `packages/backend/src/main.ts`. Two changes:
    import { update<Resource> } from "handlers/update<Resource>";
    import { get<Resource> } from "handlers/get<Resource>";
    import { list<Resources> } from "handlers/list<Resources>";
-   import { delete<Resource> } from "handlers/delete<Resource>";
+   import { archive<Resource> } from "handlers/archive<Resource>"; // or the resource's own leaving-the-view RPC
    ```
 
 2. **Add them to the ServiceImpl object** (named `<APP_SLUG>Service`):
@@ -21,7 +21,7 @@ Edit `packages/backend/src/main.ts`. Two changes:
      update<Resource>,
      get<Resource>,
      list<Resources>,
-     delete<Resource>,
+     archive<Resource>,
    };
    ```
 
@@ -47,23 +47,22 @@ Should pass cleanly. If it fails:
 
 ## Auth-required RPCs
 
-If the project has wired session auth as a Fastify `onRequest` hook in
-`main.ts`, the convention is deny-by-default: every RPC is auth-required
-*except* those whose path matches an explicit allowlist (e.g.
-`createGoogleSession`). New RPCs need no extra wiring to be auth-required
-— they get it for free.
+Auth is an interceptor, not per-handler code: `src/auth.ts` exports
+`createAuthInterceptor(open)`, registered in `main.ts` before
+`validateInterceptor`, and it refuses every RPC without `kUserId` with
+`Unauthenticated` except the methods listed as open. Deny by default: a new
+RPC needs no wiring to be auth-required.
 
-If you're adding a *public* RPC (rare — usually only auth-related ones),
-extend the allowlist:
+A *public* RPC (rare; `Health`, a login) is added to the open list:
 
 ```ts
-const publicMethods = new Set([
-  `${rpcPathPrefix}${<APP_NAME>Service.method.createGoogleSession.name}`,
-  `${rpcPathPrefix}${<APP_NAME>Service.method.<newPublicMethod>.name}`,
-]);
+interceptors: [
+  errorInterceptor,
+  createAuthInterceptor([<APP_NAME>Service.method.health, <APP_NAME>Service.method.<newPublicMethod>]),
+  validateInterceptor,
+],
 ```
 
-The bootstrap scaffold ships *without* the auth hook — every RPC is
-public until you wire auth. This is intentional: it keeps the starter
-runnable without external services. Wire the hook when the project has
-real users.
+Where the identity comes from is `contextValues` in `main.ts`: the
+development user (`DEV_USER`, refused in production) until the project
+reads a real credential there. `server.ts` refuses to boot with neither.

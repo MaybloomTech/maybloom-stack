@@ -264,7 +264,7 @@ membership; the screen's Archive button calls `mutate(item.id)`.
    both paths the generated service type is what proves the RPC is wired.
 2. Call it for real — a test through the generated client, or curl
    (Connect is POST + JSON:
-   `curl -X POST http://localhost:3001/<APP_SLUG>.service.v1.<APP_NAME>Service/<Method> -H 'content-type: application/json' -d '{...}'`).
+   `curl -X POST http://localhost:<PORT>/<APP_SLUG>.service.v1.<APP_NAME>Service/<Method> -H 'content-type: application/json' -d '{...}'`, where the port is the backend's: 8080 on the Go path, 3000 on TypeScript).
 3. Exercise the failure the rule exists for, not just the happy path:
    check out a book that is already out and confirm the error code is the
    one you chose.

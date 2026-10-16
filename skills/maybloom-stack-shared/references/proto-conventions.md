@@ -67,7 +67,7 @@ column is nullable; never apply it to columns that are `notNull`.
 
 ## Enums
 
-Convention from the maybloom resources protos:
+The convention:
 
 ```proto
 enum UserKind {

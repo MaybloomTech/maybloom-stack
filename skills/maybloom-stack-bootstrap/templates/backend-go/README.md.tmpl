@@ -32,7 +32,7 @@ go build ./... && go vet ./... && go test ./...
 ```
 
 Without Go, `../scripts/go` runs the same commands in the `golang:1.26.7-alpine`
-image the Dockerfile uses (the patch is pinned with `go.mod`'s go line; raise the three together), with cached modules (`scripts/go generate .`,
+image the Dockerfile uses (the patch is pinned with `go.mod`'s and `go.work`'s go lines; raise the four together), with cached modules (`scripts/go generate .`,
 `scripts/go test ./...`).
 
 The contract's `buf.validate` constraints are enforced by the innermost

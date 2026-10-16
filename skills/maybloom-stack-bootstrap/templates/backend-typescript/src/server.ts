@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import fastifyEnv from "@fastify/env";
 import fastifyCors from "@fastify/cors";
 import { fastify } from "fastify";
@@ -61,7 +62,17 @@ export async function bootstrapServer(callback: BootstrapCallback) {
   }
   await server.register(dbPlugin);
 
+  // Liveness answers if the process is up; readiness pings the database, so
+  // a deploy can wait on it.
   server.get("/healthz", async () => ({ status: "ok" }));
+  server.get("/readyz", async (_request, reply) => {
+    try {
+      await server.db.execute(sql`select 1`);
+      return { status: "ready" };
+    } catch {
+      return reply.code(503).send({ status: "database unreachable" });
+    }
+  });
 
   registerShutdownSignals();
 

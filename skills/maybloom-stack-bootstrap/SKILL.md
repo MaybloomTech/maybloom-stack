@@ -189,7 +189,8 @@ start dev servers.
    the machine is needed) joined to the compose network, with the
    database as `db`, port 8080 published, `DEV_USER=dev` and CORS for the
    Expo dev server. The log shows `starting`, the
-   `DEV_USER` warning, and `listening` on `:8080`; migrations applied on
+   `DEV_USER` warning, `migrations applied applied=1 version=1`, and
+   `listening` on `:8080`; migrations applied on
    open. `/healthz` and `/readyz` answer, and `Health` over Connect:
 
    ```bash
@@ -251,7 +252,7 @@ These are the patterns embedded in the templates. When the user asks
   (sqlc). TypeScript: `src/handlers/`, `src/core/<resource>/store.ts`,
   `src/core/<resource>/adapter.ts`, `src/db/schema.ts` (Drizzle).
 - **Cross-cutting behaviour is interceptors, declared once** (Go:
-  `internal/server/mux.go`): Recover, RequestID, Logging, auth, validate,
+  `internal/server/mux.go`): RequestID, Recover, Logging, auth, validate,
   in that order. A new RPC gets all of them.
 - **Identity is a seam.** `internal/auth` ships the `Authenticator`
   interface, the gating interceptor with `Health` on its open list, and

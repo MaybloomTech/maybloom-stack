@@ -50,9 +50,9 @@ func run(ctx context.Context, cfg config.Config) error {
 	defer pool.Close()
 	st := store.New(pool)
 
-	// Identity is this project's to decide: an OIDC client behind the
-	// household's provider, bearer tokens the service mints itself (the
-	// stack's Go document, Auth). Until one is wired here the server runs
+	// Identity is this project's to decide: an OIDC client against the
+	// deployment's identity provider, bearer tokens the service mints itself
+	// (the stack's Go document, Auth). Until one is wired here the server runs
 	// only with the development identity; config.Validate refuses to boot
 	// without DEV_USER (before the database is touched), and refuses DEV_USER
 	// in production, so wiring a real one means changing both places.

@@ -241,8 +241,8 @@ The mux the Maybloom backend builds, which is the general shape:
 func NewMux(d Deps) http.Handler {
     mux := http.NewServeMux()
     interceptors := connect.WithInterceptors(
-        Recover(d.Log),
         RequestID(),
+        Recover(d.Log),
         Logging(d.Log),
         auth.Interceptor(d.Authenticator, servicev1connect.MaybloomServiceHealthProcedure),
         validate.NewInterceptor(),

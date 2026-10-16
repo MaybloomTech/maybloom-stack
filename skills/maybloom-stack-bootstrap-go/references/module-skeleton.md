@@ -105,8 +105,9 @@ migrated.
 Two packages. `db/db.go` embeds the migrations, because `//go:embed`
 paths are package-relative and cannot reach up the tree.
 `internal/postgres/postgres.go` opens the pool, pings, and migrates
-before returning it (`Open`), so callers can assume the schema exists
-rather than racing the first request; `Migrate(ctx, pool, version)`
+before returning it (`Open`), logging one line (`migrations applied
+applied=N version=M`), so callers can assume the schema exists rather
+than racing the first request; `Migrate(ctx, pool, version)`
 stops at a version for a test that puts data through a migration.
 
 Migrate-on-boot is right for one instance; revisit it the day two
@@ -136,8 +137,8 @@ reads the caller. The scaffold ships one implementation,
 `DevAuthenticator` from `DEV_USER`. `config.Validate` refuses `DEV_USER`
 in production and refuses to start without one otherwise, so a production
 deploy fails loudly, at config time, until the project wires a real one:
-an OIDC client behind the household's provider, or bearer tokens the
-service mints (the stack's Go document, Auth, has both shapes). That first
+an OIDC client against the deployment's identity provider, or bearer
+tokens the service mints (the stack's Go document, Auth, has both shapes). That first
 auth decision lives in this package beside the seam, with its config rule
 in `Validate`.
 
@@ -298,11 +299,12 @@ that runs the Expo export and `COPY --from=web` its output into an
 embedded `internal/web/dist` before `go build`; the stack's Go document
 (Build) covers the handler.
 
-The Go patch is pinned in three places that must agree: `go.mod`'s `go`
-line, the Dockerfile's `FROM golang:<patch>-alpine` and `GO_IMAGE` in
-`scripts/go`; both set `GOTOOLCHAIN=local`, so a `go.mod` ahead of the
-image fails loudly instead of downloading another toolchain. Raising Go
-is one change to the three (CONTRIBUTING, Maintainers' chores).
+The Go patch is pinned in four places that must agree: `go.mod`'s `go`
+line, `go.work`'s at the repo root, the Dockerfile's `FROM
+golang:<patch>-alpine` and `GO_IMAGE` in `scripts/go`; the image and the
+wrapper set `GOTOOLCHAIN=local`, so a go line ahead of the image fails
+loudly instead of downloading another toolchain. Raising Go is one change
+to the four (CONTRIBUTING, Maintainers' chores).
 
 `scripts/go` and `scripts/golangci-lint` run the toolchain and the linter
 in their pinned images for a machine without Go (a deploy host that
@@ -333,7 +335,7 @@ it on open, so with the database set they run one package at a time:
 same with `-race`.
 
 The compose database at the repo root is the usual dev database; a
-throwaway `postgres:17-alpine` container on a Docker network is the shape
+throwaway `postgres:17-alpine` container (the compose image) on a Docker network is the shape
 `scripts/go` reaches (`GO_DOCKER_ARGS="--network <net>"`). Development
 runs the same database with `DEV_USER`. embedded-postgres, the in-process
 option, has not been walked.
@@ -356,7 +358,7 @@ go mod tidy && go generate .     # go.sum against the pins; buf (gen/) then sqlc
 go build ./... && go vet ./... && ../scripts/golangci-lint run
 go test ./...                    # interceptor and config tests; store and wire tests skip
 docker compose up -d db          # at the repo root
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG__ go test -p 1 ./...   # one package at a time: they share the database
-pnpm dev:backend                 # at the repo root, through scripts/go on the compose network; migrations apply on boot
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG___test go test -p 1 ./...   # the compose test database; one package at a time
+pnpm dev:backend                 # at the repo root, through scripts/go on the compose network; the log says `migrations applied applied=1 version=1`
 docker build -f go/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD) .
 ```

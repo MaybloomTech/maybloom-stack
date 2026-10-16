@@ -45,14 +45,13 @@ async function dbPlugin(server: FastifyInstance): Promise<void> {
     server.log.info("[database] PGlite migrations applied");
   }
 
+  // A database that does not answer fails the boot, like a bad setting:
+  // nothing is served until the store's dependency is there.
   try {
     await handle.db.execute(sql`select 1`);
-    server.log.info({ databaseTarget }, "[database] Connection healthy");
   } catch (error) {
-    server.log.error(
-      { err: error, databaseTarget },
-      "[database] Connection failed",
-    );
+    await handle.close().catch(() => undefined);
+    throw new Error(`database unreachable (${databaseTarget?.driver} ${databaseTarget?.host ?? ""}:${databaseTarget?.port ?? ""}/${databaseTarget?.database ?? ""})`, { cause: error });
   }
   server.log.info({ databaseTarget }, "[database] Initialized");
 

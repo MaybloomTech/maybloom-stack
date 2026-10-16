@@ -5,6 +5,7 @@ import { routes } from "routes";
 import { kRequestId, kUserId } from "context";
 import { bootstrapServer } from "server";
 import { createAuthInterceptor } from "auth";
+import { errorInterceptor } from "rpcerr";
 import { validateInterceptor } from "validate";
 import { archiveNote } from "handlers/archiveNote";
 import { createNote } from "handlers/createNote";
@@ -18,9 +19,10 @@ bootstrapServer(async (app) => {
   // a four-step dance: declare it in the proto, regen, write a handler, and
   // wire it in here. The TypeScript compiler will refuse to build until the
   // shape of this object matches the service definition. The interceptors
-  // run in the Go path's order: auth gates (Health open), then validate
-  // enforces the contract's buf.validate rules, so handlers and stores check
-  // neither the caller nor anything the contract states.
+  // run in the Go path's order: errors outermost (nothing but a ConnectError
+  // reaches the wire, the cause goes to the log), auth gates (Health open),
+  // then validate enforces the contract's buf.validate rules, so handlers
+  // and stores check neither the caller nor anything the contract states.
   const __APP_SLUG__Service: ServiceImpl<typeof __APP_NAME__Service> = {
     health,
     createNote,
@@ -34,7 +36,7 @@ bootstrapServer(async (app) => {
     routes: (router) => {
       router.service(__APP_NAME__Service, __APP_SLUG__Service);
     },
-    interceptors: [createAuthInterceptor([__APP_NAME__Service.method.health]), validateInterceptor],
+    interceptors: [errorInterceptor, createAuthInterceptor([__APP_NAME__Service.method.health]), validateInterceptor],
     // Who is calling and which request this is, for every handler. The
     // request id is Fastify's (server.ts: the caller's X-Request-Id when it
     // has the shape, a fresh one otherwise; on every log line and echoed on

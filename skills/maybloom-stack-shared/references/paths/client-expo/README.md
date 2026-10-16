@@ -129,7 +129,7 @@ Two options for where the screen file lives:
 - **Detail / edit flow:** add `app/<resources>/[id].tsx` for the detail
   view; the list links to it via `<Link href={`/<resources>/${id}`}>`.
 
-If the project uses the maybloom drawer-and-tabs hybrid layout, register
+If the project uses a drawer-and-tabs layout, register
 the new top-level route in `app/_layout.tsx` so it shows up in the nav.
 The bootstrap's `_layout.tsx` is just a `Stack` — there's no navigation
 to update.

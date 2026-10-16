@@ -7,8 +7,7 @@ adapter), and the interface are identical — a generated client cannot tell
 the two backends apart. This file defines the per-layer patterns so the
 skills that walk the pipeline (add-resource, add-rpc, extend-resource,
 bootstrap-go) can do so on a Go service without reading any external
-codebase. Two production services walked this path in 2026 and the
-patterns below are theirs.
+codebase. The patterns below are the ones a production service runs.
 
 Sections: Detecting a Go backend · Layer map · Codegen · Migration
 (goose) · Queries (sqlc) · Adapter · Store · Handlers · Validation ·
@@ -144,7 +143,8 @@ migration. `Down` sections are best-effort dev conveniences.
 Migrations are embedded (`go/db/db.go`, a tiny package beside the
 directory, because embed paths cannot reach up the tree) and applied on
 boot through `goose.NewProvider(...).Up(ctx)`, so there is no separate
-"apply" step in dev — boot the server and watch the log. Migrations are
+"apply" step in dev — boot the server; the log says `migrations applied
+applied=N version=M`. Migrations are
 schema-only; seed data is a store function switched by config.
 
 ## Queries (sqlc)
@@ -410,7 +410,7 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
    is clean.
 2. `go build ./...`, `go vet ./...` and `scripts/golangci-lint run` pass.
 3. The server boots (`pnpm dev:backend`) — the new goose migration
-   applies on boot; watch the log for it.
+   applies on boot; the log says `migrations applied applied=N version=M`.
 4. Each RPC works end-to-end, via the generated connect-go client from a
    test (`server_test.go` is the shape), or curl (Connect speaks POST +
    JSON:

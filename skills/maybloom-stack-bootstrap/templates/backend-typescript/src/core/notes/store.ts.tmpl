@@ -1,8 +1,9 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, getTableColumns, isNull, lt, or, sql } from "drizzle-orm";
+import { type SQL, and, desc, eq, getTableColumns, isNull, lt, or, sql } from "drizzle-orm";
 import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
 import { notes } from "db/schema";
+import { internalError } from "rpcerr";
 import { server } from "server";
 import {
   noteRowToProto,
@@ -20,23 +21,34 @@ import {
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 200;
 
+// Every database call is wrapped: the driver's message is the cause, logged
+// by the error interceptor, and the client reads the public text.
+async function query<T>(publicMessage: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw internalError(publicMessage, error);
+  }
+}
+
 export async function createNote(createdBy: string, input: Note) {
   const id = randomUUID();
-  const [row] = await server.db
-    .insert(notes)
-    .values(noteToInsert(input, id, createdBy))
-    .returning();
+  const [row] = await query("could not create the note", () =>
+    server.db.insert(notes).values(noteToInsert(input, id, createdBy)).returning(),
+  );
   return noteRowToProto(row);
 }
 
 // Replaces title and body; the server keeps the rest (archived_at is
 // archiveNote's).
 export async function updateNote(input: Note) {
-  const [row] = await server.db
-    .update(notes)
-    .set({ ...noteToUpdate(input), updatedAt: new Date() })
-    .where(eq(notes.id, input.id))
-    .returning();
+  const [row] = await query("could not update the note", () =>
+    server.db
+      .update(notes)
+      .set({ ...noteToUpdate(input), updatedAt: new Date() })
+      .where(eq(notes.id, input.id))
+      .returning(),
+  );
   if (!row) {
     throw new ConnectError("Note not found", Code.NotFound);
   }
@@ -48,11 +60,13 @@ export async function updateNote(input: Note) {
 // a note leaves the default view, one of several a resource may give. The
 // mirror, unarchiveNote (archivedAt: null), is added when a screen needs it.
 export async function archiveNote(id: string) {
-  const [row] = await server.db
-    .update(notes)
-    .set({ archivedAt: sql`coalesce(${notes.archivedAt}, now())`, updatedAt: new Date() })
-    .where(eq(notes.id, id))
-    .returning();
+  const [row] = await query("could not archive the note", () =>
+    server.db
+      .update(notes)
+      .set({ archivedAt: sql`coalesce(${notes.archivedAt}, now())`, updatedAt: new Date() })
+      .where(eq(notes.id, id))
+      .returning(),
+  );
   if (!row) {
     throw new ConnectError("Note not found", Code.NotFound);
   }
@@ -60,7 +74,7 @@ export async function archiveNote(id: string) {
 }
 
 export async function getNote(id: string) {
-  const [row] = await server.db.select().from(notes).where(eq(notes.id, id));
+  const [row] = await query("could not read the note", () => server.db.select().from(notes).where(eq(notes.id, id)));
   if (!row) {
     throw new ConnectError("Note not found", Code.NotFound);
   }
@@ -78,31 +92,34 @@ export interface NoteFilter {
 // two pages cannot shift the rest the way an offset would. The query asks for
 // one row more than the page to learn whether another page follows.
 //
-// The cursor carries created_at as Postgres prints it (microseconds), not as
-// a JS Date: a Date keeps milliseconds, and a token rounded to the
-// millisecond would skip or repeat the rows that share one.
+// The cursor carries created_at as microseconds since the epoch, computed by
+// the database (a JS Date keeps milliseconds and would skip or repeat the
+// rows that share one; the text form depends on the session's DateStyle and
+// TimeZone). The Go path's token has the same shape, in nanoseconds.
 export async function listNotes(filter: NoteFilter) {
   const size = Math.min(filter.pageSize > 0 ? filter.pageSize : DEFAULT_PAGE, MAX_PAGE);
   const before = decodePageToken(filter.pageToken);
-  const rows = await server.db
-    .select({ ...getTableColumns(notes), cursor: sql<string>`${notes.createdAt}::text` })
-    .from(notes)
-    .where(
-      and(
-        filter.includeArchived ? undefined : isNull(notes.archivedAt),
-        before
-          ? or(
-              lt(notes.createdAt, sql`${before.createdAt}::timestamptz`),
-              and(
-                eq(notes.createdAt, sql`${before.createdAt}::timestamptz`),
-                lt(notes.id, before.id),
-              ),
-            )
-          : undefined,
-      ),
-    )
-    .orderBy(desc(notes.createdAt), desc(notes.id))
-    .limit(size + 1);
+  const rows = await query("could not list the notes", () =>
+    server.db
+      .select({
+        ...getTableColumns(notes),
+        cursor: sql<string>`(extract(epoch from ${notes.createdAt}) * 1000000)::bigint::text`,
+      })
+      .from(notes)
+      .where(
+        and(
+          filter.includeArchived ? undefined : isNull(notes.archivedAt),
+          before
+            ? or(
+                lt(notes.createdAt, before.createdAt),
+                and(eq(notes.createdAt, before.createdAt), lt(notes.id, before.id)),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(desc(notes.createdAt), desc(notes.id))
+      .limit(size + 1),
+  );
   const page = rows.slice(0, size);
   const last = page[page.length - 1];
   return {
@@ -111,21 +128,24 @@ export async function listNotes(filter: NoteFilter) {
   };
 }
 
-// What `timestamptz::text` looks like, so a token that is not ours is refused
-// here with InvalidArgument rather than by the database with Internal.
-const TIMESTAMPTZ_TEXT = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/;
+// What this service issues: "<microseconds>:<uuid>", base64url. Anything
+// else is refused here with InvalidArgument rather than by the database.
+const PAGE_TOKEN = /^(\d{1,19}):([0-9a-fA-F-]{36})$/;
 
-function encodePageToken(createdAt: string, id: string): string {
-  return Buffer.from(`${createdAt}|${id}`).toString("base64url");
+function encodePageToken(micros: string, id: string): string {
+  return Buffer.from(`${micros}:${id}`).toString("base64url");
 }
 
-function decodePageToken(token: string): { createdAt: string; id: string } | undefined {
+function decodePageToken(token: string): { createdAt: SQL; id: string } | undefined {
   if (!token) {
     return undefined;
   }
-  const [createdAt, id] = Buffer.from(token, "base64url").toString().split("|");
-  if (!createdAt || !id || !TIMESTAMPTZ_TEXT.test(createdAt)) {
+  const match = PAGE_TOKEN.exec(Buffer.from(token, "base64url").toString());
+  if (!match) {
     throw new ConnectError("page_token is not one this service issued", Code.InvalidArgument);
   }
-  return { createdAt, id };
+  const [, micros, id] = match;
+  // Exact: an integer number of microseconds added to the epoch, never a
+  // float through to_timestamp.
+  return { createdAt: sql`'epoch'::timestamptz + ${micros}::bigint * interval '1 microsecond'`, id };
 }

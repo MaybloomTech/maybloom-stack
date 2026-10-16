@@ -71,8 +71,12 @@ export async function get<Resource>(id: string) {
   return <resource>RowToProto(row);
 }
 
-// Cursor paging, newest first, keyset on (created_at, id); the bootstrap's
-// core/notes/store.ts has the token codec (base64url of "<millis>:<id>").
+// Cursor paging, newest first, keyset on (created_at, id). The token is
+// "<microseconds since the epoch>:<id>" in base64url, the microseconds
+// computed by the database (a JS Date keeps milliseconds); the bootstrap's
+// core/notes/store.ts has the codec (encodePageToken, decodePageToken) and
+// the `query` wrapper, which turns a driver error into
+// internalError("could not ...", cause) so no driver text reaches the wire.
 export async function list<Resources>(filter: {
   pageSize: number;
   pageToken: string;
@@ -80,27 +84,32 @@ export async function list<Resources>(filter: {
 }) {
   const size = Math.min(filter.pageSize > 0 ? filter.pageSize : 50, 200);
   const before = decodePageToken(filter.pageToken);
-  const rows = await server.db
-    .select()
-    .from(<resources>)
-    .where(
-      and(
-        filter.includeArchived ? undefined : isNull(<resources>.archivedAt),
-        before
-          ? or(
-              lt(<resources>.createdAt, before.createdAt),
-              and(eq(<resources>.createdAt, before.createdAt), lt(<resources>.id, before.id)),
-            )
-          : undefined,
-      ),
-    )
-    .orderBy(desc(<resources>.createdAt), desc(<resources>.id))
-    .limit(size + 1);
+  const rows = await query("could not list the <resources>", () =>
+    server.db
+      .select({
+        ...getTableColumns(<resources>),
+        cursor: sql<string>`(extract(epoch from ${<resources>.createdAt}) * 1000000)::bigint::text`,
+      })
+      .from(<resources>)
+      .where(
+        and(
+          filter.includeArchived ? undefined : isNull(<resources>.archivedAt),
+          before
+            ? or(
+                lt(<resources>.createdAt, before.createdAt),
+                and(eq(<resources>.createdAt, before.createdAt), lt(<resources>.id, before.id)),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(desc(<resources>.createdAt), desc(<resources>.id))
+      .limit(size + 1),
+  );
   const page = rows.slice(0, size);
   const last = page[page.length - 1];
   return {
-    <resources>: page.map(<resource>RowToProto),
-    nextPageToken: rows.length > size && last ? encodePageToken(last.createdAt, last.id) : "",
+    <resources>: page.map(({ cursor: _cursor, ...row }) => <resource>RowToProto(row)),
+    nextPageToken: rows.length > size && last ? encodePageToken(last.cursor, last.id) : "",
   };
 }
 ```
@@ -111,8 +120,12 @@ A hard delete, for leaf data only, is
 ## Conventions
 
 - **Throw `ConnectError`, not generic `Error`.** Connect maps the code to
-  HTTP status; the central error handler in `server.ts` keeps logging
-  consistent.
+  HTTP status and sends the message to the client. Wrap every database
+  call in the `query` helper (`internalError(public, cause)` from
+  `src/rpcerr.ts`, the Go path's `rpcerr.Internal`): the public text is
+  what the client reads, the driver's message is the cause the error
+  interceptor logs. Anything else that escapes a store reaches the wire as
+  `internal error` through that interceptor.
 - **`Code.InvalidArgument`** for missing required fields and a page token
   the service did not issue. `Code.NotFound`
   for missing rows on get/update. `Code.AlreadyExists` for unique

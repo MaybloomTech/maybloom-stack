@@ -297,9 +297,10 @@ def main(argv: list[str]) -> int:
     print(f"  cd {args.out}")
     print("  pnpm install   # runs proto:gen + proto:descriptor + build via postinstall")
     if args.backend == "go":
-        print("  docker compose up -d db            # the development Postgres")
-        print("  (cd go && go mod tidy && go generate .)   # go.sum, then the contract and the data layer")
-        print("  pnpm dev:backend                   # migrates on boot, listens on :8080")
+        print("  docker compose up -d db            # the development Postgres (and <slug>_test)")
+        print("  scripts/go mod tidy && scripts/go generate .   # the Go toolchain in Docker: go.sum, then the contract and the data layer")
+        print("  pnpm test:backend                  # the Go tests against the test database")
+        print("  pnpm dev:backend                   # through scripts/go on the compose network; migrates on boot, listens on :8080")
     else:
         print(f"  pnpm --filter {args.org}/backend db:generate   # the first Drizzle migration")
         print("  pnpm dev:backend                   # PGlite, listens on :3000")

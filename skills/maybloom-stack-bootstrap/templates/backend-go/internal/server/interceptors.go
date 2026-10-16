@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"regexp"
+	"runtime/debug"
 	"time"
 
 	"connectrpc.com/connect"
@@ -53,7 +54,7 @@ func (recoverInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) 
 // recover runs deferred: it swaps the panic for CodeInternal in *err.
 func (i recoverInterceptor) recover(ctx context.Context, procedure string, err *error) {
 	if r := recover(); r != nil {
-		i.log.Error("rpc panicked", "rpc", procedure, "request_id", RequestIDFrom(ctx), "panic", r)
+		i.log.Error("rpc panicked", "rpc", procedure, "request_id", RequestIDFrom(ctx), "panic", r, "stack", string(debug.Stack()))
 		*err = connect.NewError(connect.CodeInternal, errors.New("internal error"))
 	}
 }
