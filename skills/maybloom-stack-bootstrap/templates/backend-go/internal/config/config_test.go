@@ -12,6 +12,7 @@ func valid() Config {
 		PublicURL:       "http://localhost:8080",
 		DatabaseURL:     "postgres://localhost:5432/app",
 		DevUser:         "dev",
+		LogLevel:        "info",
 		MaxRequestBytes: 1 << 20,
 	}
 }
@@ -36,6 +37,7 @@ func TestValidate(t *testing.T) {
 		}, want: "DEV_USER"},
 		{name: "no authenticator at all", edit: func(c *Config) { c.DevUser = "" }, want: "no authenticator"},
 		{name: "bad cors origin", edit: func(c *Config) { c.CORSOrigins = []string{"localhost:8081"} }, want: "CORS_ORIGINS"},
+		{name: "unknown log level", edit: func(c *Config) { c.LogLevel = "verbose" }, want: "LOG_LEVEL"},
 		{name: "zero body cap", edit: func(c *Config) { c.MaxRequestBytes = 0 }, want: "MAX_REQUEST_BYTES"},
 	}
 	for _, tc := range tests {

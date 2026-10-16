@@ -625,7 +625,7 @@ stage regenerates the contract, so it needs `proto/` and the buf configs as
 well as `go/`. The Maybloom backend's:
 
 ```dockerfile
-FROM golang:1.26-alpine AS build
+FROM golang:1.26.7-alpine AS build   # the patch matches go.mod and scripts/go; GOTOOLCHAIN=local
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -685,7 +685,7 @@ second run is fast:
 docker run --rm -i --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
   -v <repo>-gomodcache:/go/pkg -v <repo>-gocache:/tmp/gocache -v <repo>-gohome:/tmp/gohome \
-  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26-alpine go "$@"
+  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.7-alpine go "$@"   # the same pinned patch
 ```
 
 `scripts/go build ./...`, `scripts/go test ./...`, `scripts/go tool sqlc

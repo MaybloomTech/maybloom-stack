@@ -96,7 +96,7 @@ func run(ctx context.Context, cfg config.Config) error {
 }
 
 // newLogger is JSON in production and text in development unless LOG_FORMAT
-// says otherwise. slog is wired on day one: calls to slog without a
+// says otherwise, at LOG_LEVEL (info by default; debug shows every RPC). slog is wired on day one: calls to slog without a
 // configured handler look like logging and are not.
 func newLogger(cfg config.Config) *slog.Logger {
 	format := cfg.LogFormat
@@ -107,7 +107,8 @@ func newLogger(cfg config.Config) *slog.Logger {
 			format = "text"
 		}
 	}
-	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	level, _ := cfg.SlogLevel() // validated with the rest of the config
+	opts := &slog.HandlerOptions{Level: level}
 	if format == "json" {
 		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	}

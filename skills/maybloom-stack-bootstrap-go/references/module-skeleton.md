@@ -90,7 +90,8 @@ and the README's table, and an entry in `Summary()`, which the startup log
 prints with secrets masked. The template's settings: `ADDR`,
 `ENVIRONMENT` (production refuses the dev shortcuts), `PUBLIC_URL` (https
 in production), `DATABASE_URL` (required), `DEV_USER`, `CORS_ORIGINS`,
-`LOG_FORMAT`, `MAX_REQUEST_BYTES`. `config_test.go` is a table test over
+`LOG_FORMAT`, `LOG_LEVEL` (info by default; debug shows every RPC),
+`MAX_REQUEST_BYTES`. `config_test.go` is a table test over
 `Validate`; extend it with every setting added.
 
 The authenticator rule lives here too: `Validate` refuses to boot without
@@ -297,13 +298,20 @@ that runs the Expo export and `COPY --from=web` its output into an
 embedded `internal/web/dist` before `go build`; the stack's Go document
 (Build) covers the handler.
 
+The Go patch is pinned in three places that must agree: `go.mod`'s `go`
+line, the Dockerfile's `FROM golang:<patch>-alpine` and `GO_IMAGE` in
+`scripts/go`; both set `GOTOOLCHAIN=local`, so a `go.mod` ahead of the
+image fails loudly instead of downloading another toolchain. Raising Go
+is one change to the three (CONTRIBUTING, Maintainers' chores).
+
 `scripts/go` and `scripts/golangci-lint` run the toolchain and the linter
 in their pinned images for a machine without Go (a deploy host that
 builds everything in Docker, a laptop that would rather not), with the
 module and build caches in named volumes created once and owned by the
 invoking user. `GO_DOCKER_ARGS` adds `docker run` flags (a `--network` for
-the test database, a `-p` to publish the port, `-e` for settings) and
-`TEST_DATABASE_URL` passes through.
+the database, a `-p` to publish the port) and the backend's settings pass
+through when set. Run from a terminal the container gets a tty and an init
+process, so Ctrl-C on `pnpm dev:backend` stops it; piped runs get neither.
 
 ## Tests and the dev database
 

@@ -4,6 +4,7 @@ import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__
 import { routes } from "routes";
 import { kRequestId, kUserId } from "context";
 import { bootstrapServer } from "server";
+import { createAuthInterceptor } from "auth";
 import { validateInterceptor } from "validate";
 import { archiveNote } from "handlers/archiveNote";
 import { createNote } from "handlers/createNote";
@@ -16,9 +17,10 @@ bootstrapServer(async (app) => {
   // Map every RPC declared in service.proto to a handler. Adding a new RPC is
   // a four-step dance: declare it in the proto, regen, write a handler, and
   // wire it in here. The TypeScript compiler will refuse to build until the
-  // shape of this object matches the service definition. The contract's
-  // buf.validate rules are enforced by validateInterceptor before any
-  // handler runs, so handlers and stores check nothing the contract states.
+  // shape of this object matches the service definition. The interceptors
+  // run in the Go path's order: auth gates (Health open), then validate
+  // enforces the contract's buf.validate rules, so handlers and stores check
+  // neither the caller nor anything the contract states.
   const __APP_SLUG__Service: ServiceImpl<typeof __APP_NAME__Service> = {
     health,
     createNote,
@@ -32,7 +34,7 @@ bootstrapServer(async (app) => {
     routes: (router) => {
       router.service(__APP_NAME__Service, __APP_SLUG__Service);
     },
-    interceptors: [validateInterceptor],
+    interceptors: [createAuthInterceptor([__APP_NAME__Service.method.health]), validateInterceptor],
     // Who is calling and which request this is, for every handler. The
     // request id is Fastify's (server.ts: the caller's X-Request-Id when it
     // has the shape, a fresh one otherwise; on every log line and echoed on
@@ -42,7 +44,7 @@ bootstrapServer(async (app) => {
     contextValues: (req) => {
       const contextValues = createContextValues();
       contextValues.set(kRequestId, req.id);
-      contextValues.set(kUserId, app.config.DEV_USER);
+      contextValues.set(kUserId, app.config.DEV_USER ?? "");
       return contextValues;
     },
   });

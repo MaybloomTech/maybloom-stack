@@ -7,6 +7,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"github.com/caarlos0/env/v11"
@@ -33,6 +34,9 @@ type Config struct {
 	CORSOrigins []string `env:"CORS_ORIGINS" envSeparator:","`
 	// "json" or "text". Empty picks json in production, text otherwise.
 	LogFormat string `env:"LOG_FORMAT"`
+	// debug, info, warn or error. Successful RPCs log at debug; info is the
+	// mutations, the refusals and the lifecycle.
+	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 	// Cap on any request body, including Connect messages.
 	MaxRequestBytes int64 `env:"MAX_REQUEST_BYTES" envDefault:"1048576"`
 }
@@ -68,6 +72,9 @@ func (c Config) Validate() error {
 	if c.LogFormat != "" && c.LogFormat != "json" && c.LogFormat != "text" {
 		errs = append(errs, fmt.Errorf("LOG_FORMAT must be json or text, got %q", c.LogFormat))
 	}
+	if _, err := c.SlogLevel(); err != nil {
+		errs = append(errs, err)
+	}
 	for _, origin := range c.CORSOrigins {
 		u, err := url.Parse(origin)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Path != "" {
@@ -85,6 +92,21 @@ func (c Config) Validate() error {
 	return errors.Join(errs...)
 }
 
+// SlogLevel is LOG_LEVEL as slog reads it.
+func (c Config) SlogLevel() (slog.Level, error) {
+	switch c.LogLevel {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	}
+	return 0, fmt.Errorf("LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel)
+}
+
 // Summary is what the startup log prints. Mask every secret added here.
 func (c Config) Summary() map[string]any {
 	return map[string]any{
@@ -94,6 +116,7 @@ func (c Config) Summary() map[string]any {
 		"dev_user":          c.DevUser,
 		"cors_origins":      c.CORSOrigins,
 		"log_format":        c.LogFormat,
+		"log_level":         c.LogLevel,
 		"max_request_bytes": c.MaxRequestBytes,
 	}
 }

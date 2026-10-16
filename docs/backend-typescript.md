@@ -120,7 +120,9 @@ Session auth runs as a Fastify `onRequest` hook, in front of Connect:
   login RPC). Failures return 401 before any handler runs.
 - Sign-in verifies a Google ID token against Google's JWKS (issuer, audience,
   `email_verified`) and upserts the user.
-- Handlers read the authenticated user only from `kUserId` request context.
+- Handlers read the authenticated user only from `kUserId` request context;
+  the auth interceptor in `src/auth.ts` has refused anonymous calls to every
+  RPC but `Health` before a handler runs, mirroring the Go path's gate.
   A dev-only login route issues real sessions for seeded users in local
   environments.
 

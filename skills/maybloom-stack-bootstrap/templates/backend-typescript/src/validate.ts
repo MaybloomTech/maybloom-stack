@@ -17,7 +17,8 @@ function check<D extends DescMessage>(schema: D, message: MessageShape<D>) {
     );
   }
   if (result.kind === "error") {
-    throw new ConnectError("could not validate the request", Code.Internal);
+    // The cause is for the log (Fastify logs the error), never for the wire.
+    throw new ConnectError("could not validate the request", Code.Internal, undefined, undefined, result.error);
   }
 }
 

@@ -39,8 +39,12 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, version int64) error {
 	if err != nil {
 		return fmt.Errorf("migrations fs: %w", err)
 	}
-	// goose keeps the *sql.DB it is given; the pool stays open behind it.
-	provider, err := goose.NewProvider(goose.DialectPostgres, stdlib.OpenDBFromPool(pool), migrations, goose.WithVerbose(false))
+	// stdlib.OpenDBFromPool borrows connections from the pool for goose's
+	// database/sql view; closing that *sql.DB when the migration is done
+	// hands them back and leaves the pool itself open for the stores.
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer sqlDB.Close() //nolint:errcheck // nothing to do with a close error after the migrations ran
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations, goose.WithVerbose(false))
 	if err != nil {
 		return fmt.Errorf("goose provider: %w", err)
 	}

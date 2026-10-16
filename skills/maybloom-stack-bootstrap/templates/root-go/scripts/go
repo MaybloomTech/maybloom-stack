@@ -8,7 +8,9 @@
 #   scripts/go test ./...
 #   scripts/go generate .
 #
-# GO_IMAGE overrides the image; keep it in step with go/Dockerfile.
+# GO_IMAGE overrides the image. Its patch is pinned with go.mod's go line and
+# go/Dockerfile's FROM; GOTOOLCHAIN=local makes a mismatch fail loudly instead
+# of downloading another toolchain. Raise the three together.
 # GO_DOCKER_ARGS adds docker run flags (a --network for the database, a -p to
 # publish the port); the backend's settings (DATABASE_URL, DEV_USER, ... and
 # TEST_DATABASE_URL) pass through when set, so `DEV_USER=dev scripts/go run
@@ -17,7 +19,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GO_IMAGE="${GO_IMAGE:-golang:1.26-alpine}"
+GO_IMAGE="${GO_IMAGE:-golang:1.26.7-alpine}"
 PROJECT="$(basename "${REPO_ROOT}")"
 
 # A named volume is root-owned when Docker creates it, and the container runs
@@ -37,16 +39,22 @@ ensure_volume "${PROJECT}-gohome"
 # is the bash 3 spelling of "the array, or nothing": macOS ships bash 3.2 and
 # `set -u` there treats an empty array as unbound.)
 PASS_ENV=()
-for v in ADDR ENVIRONMENT PUBLIC_URL DATABASE_URL DEV_USER CORS_ORIGINS LOG_FORMAT MAX_REQUEST_BYTES TEST_DATABASE_URL; do
+for v in ADDR ENVIRONMENT PUBLIC_URL DATABASE_URL DEV_USER CORS_ORIGINS LOG_FORMAT LOG_LEVEL MAX_REQUEST_BYTES TEST_DATABASE_URL; do
   if [ -n "${!v-}" ]; then PASS_ENV+=(-e "$v"); fi
 done
+
+# A terminal when run from one, so Ctrl-C reaches the process (`go run` and
+# the binary under it); --init puts an init process at PID 1 to forward the
+# signal and reap. Piped runs (CI, scripts) get no tty.
+TTY=()
+if [ -t 0 ] && [ -t 1 ]; then TTY=(-t); fi
 
 # Files the toolchain writes (go.sum, generated code) must belong to the
 # invoking user, not root, so the container runs as that uid with writable
 # caches of its own.
-exec docker run --rm -i \
+exec docker run --rm -i --init ${TTY[@]+"${TTY[@]}"} \
   --user "$(id -u):$(id -g)" \
-  -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
+  -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false -e GOTOOLCHAIN=local \
   ${PASS_ENV[@]+"${PASS_ENV[@]}"} \
   ${GO_DOCKER_ARGS-} \
   -v "${PROJECT}-gomodcache:/go/pkg" \

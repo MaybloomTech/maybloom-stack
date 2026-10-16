@@ -98,7 +98,12 @@ and both go stale on their own:
   by hand) and `go mod tidy`, confirm `go generate . && go build ./... &&
   go test ./...`, and copy `go.mod`'s versions and `go.sum` back into the
   templates. The post-scaffold checklist runs `go mod tidy`, so a stale
-  floor costs a download, not a broken build.
+  floor costs a download, not a broken build. The Go patch itself is
+  pinned in three places that must agree: `go.mod.tmpl`'s `go` line,
+  `backend-go/Dockerfile.tmpl`'s `FROM golang:<patch>-alpine` and
+  `GO_IMAGE` in `root-go/scripts/go`; raise them together (both set
+  `GOTOOLCHAIN=local`, so a mismatch fails the build rather than
+  downloading a toolchain).
 - **The pnpm catalog.** `templates/root/pnpm-workspace.yaml` is the
   same floor for the TypeScript side; the bootstrap skill's checklist
   refreshes it the same way.

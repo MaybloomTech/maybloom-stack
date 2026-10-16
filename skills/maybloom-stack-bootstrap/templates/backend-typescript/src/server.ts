@@ -12,7 +12,7 @@ const REQUEST_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const server = fastify({
   logger: true,
-  // Every log line carries reqId; the onSend hook below echoes it, and
+  // Every log line carries reqId; the onRequest hook below echoes it, and
   // main.ts hands it to handlers as kRequestId.
   requestIdHeader: false,
   genReqId: (req) => {

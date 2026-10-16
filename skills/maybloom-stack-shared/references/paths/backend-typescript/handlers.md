@@ -56,13 +56,12 @@ export const create<Resource>: MethodImpl<Create<Resource>Method> = async (
       Code.InvalidArgument,
     );
   }
-  // The caller, never the client's word for it, and no caller is a
-  // refusal, not a default (kUserId is set in main.ts's contextValues:
-  // DEV_USER in development, a real credential once auth is wired).
+  // The caller, never the client's word for it. The auth interceptor
+  // (src/auth.ts, mirroring Go's auth.Interceptor) has already refused an
+  // anonymous request, so kUserId is a caller here; it is set in main.ts's
+  // contextValues (DEV_USER in development, a real credential once auth is
+  // wired).
   const createdBy = context.values.get(kUserId);
-  if (!createdBy) {
-    throw new ConnectError("sign in first", Code.Unauthenticated);
-  }
   const <resource> = await create<Resource>Core(createdBy, input);
   return create(Create<Resource>ResponseSchema, { <resource> });
 };

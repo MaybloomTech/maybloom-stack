@@ -17,12 +17,8 @@ export const createNote: MethodImpl<CreateNoteMethod> = async (
   if (!noteInput) {
     throw new ConnectError("Note is required", Code.InvalidArgument);
   }
-  // created_by is the caller, never the client's word for it, and a request
-  // with no caller is refused rather than written as anyone.
-  const createdBy = context.values.get(kUserId);
-  if (!createdBy) {
-    throw new ConnectError("sign in first", Code.Unauthenticated);
-  }
-  const note = await createNoteCore(createdBy, noteInput);
+  // created_by is the caller, never the client's word for it; the auth
+  // interceptor has refused an anonymous request before this runs.
+  const note = await createNoteCore(context.values.get(kUserId), noteInput);
   return create(CreateNoteResponseSchema, { note });
 };
