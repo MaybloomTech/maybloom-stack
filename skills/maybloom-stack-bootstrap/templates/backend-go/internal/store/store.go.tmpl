@@ -1,0 +1,86 @@
+// Package store is the business layer over the sqlc-generated queries in
+// storedb: stores accept and return proto messages and speak Connect error
+// codes; adapters translate rows. Nothing above this package knows a row
+// shape, nothing below it knows a proto.
+package store
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"__GO_MODULE__/internal/store/storedb"
+)
+
+type Store struct {
+	pool *pgxpool.Pool
+	q    *storedb.Queries
+}
+
+func New(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool, q: storedb.New()}
+}
+
+// Ping is the readiness check.
+func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
+// RunInTx runs fn in a transaction and retries serialization failures
+// (SQLSTATE 40001, 40P01) a few times. fn must be idempotent and must use
+// the tx it is handed: every generated query takes a DBTX, so the same
+// Querier runs against the pool or the transaction.
+func (s *Store) RunInTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	const attempts = 3
+	var err error
+	for range attempts {
+		err = s.runOnce(ctx, fn)
+		if err == nil || !retryable(err) {
+			return err
+		}
+	}
+	return fmt.Errorf("transaction gave up after %d attempts: %w", attempts, err)
+}
+
+func (s *Store) runOnce(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	if err := fn(ctx, tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+func retryable(err error) bool {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+	}
+	return false
+}
+
+// publicError is what connect-go puts on the wire (Error) with the cause kept
+// behind it (Unwrap) for the logging interceptor. connect-go sends
+// err.Error() to the client, so a driver's message must never be the error a
+// store returns; it is the cause.
+type publicError struct {
+	public string
+	cause  error
+}
+
+func (e *publicError) Error() string { return e.public }
+func (e *publicError) Unwrap() error { return e.cause }
+
+// internalError is a CodeInternal whose message is public and whose cause is
+// logged, never sent.
+func internalError(public string, cause error) error {
+	return connect.NewError(connect.CodeInternal, &publicError{public: public, cause: cause})
+}

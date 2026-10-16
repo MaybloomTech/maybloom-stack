@@ -1,0 +1,123 @@
+package store
+
+import (
+	"context"
+	"os"
+	"slices"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
+	resourcesv1 "__GO_MODULE__/gen/__APP_SLUG__/resources/v1"
+	"__GO_MODULE__/internal/postgres"
+)
+
+// testStore opens TEST_DATABASE_URL (migrating it) and skips without one, so
+// `go test ./...` stays green on a machine with no database. The compose
+// database at the repo root is the usual one.
+func testStore(t *testing.T) *Store {
+	t.Helper()
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	pool, err := postgres.Open(ctx, url)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return New(pool)
+}
+
+func TestNotes(t *testing.T) {
+	st := testStore(t)
+	ctx := t.Context()
+
+	created, err := st.CreateNote(ctx, "tester", &resourcesv1.Note{Title: "First", Body: "the body"})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.GetId() == "" || created.GetCreatedBy() != "tester" || created.GetCreatedAt() == nil || created.GetUpdatedAt() != nil {
+		t.Fatalf("created note is not as expected: %v", created)
+	}
+
+	got, err := st.GetNote(ctx, created.GetId())
+	if err != nil || got.GetTitle() != "First" {
+		t.Fatalf("get: %v %v", got, err)
+	}
+
+	updated, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "First, edited", Body: ""}, false)
+	if err != nil || updated.GetTitle() != "First, edited" || updated.GetUpdatedAt() == nil {
+		t.Fatalf("update: %v %v", updated, err)
+	}
+
+	archived, err := st.UpdateNote(ctx, &resourcesv1.Note{Id: created.GetId(), Title: "First, edited"}, true)
+	if err != nil || archived.GetArchivedAt() == nil {
+		t.Fatalf("archive: %v %v", archived, err)
+	}
+	page, err := st.ListNotes(ctx, NoteFilter{})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for _, n := range page.Notes {
+		if n.GetId() == created.GetId() {
+			t.Fatal("an archived note is listed without include_archived")
+		}
+	}
+	page, err = st.ListNotes(ctx, NoteFilter{IncludeArchived: true, PageSize: maxNotePage})
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	found := false
+	for _, n := range page.Notes {
+		found = found || n.GetId() == created.GetId()
+	}
+	if !found {
+		t.Fatal("the archived note is gone: archiving must keep the row")
+	}
+
+	if _, err := st.GetNote(ctx, "00000000-0000-0000-0000-000000000000"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown id: want CodeNotFound, got %v", err)
+	}
+	if _, err := st.GetNote(ctx, "not-a-uuid"); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("bad id: want CodeInvalidArgument, got %v", err)
+	}
+}
+
+func TestListNotesPaging(t *testing.T) {
+	st := testStore(t)
+	ctx := t.Context()
+	// Three fresh notes land at the top (newest first), so a page of one
+	// walks them in reverse creation order before reaching older rows.
+	titles := []string{"a", "b", "c"}
+	ids := make([]string, 0, len(titles))
+	for _, title := range titles {
+		n, err := st.CreateNote(ctx, "tester", &resourcesv1.Note{Title: title})
+		if err != nil {
+			t.Fatalf("create %s: %v", title, err)
+		}
+		ids = append(ids, n.GetId())
+	}
+	token := ""
+	for i, id := range slices.Backward(ids) {
+		page, err := st.ListNotes(ctx, NoteFilter{PageSize: 1, PageToken: token})
+		if err != nil {
+			t.Fatalf("page: %v", err)
+		}
+		if len(page.Notes) != 1 || page.Notes[0].GetId() != id {
+			t.Fatalf("page %d: want %s, got %v", i, id, page.Notes)
+		}
+		// Older rows may or may not exist in a shared database, so the last
+		// token is only checked while one of the three is still to come.
+		if i > 0 && page.NextPageToken == "" {
+			t.Fatalf("page %d: no next token although rows remain", i)
+		}
+		token = page.NextPageToken
+	}
+	if _, err := st.ListNotes(ctx, NoteFilter{PageToken: "not-a-token"}); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("foreign token: want CodeInvalidArgument, got %v", err)
+	}
+}

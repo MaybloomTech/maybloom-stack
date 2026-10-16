@@ -1,0 +1,40 @@
+// Package server is the Connect handler for __APP_NAME__Service and the HTTP
+// mux around it: the RPCs, the interceptors, the health endpoints.
+package server
+
+import (
+	"context"
+	"log/slog"
+
+	"connectrpc.com/connect"
+
+	servicev1 "__GO_MODULE__/gen/__APP_SLUG__/service/v1"
+	"__GO_MODULE__/gen/__APP_SLUG__/service/v1/servicev1connect"
+	"__GO_MODULE__/internal/store"
+	"__GO_MODULE__/internal/version"
+)
+
+// Service implements servicev1connect.__APP_NAME__ServiceHandler, one method
+// per RPC, in one file per resource (notes.go). The generated interface is
+// the exhaustiveness check: a declared RPC without a method is a build
+// failure. Never embed the generated Unimplemented handler here; a partial
+// implementation would compile.
+type Service struct {
+	store *store.Store
+	log   *slog.Logger
+}
+
+var _ servicev1connect.__APP_NAME__ServiceHandler = (*Service)(nil)
+
+func NewService(st *store.Store, log *slog.Logger) *Service {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Service{store: st, log: log}
+}
+
+// Health answers without touching the store or the identity: the one open
+// procedure, and where a client reads which build is serving.
+func (s *Service) Health(context.Context, *connect.Request[servicev1.HealthRequest]) (*connect.Response[servicev1.HealthResponse], error) {
+	return connect.NewResponse(&servicev1.HealthResponse{Ok: true, Version: version.Version}), nil
+}

@@ -1,0 +1,96 @@
+package server
+
+import (
+	"log/slog"
+	"net/http"
+
+	"connectrpc.com/connect"
+	"connectrpc.com/validate"
+
+	"__GO_MODULE__/gen/__APP_SLUG__/service/v1/servicev1connect"
+	"__GO_MODULE__/internal/auth"
+	"__GO_MODULE__/internal/store"
+)
+
+type Deps struct {
+	Store         *store.Store
+	Authenticator auth.Authenticator
+	// Browser origins allowed from another origin (development); empty means
+	// no CORS headers at all.
+	CORSOrigins []string
+	Log         *slog.Logger
+}
+
+// NewMux wires everything the one process serves:
+//
+//	/__APP_SLUG__.service.v1.__APP_NAME__Service/*   the Connect API
+//	/healthz                                  liveness: answers if the process is up
+//	/readyz                                   readiness: pings the database
+func NewMux(d Deps) http.Handler {
+	mux := http.NewServeMux()
+
+	// Outermost first. Recover so a panic is a CodeInternal, not a dropped
+	// connection; RequestID so every line below carries it; Logging outside
+	// auth so a refused request is still logged; auth gates on the identity,
+	// Health being the one open procedure; validate innermost, so a request
+	// that breaks the contract's buf.validate rules never reaches a handler.
+	// An audit interceptor, when a service wants one, goes between auth and
+	// validate.
+	interceptors := connect.WithInterceptors(
+		Recover(d.Log),
+		RequestID(),
+		Logging(d.Log),
+		auth.Interceptor(d.Authenticator, servicev1connect.__APP_NAME__ServiceHealthProcedure),
+		validate.NewInterceptor(),
+	)
+	mux.Handle(servicev1connect.New__APP_NAME__ServiceHandler(NewService(d.Store, d.Log), interceptors))
+
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("ok\n"))
+	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := d.Store.Ping(r.Context()); err != nil {
+			http.Error(w, "database unreachable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("ready\n"))
+	})
+
+	if len(d.CORSOrigins) > 0 {
+		return cors(d.CORSOrigins, mux)
+	}
+	return mux
+}
+
+// cors answers preflights and marks responses for the listed origins, for a
+// development client on another origin (the Expo dev server). It wraps the
+// mux rather than registering routes because Go's method patterns answer an
+// OPTIONS with 405 before any handler runs. Production serves the web export
+// from the API's own origin and sets none of these headers.
+func cors(origins []string, next http.Handler) http.Handler {
+	allowed := make(map[string]bool, len(origins))
+	for _, o := range origins {
+		allowed[o] = true
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if !allowed[origin] {
+			next.ServeHTTP(w, r)
+			return
+		}
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", origin)
+		h.Add("Vary", "Origin")
+		h.Set("Access-Control-Expose-Headers", requestIDHeader)
+		if r.Method == http.MethodOptions {
+			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
+			h.Set("Access-Control-Max-Age", "600")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

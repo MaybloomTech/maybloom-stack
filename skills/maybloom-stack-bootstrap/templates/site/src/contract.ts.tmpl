@@ -112,7 +112,13 @@ export function loadContract(): Contract {
   // TypeScript infers a precise literal type for the imported JSON, which is
   // narrower than JsonValue rather than assignable to it, so the widening cast
   // is deliberate: the shape is validated by fromJson at runtime anyway.
-  const set = fromJson(FileDescriptorSetSchema, descriptorJson as unknown as JsonValue);
+  // ignoreUnknownFields: the contract's fields carry buf.validate options,
+  // which the descriptor set records as extensions of FieldOptions. This
+  // site has not registered the protovalidate extension, so it skips them;
+  // a site that wants to render the rules registers it here.
+  const set = fromJson(FileDescriptorSetSchema, descriptorJson as unknown as JsonValue, {
+    ignoreUnknownFields: true,
+  });
 
   const services: ServiceDoc[] = [];
   const messages: MessageDoc[] = [];

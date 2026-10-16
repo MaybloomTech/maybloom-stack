@@ -1,7 +1,16 @@
 version: v2
 
+# third_party/protovalidate vendors buf/validate/validate.proto (exported from
+# buf.build/bufbuild/protovalidate) so the constraints in proto/ resolve with
+# no registry dependency: generation stays hermetic, in CI and in the Go image
+# build. It is not linted, and it is not an input to generation (both
+# buf.gen.yaml files name proto/ as their input; the TypeScript one then
+# emits it through include_imports).
 modules:
   - path: proto
-
-deps:
-  - buf.build/googleapis/googleapis
+  - path: third_party/protovalidate
+lint:
+  use:
+    - STANDARD
+  ignore:
+    - third_party/protovalidate

@@ -1,0 +1,118 @@
+// The __APP_NAME__ backend: one process serving the Connect API.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"__GO_MODULE__/internal/auth"
+	"__GO_MODULE__/internal/config"
+	"__GO_MODULE__/internal/postgres"
+	"__GO_MODULE__/internal/server"
+	"__GO_MODULE__/internal/store"
+	"__GO_MODULE__/internal/version"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "__APP_SLUG__:", err)
+		os.Exit(2)
+	}
+	if err := run(context.Background(), cfg); err != nil {
+		slog.Error("__APP_SLUG__ stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+// run is the whole server as a function: a test can boot it in-process with
+// one call, and main does nothing but load the config and report the error.
+func run(ctx context.Context, cfg config.Config) error {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	log := newLogger(cfg)
+	slog.SetDefault(log)
+	log.Info("starting", "version", version.Version, "config", cfg.Summary())
+
+	pool, err := postgres.Open(ctx, cfg.DatabaseURL) // migrates on boot
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer pool.Close()
+	st := store.New(pool)
+
+	// Identity is this project's to decide: an OIDC client behind the
+	// household's provider, bearer tokens the service mints itself (the
+	// stack's Go document, Auth). Until one is wired here the server runs
+	// only with a development identity, and refuses to serve anonymously.
+	var authenticator auth.Authenticator
+	if cfg.DevUser != "" {
+		authenticator = auth.DevAuthenticator{UserID: cfg.DevUser}
+		log.Warn("DEV_USER is set: every request is this user", "user", cfg.DevUser)
+	} else {
+		return errors.New("no authenticator: set DEV_USER in development, or wire an auth.Authenticator in cmd/__APP_SLUG__/main.go")
+	}
+
+	deps := server.Deps{Store: st, Authenticator: authenticator, CORSOrigins: cfg.CORSOrigins, Log: log}
+	srv := &http.Server{
+		Handler:           http.MaxBytesHandler(server.NewMux(deps), cfg.MaxRequestBytes),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	// Listen first: readiness is a fact a test or a deploy can wait on.
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
+	}
+	log.Info("listening", "addr", ln.Addr().String(), "public_url", cfg.PublicURL)
+
+	errc := make(chan error, 1)
+	go func() { errc <- srv.Serve(ln) }()
+
+	select {
+	case err := <-errc:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("serve: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		log.Info("shutting down")
+		// ctx is already done; the drain gets its own budget.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil { //nolint:contextcheck // see above
+			return fmt.Errorf("shutdown: %w", err)
+		}
+		return nil
+	}
+}
+
+// newLogger is JSON in production and text in development unless LOG_FORMAT
+// says otherwise. slog is wired on day one: calls to slog without a
+// configured handler look like logging and are not.
+func newLogger(cfg config.Config) *slog.Logger {
+	format := cfg.LogFormat
+	if format == "" {
+		if cfg.Production() {
+			format = "json"
+		} else {
+			format = "text"
+		}
+	}
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	if format == "json" {
+		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, opts))
+}

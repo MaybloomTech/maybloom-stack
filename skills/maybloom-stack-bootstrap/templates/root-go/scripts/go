@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Run a Go toolchain command for the go/ module inside the pinned golang image,
+# for a machine with no Go installed (a deploy host that builds everything in
+# Docker, a laptop that would rather not). Module and build caches live in
+# named volumes so the second run is fast. Usage, from anywhere in the repo:
+#
+#   scripts/go build ./...
+#   scripts/go test ./...
+#   scripts/go generate .
+#
+# GO_IMAGE overrides the image; keep it in step with go/Dockerfile.
+# GO_DOCKER_ARGS adds docker run flags (a --network for the test database, a
+# -p to publish the port, -e for settings); TEST_DATABASE_URL passes through.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GO_IMAGE="${GO_IMAGE:-golang:1.26-alpine}"
+PROJECT="$(basename "${REPO_ROOT}")"
+
+# A named volume is root-owned when Docker creates it, and the container runs
+# as the invoking user, so each cache volume is created once here and handed
+# to that user before its first use.
+ensure_volume() {
+  if ! docker volume inspect "$1" >/dev/null 2>&1; then
+    docker volume create "$1" >/dev/null
+    docker run --rm -v "$1:/mnt" "${GO_IMAGE}" chown "$(id -u):$(id -g)" /mnt
+  fi
+}
+ensure_volume "${PROJECT}-gomodcache"
+ensure_volume "${PROJECT}-gocache"
+ensure_volume "${PROJECT}-gohome"
+
+# Files the toolchain writes (go.sum, generated code) must belong to the
+# invoking user, not root, so the container runs as that uid with writable
+# caches of its own.
+exec docker run --rm -i \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
+  -e TEST_DATABASE_URL="${TEST_DATABASE_URL-}" \
+  ${GO_DOCKER_ARGS-} \
+  -v "${PROJECT}-gomodcache:/go/pkg" \
+  -v "${PROJECT}-gocache:/tmp/gocache" \
+  -v "${PROJECT}-gohome:/tmp/gohome" \
+  -v "${REPO_ROOT}:/src" \
+  -w /src/go \
+  "${GO_IMAGE}" go "$@"

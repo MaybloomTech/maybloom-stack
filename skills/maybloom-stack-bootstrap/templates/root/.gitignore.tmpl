@@ -15,3 +15,6 @@ packages/docs-site/src/generated/*.json
 # into before the first generate.
 packages/protocol-buffers/src/*
 !packages/protocol-buffers/src/.gitkeep
+# Go toolchain scratch when a go/ module exists: the module's own .gitignore
+# covers its generated packages (gen/, internal/store/storedb/).
+go.work.sum

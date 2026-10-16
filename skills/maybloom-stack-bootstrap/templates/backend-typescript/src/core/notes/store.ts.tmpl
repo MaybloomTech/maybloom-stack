@@ -1,0 +1,118 @@
+import { Code, ConnectError } from "@connectrpc/connect";
+import { randomUUID } from "node:crypto";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+import { notes } from "db/schema";
+import { server } from "server";
+import {
+  noteRowToProto,
+  noteToInsert,
+  noteToUpdate,
+} from "core/notes/adapter";
+
+// Stores hold the actual business logic for a resource. Handlers should be
+// thin wrappers around store functions: handlers extract auth context and
+// shape the proto response, stores do the real work. Stores speak the
+// contract's error codes directly.
+
+const DEFAULT_PAGE = 50;
+const MAX_PAGE = 200;
+
+export async function createNote(createdBy: string, input: Note) {
+  if (!input.title.trim()) {
+    throw new ConnectError("Title is required", Code.InvalidArgument);
+  }
+  const id = randomUUID();
+  const [row] = await server.db
+    .insert(notes)
+    .values(noteToInsert(input, id, createdBy))
+    .returning();
+  return noteRowToProto(row);
+}
+
+// archived moves the note in or out of the archive; the row stays either
+// way. This is the stack's default shape for "delete".
+export async function updateNote(input: Note, archived: boolean) {
+  if (!input.id) {
+    throw new ConnectError("Note id is required", Code.InvalidArgument);
+  }
+  if (!input.title.trim()) {
+    throw new ConnectError("Title is required", Code.InvalidArgument);
+  }
+  const [row] = await server.db
+    .update(notes)
+    .set({
+      ...noteToUpdate(input),
+      archivedAt: archived
+        ? sql`coalesce(${notes.archivedAt}, now())`
+        : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(notes.id, input.id))
+    .returning();
+  if (!row) {
+    throw new ConnectError("Note not found", Code.NotFound);
+  }
+  return noteRowToProto(row);
+}
+
+export async function getNote(id: string) {
+  const [row] = await server.db.select().from(notes).where(eq(notes.id, id));
+  if (!row) {
+    throw new ConnectError("Note not found", Code.NotFound);
+  }
+  return noteRowToProto(row);
+}
+
+export interface NoteFilter {
+  pageSize: number;
+  pageToken: string;
+  includeArchived: boolean;
+}
+
+// Cursor paging, newest first, keyset on (created_at, id): the token is the
+// keyset of the last row, opaque to the client, so a note created between
+// two pages cannot shift the rest the way an offset would. The query asks for
+// one row more than the page to learn whether another page follows.
+export async function listNotes(filter: NoteFilter) {
+  const size = Math.min(filter.pageSize > 0 ? filter.pageSize : DEFAULT_PAGE, MAX_PAGE);
+  const before = decodePageToken(filter.pageToken);
+  const rows = await server.db
+    .select()
+    .from(notes)
+    .where(
+      and(
+        filter.includeArchived ? undefined : isNull(notes.archivedAt),
+        before
+          ? or(
+              lt(notes.createdAt, before.createdAt),
+              and(eq(notes.createdAt, before.createdAt), lt(notes.id, before.id)),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(desc(notes.createdAt), desc(notes.id))
+    .limit(size + 1);
+  const page = rows.slice(0, size);
+  const last = page[page.length - 1];
+  return {
+    notes: page.map(noteRowToProto),
+    nextPageToken: rows.length > size && last ? encodePageToken(last.createdAt, last.id) : "",
+  };
+}
+
+function encodePageToken(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.getTime()}:${id}`).toString("base64url");
+}
+
+function decodePageToken(token: string): { createdAt: Date; id: string } | undefined {
+  if (!token) {
+    return undefined;
+  }
+  const [millis, id] = Buffer.from(token, "base64url").toString().split(":");
+  const createdAt = new Date(Number(millis));
+  if (!id || Number.isNaN(createdAt.getTime())) {
+    throw new ConnectError("page_token is not one this service issued", Code.InvalidArgument);
+  }
+  return { createdAt, id };
+}

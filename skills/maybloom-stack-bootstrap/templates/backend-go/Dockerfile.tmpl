@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+# The __APP_NAME__ backend image: the Go binary built with the generated
+# contract and data layer, one static binary in a minimal runtime. Build
+# context is the repo root, because the build stage regenerates the contract
+# and needs proto/, third_party/ and buf.yaml as well as go/:
+#
+#   docker build -f go/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD) .
+#
+# To serve the Expo web export from this binary too, add a node:24-alpine
+# stage that runs `pnpm build:web` and copy its dist into an embedded
+# internal/web package before `go build` (the stack's Go document, Build).
+
+# --- build: the Go binary ----------------------------------------------------
+FROM golang:1.26-alpine AS build
+WORKDIR /src/go
+COPY go/go.mod go/go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY buf.yaml /src/buf.yaml
+COPY proto /src/proto
+COPY third_party /src/third_party
+COPY go ./
+# Generated code is never committed: contract (buf) and data layer (sqlc), from
+# the go tool binaries pinned in go.mod, through the one entry point in
+# generate.go.
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    go generate .
+ARG VERSION=dev
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath \
+      -ldflags "-s -w -X __GO_MODULE__/internal/version.Version=${VERSION}" \
+      -o /out/__APP_SLUG__ ./cmd/__APP_SLUG__
+
+# --- runtime -----------------------------------------------------------------
+FROM alpine:3.22
+ARG VERSION=dev
+RUN adduser -D -u 10001 __APP_SLUG__
+COPY --from=build /out/__APP_SLUG__ /usr/local/bin/__APP_SLUG__
+USER __APP_SLUG__
+ENV ADDR=:8080
+EXPOSE 8080
+LABEL org.opencontainers.image.revision="${VERSION}"
+# The binary answers /healthz; busybox wget is what alpine has.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
+ENTRYPOINT ["__APP_SLUG__"]

@@ -1,0 +1,19 @@
+# The migrations ARE the schema (db/migrations, goose format); sqlc reads them
+# and the queries in db/queries and writes internal/store/storedb (gitignored,
+# regenerated on every build by `go generate .`).
+version: "2"
+sql:
+  - engine: postgresql
+    queries: db/queries
+    schema: db/migrations
+    gen:
+      go:
+        package: storedb
+        out: internal/store/storedb
+        sql_package: pgx/v5
+        # Every query takes a DBTX, so the same Querier runs against the pool
+        # or a transaction; the interface is the seam tests substitute; an
+        # empty :many answers [] rather than nil, which the adapters rely on.
+        emit_interface: true
+        emit_methods_with_db_argument: true
+        emit_empty_slices: true
