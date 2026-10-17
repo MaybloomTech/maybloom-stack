@@ -35,10 +35,15 @@ SHIPPED = ("skills/", "agents/", "templates/", ".claude-plugin/")
 SEMVER_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 
 
+class GitError(Exception):
+    pass
+
+
 def git(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=ROOT, check=True, capture_output=True, text=True
-    ).stdout
+    result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise GitError(f"git {' '.join(args)}: {result.stderr.strip()}")
+    return result.stdout
 
 
 def parse(version: object, where: str, errors: list[str]) -> tuple[int, ...] | None:
@@ -49,7 +54,15 @@ def parse(version: object, where: str, errors: list[str]) -> tuple[int, ...] | N
 
 
 def main() -> int:
-    base = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
+    try:
+        return check(sys.argv[1] if len(sys.argv) > 1 else "origin/main")
+    except GitError as err:
+        print(f"plugin version check failed: {err}", file=sys.stderr)
+        print("  Fetch the base first, or pass it (on a fork, upstream/main).", file=sys.stderr)
+        return 1
+
+
+def check(base: str) -> int:
     errors: list[str] = []
 
     # Everything from committed HEAD, as CI sees it: an uncommitted bump
@@ -79,8 +92,11 @@ def main() -> int:
     shipped = [path for path in changed if path.startswith(SHIPPED)]
 
     if shipped and head is not None:
-        before = json.loads(git("show", f"{merge_base}:{PLUGIN}")).get("version")
-        old = parse(before, f"{PLUGIN} at {merge_base[:7]}", errors)
+        # The base's own version, not the fork point's: a branch not yet
+        # updated from main must still clear main's version, as it will
+        # in CI, where the two are the same commit.
+        before = json.loads(git("show", f"{base}:{PLUGIN}")).get("version")
+        old = parse(before, f"{PLUGIN} at {base}", errors)
         if old is not None and head <= old:
             listed = "\n      ".join(shipped[:10])
             more = f"\n      ... and {len(shipped) - 10} more" if len(shipped) > 10 else ""

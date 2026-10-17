@@ -151,7 +151,8 @@ after each merge catches a slip, but only after it has landed.
 A pull request that touches only `docs/`, `site/` or the repository's
 own workflows needs no bump, with one exception: the plugin installs the
 whole repository, and some skills send agents to a `docs/` page (the
-bootstrap skill reads `docs/choosing.md`). When such a page changes what
+bootstrap skill reads `docs/choosing.md`, the bootstrap-go skill
+`docs/adopting.md`). When such a page changes what
 a skill tells an agent to do, bump the version so the change ships.
 
 ## Maintainers' chores

@@ -142,10 +142,13 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 ## Update
 
-`/plugin marketplace update maybloom-stack` and `claude plugin update
-maybloom-stack@maybloom-stack` (skip both if the marketplace auto-updates),
-then repeat step 2 (the diff
-check included) and step 4. Step 3 is already in place.
+Update the plugin first, as the Updating section of `../README.md`
+says (two commands, or nothing if the marketplace auto-updates). The
+running session still has the old version loaded, and `<this-skill-dir>`
+still points at the old copy, so step 2 would copy the old script: ask
+the user to run `/reload-plugins` or start a new session, and continue
+from there. Then repeat step 2 (the diff check included) and step 4.
+Step 3 is already in place.
 
 ## Troubleshooting
 

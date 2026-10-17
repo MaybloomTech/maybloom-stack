@@ -75,7 +75,10 @@ files, so the `../maybloom-stack-shared/references/...` links keep
 resolving on the installed copy. Installed skills are namespaced
 (`maybloom-stack:maybloom-stack-bootstrap`).
 
-Updating takes two steps: `/plugin marketplace update maybloom-stack`
+### Updating
+
+This is the one place the update steps are written down; the other
+documents and skills point here. Updating takes two steps: `/plugin marketplace update maybloom-stack`
 refreshes the catalog, and `claude plugin update
 maybloom-stack@maybloom-stack` installs the new version (then
 `/reload-plugins`, or a new session). Or turn on auto-update for the
@@ -100,8 +103,9 @@ To pin a whole team to the skills, commit this to a project's
 
 ### Working on the skills themselves
 
-Add your clone as a local marketplace so the installed copy comes from the
-working tree and edits land in git rather than in a copy nobody reviews:
+Edit the clone, so changes land in git rather than in a copy nobody
+reviews. Adding it as a local marketplace tests the install path, the
+way a user gets the plugin:
 
 ```
 /plugin marketplace add ~/workspace/maybloom-stack
