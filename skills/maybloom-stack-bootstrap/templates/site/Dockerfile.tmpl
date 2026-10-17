@@ -21,6 +21,10 @@ RUN pnpm proto:descriptor
 RUN pnpm --filter __ORG_SCOPE__/docs-site build
 
 FROM nginx:alpine
+# The commit the site was built from, as CI passes it (the full SHA its
+# tag check reads); a local build without it is labelled dev.
+ARG REVISION=dev
+LABEL org.opencontainers.image.revision="${REVISION}"
 COPY --from=build /app/packages/docs-site/dist /usr/share/nginx/html
 # Astro emits directory-style routes, so ask nginx to serve index.html for
 # them and to 404 rather than redirect on a genuine miss.

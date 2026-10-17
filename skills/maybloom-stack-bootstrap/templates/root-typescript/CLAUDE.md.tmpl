@@ -27,6 +27,15 @@ pnpm dev:backend
 pnpm dev:interface
 ```
 
+CI (`.github/workflows/ci.yml`) runs these same checks on every pull
+request, by the areas it touches (the table in its `changes` job maps
+paths to areas: a new package or image needs its lines there, and a
+new image's Dockerfile the `REVISION` arg and revision label the others
+carry), then builds and smoke-tests the images; from `main` it pushes
+them. Commit
+messages and pull request titles are Conventional Commits
+(`commitlint.config.mjs`), checked on every PR.
+
 ## Delegation (the `maybloom-stack-delegate` skill has the roster and rules)
 
 - **Protected paths** (architect-only, no subagents):

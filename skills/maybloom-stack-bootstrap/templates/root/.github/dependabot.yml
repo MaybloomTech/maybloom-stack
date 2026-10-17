@@ -1,0 +1,24 @@
+version: 2
+
+updates:
+  # The workflows pin every action to a commit SHA, with the release in a
+  # comment beside it. A pin nobody moves stops receiving fixes, so
+  # Dependabot proposes the new SHA (and rewrites the comment) once a week,
+  # all actions in one pull request. The `ci` prefix keeps its titles
+  # conventional: the commit checks would refuse them otherwise.
+  #
+  # npm and Go modules are left out on purpose: Expo fixes the React and
+  # React Native versions for a whole SDK, so an unconstrained npm bump
+  # breaks the interface, and the templates' versions are a floor raised by
+  # hand. Add those ecosystems once the project knows which ceilings it
+  # keeps.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]

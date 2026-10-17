@@ -8,8 +8,10 @@ description: Use whenever the user wants to start a new project that uses the "m
 Bootstrap a fresh monorepo on the maybloom stack: a pnpm workspace with
 the contract at the root (Buf, the vendored protovalidate rules, Connect-ES
 generated TypeScript), a backend, an interface (Expo Router + React Query
-+ Connect Web client), and a docs site (Astro, static) that renders the
-contract itself.
++ Connect Web client), a docs site (Astro, static) that renders the
+contract itself, and the CI that checks all of it: GitHub Actions
+workflows for the per-area checks, the image build-and-push, and
+Conventional Commits.
 
 The backend is **Go by default**: connect-go on the stdlib mux, sqlc + pgx
 over Postgres, goose migrations applied on boot, protovalidate enforced by
@@ -227,6 +229,38 @@ start dev servers.
    do that explicitly so they own the first commit. `git status` must show
    no generated code: `go/gen/`, `go/internal/store/storedb/`,
    `packages/protocol-buffers/src/` and the descriptor are all ignored.
+   `pnpm-lock.yaml` *is* committed: CI installs with `--frozen-lockfile`
+   and fails without it. On the TypeScript path so is the migration from
+   step 3: the server refuses to boot without one, so CI's image smoke
+   test fails until it is in. Make the first commit's message conventional
+   too (`chore: scaffold from the maybloom stack`): no check reads it,
+   since it goes to main rather than through a pull request, but it is the
+   first line of the history the rest of it follows.
+
+8. **Wire CI on the forge.** The workflows run once the repo is on
+   GitHub; nothing in them names a registry, a host or an account. Tell
+   the user what is theirs to set, in the repository's settings:
+
+   - **To push images**, a repository variable `REGISTRY` (the image
+     prefix, e.g. `registry.example.com/team` or `ghcr.io/<owner>`) and
+     the secrets `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`. Until all
+     three exist, main builds and smoke-tests the images and pushes
+     nothing, with a notice naming what is missing. The registry must
+     require credentials and be served over HTTPS, or run on localhost
+     (any hosted one qualifies); one without auth, or plain HTTP on
+     another host, fails the image job's check that a SHA tag is not
+     already there.
+   - **To make the checks binding**, require exactly two on `main`:
+     `CI passed` and `conventional commits`, once each has run (GitHub
+     offers a check only after it has reported). Not the area jobs: they
+     report under names that change with what a pull request touches, so
+     a required one waits forever on a PR that leaves its area alone.
+     `CI passed` always reports and fails if any of them failed.
+   - **Squash merging** with the pull request title as the commit
+     message, which is why the title is linted.
+
+   Don't do any of this for them: it is account-level configuration, and
+   the stack carries the shape of the deploy, never the site.
 
 ## Reference: framework concepts the user is now responsible for
 
@@ -276,6 +310,21 @@ These are the patterns embedded in the templates. When the user asks
   hooks under `src/data/queries/` wrap it for caching.
 - **`EXPO_PUBLIC_*` env vars are inlined at build time.** Override the
   API URL per-environment via `.env` or EAS build profiles.
+- **CI runs the same checks the builder runs, by area.** The table at the
+  top of the `changes` job in `.github/workflows/ci.yml` is the only place
+  paths map to areas, or CI will not check them. A new package under
+  `packages/` is its line there (`package:<dir>`, the directory name) and
+  its `package:` on every line it consumes (the contract lines and
+  protocol-buffers', if it imports the contract). A second deployable is
+  its `image:<name>` on the lines that feed it, a Dockerfile line in
+  `image.yml`'s `Name the image` step and a smoke step guarded like the
+  others (its name, and `steps.tag.outputs.exists != 'true'`, so a rerun
+  that builds nothing smokes nothing), and in its Dockerfile the
+  `REVISION` arg and the revision `LABEL` the other Dockerfiles carry,
+  which the tag check reads: without them every rerun fails as unlabelled.
+  A new job is its table lines, the job, and its name in the `needs` of
+  both `image` and `passed`. Actions are pinned by SHA and Dependabot
+  moves them; don't replace a pin with a tag.
 
 ## After bootstrap: handoff to add-resource
 
@@ -323,6 +372,12 @@ Point the user there once they're past the initial scaffold.
 
 ```
 <out>/
+├── .github/
+│   ├── workflows/ci.yml         # per-area checks; calls image.yml once they pass
+│   ├── workflows/image.yml      # build, smoke-test and (from main) push the images
+│   ├── workflows/conventional-commits.yml   # every commit and the PR title
+│   └── dependabot.yml           # moves the actions' SHA pins weekly
+├── commitlint.config.mjs        # Conventional Commits, Dependabot's long headers exempt
 ├── package.json                 # workspace scripts (build, dev, lint, proto:gen)
 ├── pnpm-workspace.yaml          # workspaces + dependency catalog
 ├── tsconfig.json                # base; each package extends

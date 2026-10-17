@@ -1,0 +1,49 @@
+name: Templates
+
+# The bootstrap ships GitHub Actions workflows as templates, and a template
+# is never run in this repository. This scaffolds both backends and lints
+# what a new project would receive: the workflows after substitution, with
+# actionlint (which runs shellcheck over every `run:` script). A pin to an
+# input an action no longer has, or a script error, fails here rather than
+# on somebody's first pull request.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - skills/maybloom-stack-bootstrap/**
+      - .github/workflows/templates.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  workflows:
+    name: Lint the scaffolded workflows
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [go, typescript]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Scaffold
+        env:
+          BACKEND: ${{ matrix.backend }}
+        run: |
+          python3 skills/maybloom-stack-bootstrap/scripts/scaffold.py \
+            --name Orchard --slug orchard --org @orchard-tech \
+            --out "$RUNNER_TEMP/orchard" --backend "$BACKEND"
+          if grep -rn '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/.github"; then
+            echo "::error::a placeholder survived substitution in the workflows"
+            exit 1
+          fi
+      - name: actionlint
+        run: |
+          cd "$RUNNER_TEMP/orchard"
+          # actionlint looks for the repository root.
+          git init -q
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -no-color

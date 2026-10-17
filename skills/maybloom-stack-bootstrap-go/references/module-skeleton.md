@@ -291,7 +291,9 @@ contract, so it copies `proto/`, `third_party/` and `buf.yaml` as well as
 `go/`, runs `go generate .`, and builds with `-ldflags -X ...Version` from
 the `VERSION` build arg (the git short SHA). The runtime stage is
 `alpine`, a non-root user, `/healthz` as the healthcheck through busybox
-`wget`, and the version as the `org.opencontainers.image.revision` label.
+`wget`, and the commit as the `org.opencontainers.image.revision` label,
+from a `REVISION` build arg that defaults to `VERSION` (CI passes the full
+SHA, which its image tag check reads).
 The verified image is about 10 MB.
 
 If the binary also serves the web interface, add a `node:24-alpine` stage

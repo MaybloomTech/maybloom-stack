@@ -1,0 +1,289 @@
+# CI for pull requests to main: the checks a change must pass before it
+# merges, run only for the areas the pull request touches. A push to main
+# and a manual run (Actions → CI → Run workflow) check every area, and on
+# main the tested commit goes on to the image workflow, which builds,
+# smoke-tests and pushes it (a manual rerun finds that commit's SHA tag
+# already in the registry and leaves it as it is).
+#
+# Areas: lint (buf lint + biome), one job per package under packages/
+# (build and typecheck; the interface also exports the web bundle, the docs
+# site renders the contract) and one image per deployable
+# (.github/workflows/image.yml). The table in the `changes` job is the one
+# place a path is mapped to the areas it checks; a change to a root config
+# or a workflow runs them all.
+#
+# Require only the `CI passed` check on main (with `conventional commits`
+# from the other workflow): it always reports, under that one name, and
+# fails when anything that ran failed. The area jobs report under names
+# that change with what a pull request touches, so requiring one of them
+# blocks every pull request that leaves its area alone.
+#
+# Every action is pinned to a commit SHA with its release in a comment: a
+# tag can be moved to other code, a SHA cannot. Dependabot proposes the
+# bumps (.github/dependabot.yml).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its older run. A push to main or a
+# manual run gets a group of its own commit: GitHub keeps one waiting run
+# per group and drops the rest, so a shared group for main would skip
+# commits when merges land close together.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      # JSON lists: the areas with a job of their own (lint), the
+      # packages and the images.
+      areas: ${{ steps.pick.outputs.areas }}
+      packages: ${{ steps.pick.outputs.packages }}
+      images: ${{ steps.pick.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request checks out GitHub's test merge of the branch into
+          # main; the diff needs that merge and its first parent only.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Pick the areas to check
+        id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          # The path → areas table: a shell glob (`*` crosses `/`), then the
+          # areas a change under it checks. `*` as an area is every area;
+          # `package:<dir>` is a package under packages/, `image:<name>` an
+          # image in image.yml, anything else a job here of that name. A new
+          # package is its line here, and its `package:` on every line it
+          # consumes (the contract lines and protocol-buffers' line, if it
+          # imports the contract). A new image is the same here, plus its
+          # Dockerfile line in image.yml's `Name the image` step and a smoke
+          # step there (guarded like the others: its name, and the tag
+          # check's `exists`), and in its Dockerfile the `REVISION` arg and
+          # revision label the others carry (the tag check reads the label:
+          # without it every rerun fails as unlabelled). A new job is its
+          # lines here, the job, and its name in the `needs` of both `image`
+          # and `passed`.
+          AREAS: |
+            .github/*                    *
+            package.json                 *
+            pnpm-lock.yaml               *
+            pnpm-workspace.yaml          *
+            .npmrc                       *
+            .nvmrc                       *
+            tsconfig.json                *
+            biome.json                   *
+            commitlint.config.mjs        *
+            proto/*                      lint package:protocol-buffers package:backend package:interface package:docs-site image:backend image:docs-site
+            buf.yaml                     lint package:protocol-buffers package:backend package:interface package:docs-site image:backend image:docs-site
+            buf.gen.yaml                 lint package:protocol-buffers package:backend package:interface package:docs-site image:backend image:docs-site
+            third_party/*                lint package:protocol-buffers package:backend package:interface package:docs-site image:backend image:docs-site
+            packages/protocol-buffers/*  lint package:protocol-buffers package:backend package:interface image:backend image:docs-site
+            packages/backend/*           lint package:backend image:backend
+            packages/interface/*         lint package:interface
+            packages/docs-site/*         lint package:docs-site image:docs-site
+        run: |
+          set -euo pipefail
+          # The table's areas are words, never file names.
+          set -f
+          all=false
+          # The changed paths, NUL-separated: -z prints every name exactly,
+          # with no quoting, whatever characters it holds.
+          list="$RUNNER_TEMP/changed-files"
+          : > "$list"
+          if [ "$EVENT" != "pull_request" ]; then
+            all=true
+          elif ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
+            # HEAD^1..HEAD is the pull request's diff only on GitHub's test
+            # merge. Anything else checks every area rather than a single
+            # commit's files; the log still lists that commit's files.
+            echo "::warning::HEAD is not a merge commit; checking every area"
+            all=true
+            if git rev-parse --verify -q 'HEAD^1' >/dev/null; then
+              git diff -z --name-only --no-renames 'HEAD^1' HEAD > "$list"
+            fi
+          else
+            # HEAD is the test merge; its first parent is main as the merge
+            # was built, so the diff is the pull request's own changes. The
+            # event's base.sha is not used: it can lag behind main, and the
+            # diff would then carry everything merged since.
+            # --no-renames: a moved file lists its old path too, so the
+            # package it left is checked as well.
+            # An empty diff (the branch adds nothing to main) skips every
+            # area, on purpose.
+            git diff -z --name-only --no-renames 'HEAD^1' HEAD > "$list"
+          fi
+
+          # Paths are untrusted text: between stop-commands and its token
+          # the runner reads no workflow command, so a file named like
+          # ::endgroup:: or ::add-mask:: is printed, never obeyed.
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::group::Changed files"
+          echo "::stop-commands::$token"
+          if [ -s "$list" ]; then
+            tr '\0' '\n' < "$list"
+          elif [ "$EVENT" != "pull_request" ]; then
+            echo "(a $EVENT run: every area runs)"
+          elif [ "$all" = true ]; then
+            echo "(HEAD has no parent to diff: every area runs)"
+          else
+            echo "(none: the branch adds nothing to main, so no area runs)"
+          fi
+          echo "::$token::"
+          echo "::endgroup::"
+
+          # Every area the table names, in the order it names them.
+          globs=(); targets=(); order=()
+          declare -A known=() on=()
+          while read -r glob rest; do
+            [ -n "$glob" ] || continue
+            globs+=("$glob"); targets+=("$rest")
+            for a in $rest; do
+              if [ "$a" != '*' ] && [ -z "${known[$a]:-}" ]; then
+                known[$a]=1; order+=("$a")
+              fi
+            done
+          done <<< "$AREAS"
+
+          while IFS= read -r -d '' f; do
+            for i in "${!globs[@]}"; do
+              # Unquoted on the right on purpose: a pattern, not a string.
+              # shellcheck disable=SC2053
+              if [[ $f == ${globs[i]} ]]; then
+                for a in ${targets[i]}; do
+                  if [ "$a" = '*' ]; then all=true; else on[$a]=1; fi
+                done
+              fi
+            done
+          done < "$list"
+
+          json() {
+            local out="[" sep=""
+            for x in "$@"; do out="$out$sep\"$x\""; sep=","; done
+            echo "$out]"
+          }
+          areas=(); packages=(); images=()
+          for a in "${order[@]}"; do
+            [ "$all" = true ] || [ -n "${on[$a]:-}" ] || continue
+            case "$a" in
+              package:*) packages+=("${a#package:}") ;;
+              image:*) images+=("${a#image:}") ;;
+              *) areas+=("$a") ;;
+            esac
+          done
+          {
+            echo "areas=$(json "${areas[@]}")"
+            echo "packages=$(json "${packages[@]}")"
+            echo "images=$(json "${images[@]}")"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  lint:
+    name: lint
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'lint')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # Only the root package: biome and buf are its devDependencies, and
+      # nothing under packages/ is needed to lint. --ignore-scripts skips the
+      # root postinstall (proto:gen + every build); biome ignores the
+      # generated contract and buf lint reads proto/ as it is.
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter "{.}"
+      - run: pnpm lint:proto
+      - run: pnpm lint:ts
+      # Once clients you do not control depend on the contract, add
+      # `pnpm exec buf breaking --against ".git#branch=main"` here (with
+      # fetch-depth: 0 on the checkout): a wire-breaking change then fails
+      # before it merges.
+
+  web:
+    name: ${{ matrix.package }}
+    needs: changes
+    if: needs.changes.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # The contract's TypeScript, for the packages that import it.
+      - if: matrix.package != 'docs-site'
+        run: pnpm proto:gen
+      # The descriptor set the docs site renders, compiled from proto/.
+      - if: matrix.package == 'docs-site'
+        run: pnpm proto:descriptor
+      # By directory, as the table names it: --fail-if-no-match turns a
+      # table entry with no package behind it into a failure rather than a
+      # green leg that checked nothing.
+      # The package and what it depends on (the backend and the interface
+      # need the built protocol-buffers); a package without a build script
+      # is skipped.
+      - run: pnpm --fail-if-no-match --filter "{./packages/${{ matrix.package }}}..." build
+      - run: pnpm --fail-if-no-match --filter "{./packages/${{ matrix.package }}}" typecheck
+      - if: matrix.package == 'interface'
+        name: Export the web bundle
+        run: CI=1 pnpm --filter __ORG_SCOPE__/interface build:web
+
+  # The images, once everything they are built from has passed. On a pull
+  # request they are built and smoke-tested; on main they are also pushed.
+  # A failed check upstream skips this job; a skipped area does not.
+  image:
+    name: image
+    needs: [changes, lint, web]
+    if: ${{ !cancelled() && needs.changes.outputs.images != '[]' && !contains(needs.*.result, 'failure') }}
+    uses: ./.github/workflows/image.yml
+    with:
+      images: ${{ needs.changes.outputs.images }}
+      push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    secrets:
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+
+  # The one check to require: it runs whatever happened above and fails if
+  # any job it needs failed or was cancelled. A job skipped because its
+  # area was untouched is fine. A new job goes in its needs and in
+  # `image`'s, so a failure holds the images back too.
+  passed:
+    name: CI passed
+    needs: [changes, lint, web, image]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job that ran passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          if jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' <<<"$NEEDS" >/dev/null; then
+            echo "::error::a required job failed or was cancelled"
+            exit 1
+          fi

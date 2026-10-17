@@ -36,7 +36,8 @@ Layout mapping (templates → output):
 
   templates/root/*                       → <out>/                (shared)
   templates/root-<backend>/*             → <out>/                (package.json, CLAUDE.md,
-                                           and for Go: go.work, scripts/go, scripts/golangci-lint)
+                                           .github/workflows/ci.yml and image.yml, and for Go:
+                                           go.work, scripts/go, scripts/golangci-lint)
   templates/third_party/*                → <out>/third_party/    (vendored buf/validate/validate.proto)
   templates/proto/package.json.tmpl      → <out>/packages/protocol-buffers/...
   templates/proto/tsconfig.json          → <out>/packages/protocol-buffers/...

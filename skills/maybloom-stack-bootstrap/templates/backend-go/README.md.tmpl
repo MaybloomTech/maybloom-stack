@@ -31,7 +31,7 @@ go build ./... && go vet ./... && go test ./...
 ../scripts/golangci-lint run    # .golangci.yml, from the pinned image
 ```
 
-Without Go, `../scripts/go` runs the same commands in the `golang:1.26.7-alpine`
+Without Go, `../scripts/go` runs the same commands in the `golang:1.26.9-alpine`
 image the Dockerfile uses (the patch is pinned with `go.mod`'s and `go.work`'s go lines; raise the four together), with cached modules (`scripts/go generate .`,
 `scripts/go test ./...`).
 
