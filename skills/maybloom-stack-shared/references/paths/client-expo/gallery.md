@@ -1,0 +1,212 @@
+# The design board (the gallery)
+
+Every Expo interface on the stack ships with a design board: a second
+app, built from the same source, that renders the real primitives,
+feature components and pages through react-native-web, never a copy,
+against a fake backend typed by the contract. It is how a component is
+looked at in every state before a screen needs it, how a page is checked
+at a phone's, a tablet's and a laptop's width without a server, and how
+a design change is proposed beside what it would replace. The bootstrap
+scaffolds it wired for the Note example; this reference is the
+mechanism, so it can be kept up as the app grows or added to an
+interface that predates it.
+
+## How it is kept out of the app
+
+The board is a second Expo Router root, `packages/interface/gallery/`,
+switched on by one environment variable:
+
+```js
+// app.config.js — app.json stays the config; this only switches the root.
+module.exports = ({ config }) => {
+  if (process.env.EXPO_PUBLIC_GALLERY !== "1") return config;
+  return {
+    ...config,
+    extra: { ...config.extra, router: { ...config.extra?.router, root: "gallery" } },
+  };
+};
+```
+
+`pnpm gallery` serves it with live reload (`EXPO_PUBLIC_GALLERY=1 expo
+start --web`); `pnpm build:gallery` exports it to `dist-gallery/`. Every
+other run and build keeps `app/` as the root, so Metro never reaches the
+board's files. Three things hold that line:
+
+- **Biome `noRestrictedImports`** (root `biome.json`, an override on
+  `packages/interface/**`): nothing imports `**/gallery` or `**/design`,
+  and `useWindowDimensions` is refused in favour of `useViewport`. A
+  second override turns the rule off inside `gallery/`, `src/gallery/`,
+  `src/design/` and `src/styles/viewport.ts`, the one file allowed to read
+  the window.
+- **`pnpm check:no-gallery`** (`scripts/check-no-gallery.mjs`): the
+  app's web export (`dist/`, after `pnpm build:web`) must not contain the
+  board's sentinel string (`design-board-gallery`, the testID on its
+  page), and no file under `app/` or `src/` outside the board may
+  `require()` or `require.context()` the gallery or `src/design`, which
+  Biome does not see. A minified bundle names modules by number, so the
+  export alone cannot show `src/design`; the source scan does.
+- **`scripts/gallery-export.mjs`** runs after the gallery export and
+  refuses an export without the sentinel, so the app's bundle is never
+  published as the board by mistake.
+
+## How a page runs without a server
+
+Screens reach the backend only through the React Query hooks, and the
+hooks get the Connect client from `useClient()` (`src/data/api/client.ts`).
+The app never mounts `ClientProvider`, so the context's default, the
+live client, is what every screen uses. The board mounts one per
+specimen:
+
+```tsx
+// src/gallery/fake.tsx
+export function Fake({ children, ...options }: FakeOptions & { children: ReactNode }) {
+  const [client] = useState(() => fakeClient(options));
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+  return (
+    <ClientProvider value={client}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </ClientProvider>
+  );
+}
+```
+
+Each specimen has its own client and its own query cache, so what one
+changes (a note added, a note archived) stays its own, and two specimens
+of one page in different states do not share a cache key.
+
+`fakeClient()` (`src/gallery/fixtures/backend.ts`) is the real Connect
+client over `createRouterTransport`, answering the service from an
+in-memory copy of the fixtures:
+
+- The implementation is typed as the whole `ServiceImpl<typeof
+  <App>Service>`, so an RPC added to the contract fails the interface's
+  typecheck until the board answers it. That is the point: a page that
+  calls the new RPC would otherwise show an error on the board.
+- The fixtures (`src/gallery/fixtures/notes.ts`) are built with
+  `create(<Resource>Schema, {...})` from the generated package, so a field
+  the proto renames or drops breaks the typecheck here, not on the board.
+  They use a fixed clock and fixed ids (valid uuids, as the server's
+  are), so the board renders the same every time.
+- A **scenario** sets the state the backend puts a page in. The scaffold
+  has `notes` (a few), `empty`, `long` (more than one page), `loading`
+  (every call waits forever) and `error` (every call fails with
+  `Unavailable`). `failing: ["createNote"]` fails named calls anyway, for
+  an error that follows a tap. Add a scenario when a page has a state
+  the existing ones cannot reach (signed out, a permission missing), and
+  keep its meaning in the `Scenario` type's comment.
+- Behaviour that matters to a page is real, not stubbed: `listNotes`
+  pages with `page_token` and leaves archived notes out unless asked,
+  `archiveNote` sets `archived_at`, a missing id is `NotFound`.
+
+`PageFrame` wraps a page for the Pages tab: its own `Fake`, a
+`ViewportProvider` with the frame's size, and a `SafeAreaProvider` with
+that frame. That is why screens size themselves with `useViewport()`:
+inside the board, the window is the board's, and the frame is the page's.
+
+## The tabs
+
+`src/gallery/Gallery.tsx` holds a toolbar (the tab and the width: 390,
+768, 1280) and the tab's sheet; the URL hash keeps the view
+(`#components/NoteRow@768`, `#icons@390`), so a link opens it.
+
+| Tab | Sheet | What it shows | Keyed by |
+| --- | --- | --- | --- |
+| Primitives | `PrimitiveSheet.tsx` | `src/components/primitives` | the barrel's exports |
+| Components | `ComponentSheet.tsx` | `src/features/**` components, on fixtures | `ComponentsOf<module>` of each listed module |
+| Pages | `PageSheet.tsx` | each screen, per scenario, in a `PageFrame` | a list of routes |
+| Icons | `IconSheet.tsx` | `src/icons` at three sizes | the icon module's exports |
+| Tokens | `TokenSheet.tsx` | colors, spacing, radii, type from `src/styles/tokens.ts` | read as is |
+| Design passes | `DesignSheet.tsx` | variants beside the current component | `src/design/passes.ts` |
+
+A specimen is `{ label, node }`: one state, labelled with which. A state
+a component reaches only by input (a failed save) is shown by driving it,
+never by a prop that exists for the board: `Play` (`fake.tsx`) runs steps
+inside the specimen once their targets appear, `"Add note"` to press a
+control by its text or accessibility label, `{ fill: "Title", text }`
+to type into a field by its accessibility label. A step whose target
+never appears is drawn in red. Play is web-only, like the board.
+
+## What makes a missing entry fail
+
+- **Primitives and icons:** the sheet's entries are a
+  `Record<keyof typeof primitives, Specimen[]>` (and the icon sheet's a
+  `Record<keyof typeof icons, string>` saying what each icon stands for),
+  so a new export of the barrel or of `src/icons` fails the typecheck
+  until it has one.
+- **Feature components:** `ComponentSheet.tsx` imports each feature
+  module as a type (`import type * as noteRow from
+  "../features/notes/NoteRow"`) and keys its entries by the union of
+  `ComponentsOf<typeof module>` (the capitalised exports that are a
+  function component or a memo). A new component in a listed module fails
+  the typecheck. A module not listed at all is what `pnpm check:gallery`
+  (`scripts/check-gallery.mjs`) catches: it scans `src/features/**/*.tsx`
+  for modules that export a component (a platform variant such as
+  `.web.tsx` counts as its base module) and fails for any the sheet does
+  not import that way.
+- **Screens** are feature components too; their entry on the Components
+  sheet is `{ path, seen: "Pages" }`, and the page itself goes on the
+  Pages sheet with its scenarios.
+- **A new RPC** fails the typecheck in `fixtures/backend.ts` until the
+  fake answers it.
+
+## Adding to the board
+
+When the change adds…
+
+1. **A primitive:** export it from `src/components/primitives/index.ts`;
+   add its entry to `PrimitiveSheet.tsx` (each variant, disabled, and the
+   longest text it must hold).
+2. **A feature module:** add `import type * as <name>` and the value
+   imports to `ComponentSheet.tsx`, its `ComponentsOf<typeof <name>>` to
+   `FeatureComponents`, and an entry per component: the states it is
+   built for, each as a specimen. A component that loads its own data
+   goes in a `<Fake scenario=...>`.
+3. **A screen:** an entry `{ path, seen: "Pages" }` on the Components
+   sheet, and a route on `PageSheet.tsx` with one state per scenario that
+   changes what it shows, plus any `Play` that reaches a state by input.
+4. **An icon:** export it from `src/icons`; say what it stands for in
+   `IconSheet.tsx`.
+5. **An RPC or a resource:** answer it in `fixtures/backend.ts`; add
+   fixtures for a new message in `fixtures/` built with `create()`.
+6. **A design pass:** copy `src/design/example/` to
+   `src/design/<pass>/`, give each comparison the current component and
+   the variant, and add the pass to `src/design/passes.ts`. A variant that
+   is taken moves into the component and leaves `src/design/`.
+
+Each of 1-4 also gets its row in `src/components/COMPONENT_LIBRARY.md`,
+the index of what exists that a builder reads before writing a new
+component; the board shows the entries running, the file says what each
+is for. Nothing checks that file mechanically; review does.
+
+Then run `pnpm typecheck`, `pnpm lint`, `pnpm --filter <scope>/interface
+check:gallery`, and look at it with `pnpm --filter <scope>/interface
+gallery`.
+
+## In CI
+
+The interface job, after the web export, runs `check:no-gallery` (the
+export just built), `check:gallery`, and `build:gallery`, which also runs
+`gallery-export.mjs`. The typecheck before them is where the entry
+coverage fails.
+
+## Publishing the export
+
+`gallery-export.mjs` makes `dist-gallery/` servable from any path: Expo
+writes root-absolute URLs (`/_expo/...`, `/assets/...`), which become
+relative, and `_expo/` becomes `expo/`, since some static hosts reserve
+or hide names that start with `_`. It writes `files.json`, the list of
+files to upload. Any static host serves the folder as it is; every path
+renders the board (`gallery/[...path].tsx`), so a host that serves it
+under a sub-path needs no rewrite rules.
+
+## Not covered yet
+
+- **Native.** The board is a web export. `Play` and the hash are web-only;
+  the components render on a device under the gallery root
+  (`EXPO_PUBLIC_GALLERY=1 expo start`), but nobody has walked that path.
+- **Visual regression.** The board makes states reachable by URL, which
+  is what a screenshot test needs, but no screenshot diffing is wired.
+- **Grouping.** The sheets list entries in declaration order. A board
+  with many components may want them grouped by the job they serve or
+  by kind, with an outline that follows the scroll; that is a layout
+  change to `Gallery.tsx` and `layout.tsx`, not to the mechanism.

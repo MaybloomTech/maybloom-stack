@@ -30,16 +30,21 @@ wired to the example resource.
 ```
 app/                     Expo Router route files, thin by rule
   notes/index.tsx        re-exports a screen, nothing else
+gallery/                 the design board's router root (EXPO_PUBLIC_GALLERY=1)
 src/
-  screens/<area>/        the real screen components
-  components/            domain components + primitives + shells
+  features/<area>/       the real screens, and the components they are made of
+  components/            primitives + shells
+  icons/                 the app's icons
   data/
     api/                 typed client wrappers, one module per resource
     queries/             useQuery hooks + the query-key factory
     mutations/           useMutation hooks with invalidation
     queryClient.ts       one QueryClient, tuned defaults
   state/                 app-level contexts (mode, auth)
-  styles/                design tokens: colors, type, spacing, breakpoints
+  styles/                design tokens: colors, type, spacing, breakpoints;
+                         viewport.ts, the size a screen lays itself out for
+  gallery/               the design board: sheets, fake backend, fixtures
+  design/                design passes: variants only the board imports
 ```
 
 Route files re-export screens so navigation structure and screen
@@ -80,9 +85,13 @@ throws on it; `bytes` is a `Uint8Array` that serializes as an object of
 indexes. The persister has to tag both and reverse the tags on restore.
 Neither library documents this; the first persisted list finds it.
 
-The Connect client is a singleton (`src/data/api/client.ts`):
+The app has one live Connect client (`src/data/api/client.ts`):
 `createConnectTransport({ baseUrl })` from `@connectrpc/connect-web` plus
-`createClient(AppService, transport)`. connect-web v2 dropped the
+`createClient(AppService, transport)`. The query hooks reach it through
+`useClient()`, a context whose default is that client and which the app
+never provides, so a screen talks to the network; the design board
+provides a fake one per specimen. The api functions take the client as
+an argument rather than importing it. connect-web v2 dropped the
 `credentials` option, so a client whose session is a cookie passes a
 `fetch` override that sets `credentials: "include"` on every request.
 
@@ -143,13 +152,55 @@ The validated harness is `jest-expo` with React Native Testing Library,
 because Vitest cannot render React Native components. connect-es's
 `createRouterTransport` runs a fake service in-process, so the session
 state machine, the refresh classification and every screen can be tested
-against a scripted server with nothing listening on a port; a test that
+against a scripted server with nothing listening on a port (the design
+board's fake backend is one, ready to reuse); a test that
 flips the fake to `Unavailable` mid-session and expects the session to
 survive is the one that pins the sign-out rule. Testing Library 14 is
 asynchronous end to end: `await render(...)` and `await fireEvent.*`, or
 the next render in the file comes back empty two tests away from the
 cause. End-to-end web checks run Playwright against a real deployed
 server, never a mock, because the contract is what is being validated.
+
+## The design board
+
+Every Expo interface ships with a design board, the gallery: a second
+Expo Router root (`gallery/`), chosen by `EXPO_PUBLIC_GALLERY=1` in
+`app.config.js`, that renders the real primitives, feature components and
+pages through react-native-web, never copies. Its tabs are the three
+tiers (Primitives, Components, Pages), then Icons, Tokens and Design
+passes; a toolbar sets the width a design is checked at (390, 768, 1280)
+and the URL hash keeps the view, so a link opens it. `pnpm gallery` serves
+it with live reload.
+
+Pages and components run against a fake backend: the real Connect client
+over `createRouterTransport`, answering the whole service from fixtures
+built with the contract's own `create()`, one copy and one query cache
+per specimen, in scenarios (`notes`, `empty`, `long`, `loading`,
+`error`, and calls named to fail). The service implementation is typed as
+the whole `ServiceImpl`, so a new RPC fails the typecheck until the board
+answers it, and a renamed field fails it in the fixtures. A screen is
+shown at a frame's size, not the window's, which is why screens size
+themselves with `useViewport()` and never `useWindowDimensions`.
+
+The board is a rule as much as a tool, and the rules are mechanical:
+
+- a new primitive, feature component or icon fails the typecheck until it
+  has an entry (the sheets are keyed by the modules' exports);
+- a feature module the Components sheet does not list fails `pnpm
+  check:gallery`;
+- Biome refuses an import of the gallery or `src/design` outside them,
+  and `useWindowDimensions` outside `viewport.ts`;
+- `pnpm check:no-gallery` fails an app export that carries the board, or
+  app code that `require()`s it;
+- CI exports both bundles and runs both checks.
+
+Design passes (`src/design/<pass>/`) put a proposed variant beside the
+component it would replace; a variant that is taken moves into the
+component. The mechanism and the steps for each kind of addition are in
+the skills' `client-expo/gallery.md` reference.
+
+Not yet walked: the board on a device (it is a web export), and
+screenshot diffing over it.
 
 ## App chrome
 
@@ -180,6 +231,7 @@ web and iOS. Two chromes, one route tree, one data layer.
   allow-list on the backend is enough for reads and is not the session
   path; the web session is proven only on the hosted build. Native
   carries its token in the body and never meets the problem.
-- CI builds the export on every pull request and runs the export smoke
-  against it, with the Expo CLI told to stay offline (`EXPO_OFFLINE=1`,
+- CI builds the export on every pull request, checks the design board
+  stayed out of it, exports the board as a second bundle, and runs the
+  export smoke against the app's, with the Expo CLI told to stay offline (`EXPO_OFFLINE=1`,
   `EXPO_NO_TELEMETRY=1`) so it does not reach for the Expo API.

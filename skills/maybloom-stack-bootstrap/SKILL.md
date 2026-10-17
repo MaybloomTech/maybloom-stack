@@ -214,6 +214,19 @@ start dev servers.
    screen renders the example notes list with create and archive; the
    default API URL already points at the backend's port.
 
+   Then the design board, which needs no backend:
+
+   ```bash
+   pnpm --filter <ORG_SCOPE>/interface gallery
+   ```
+
+   It opens on the Primitives tab; Components and Pages show the Note
+   components and the notes screen in each fake-backend scenario.
+   Tell the user the rule that comes with it: every new primitive,
+   feature component, icon and page gets an entry on the board in the
+   same change, and the typecheck and `check:gallery` hold them to it
+   (`../maybloom-stack-shared/references/paths/client-expo/gallery.md`).
+
 6. **Run the docs site.** In another terminal:
 
    ```bash
@@ -308,9 +321,20 @@ These are the patterns embedded in the templates. When the user asks
 - **Root-relative imports on the TypeScript backend.** `tsconfig.json`
   sets `baseUrl: "src"`, so import from `db/...`, `core/...`,
   `handlers/...` — not `../../db/...`.
-- **Connect client is a singleton.** `interface/src/data/api/client.ts`
-  exports `client` — import it from any data-layer file. React Query
-  hooks under `src/data/queries/` wrap it for caching.
+- **One live Connect client, reached through `useClient()`.**
+  `interface/src/data/api/client.ts` exports `liveClient` and the
+  `ClientProvider`/`useClient()` context whose default it is. The React
+  Query hooks under `src/data/queries/` call `useClient()` and pass the
+  client to the api functions, which take it as their first argument;
+  nothing imports the client directly. That is how the design board
+  swaps in a fake one.
+- **The design board is a second router root.** `app.config.js` switches
+  Expo Router to `gallery/` when `EXPO_PUBLIC_GALLERY=1`; the app's
+  bundle never contains it (Biome's restricted imports and
+  `check:no-gallery` hold that line). Screens live in `src/features/`,
+  size themselves with `useViewport()`, and every component has an
+  entry on the board; see
+  `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
 - **`EXPO_PUBLIC_*` env vars are inlined at build time.** Override the
   API URL per-environment via `.env` or EAS build profiles.
 - **CI runs the same checks the builder runs, by area.** The table at the
@@ -433,12 +457,23 @@ Point the user there once they're past the initial scaffold.
     ├── interface/
     │   ├── app/                 # Expo Router file-based routes
     │   │   ├── _layout.tsx      # QueryClientProvider + Stack
-    │   │   └── index.tsx        # example NotesScreen: list, create, archive
-    │   ├── src/data/
-    │   │   ├── api/client.ts    # singleton Connect client, default URL on the backend's port
-    │   │   ├── api/notes.ts     # thin domain wrappers (paged list, archive)
-    │   │   ├── queries/useNotes.ts  # React Query hooks
-    │   │   └── queryClient.ts
+    │   │   └── index.tsx        # renders NotesScreen
+    │   ├── gallery/             # the design board's router root (EXPO_PUBLIC_GALLERY=1)
+    │   ├── src/
+    │   │   ├── data/
+    │   │   │   ├── api/client.ts    # live Connect client + useClient(), default URL on the backend's port
+    │   │   │   ├── api/notes.ts     # thin domain wrappers taking the client (paged list, archive)
+    │   │   │   ├── queries/useNotes.ts  # React Query hooks
+    │   │   │   └── queryClient.ts
+    │   │   ├── features/notes/  # NotesScreen, NoteForm, NoteRow
+    │   │   ├── components/primitives/  # Button, Card, TextField
+    │   │   ├── components/COMPONENT_LIBRARY.md  # the index of primitives, components, icons
+    │   │   ├── icons/           # the app's icons (react-native-svg)
+    │   │   ├── styles/          # tokens.ts, viewport.ts (useViewport)
+    │   │   ├── gallery/         # the board: tabs, sheets, fake.tsx, fixtures/ (contract-typed fake backend)
+    │   │   └── design/          # design passes: variants only the board imports
+    │   ├── scripts/             # check-gallery, check-no-gallery, gallery-export
+    │   ├── app.config.js        # switches the router root for the board
     │   ├── app.json
     │   └── babel.config.js
     └── docs-site/               # static site rendered from the contract

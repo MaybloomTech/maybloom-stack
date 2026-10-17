@@ -50,6 +50,13 @@ call costs double. So:
   never committed and never hand-edited; regenerate it.
 - Generated protos are deep-imported from the generated package; no
   barrel files.
+- A new primitive, feature component, icon or page gets its design
+  board entry in the same slice, and its row in the interface's
+  `COMPONENT_LIBRARY.md`. The typecheck fails for a component of a
+  listed module without an entry, and `check:gallery` for a feature
+  module the board does not list; never silence either by moving a
+  component out of `src/features/` or out of its module's exports. A
+  screen sizes itself with `useViewport()`, never `useWindowDimensions`.
 - A new source file starts with the licence header the project's `CLAUDE.md`
   requires, if it requires one.
 
