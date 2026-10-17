@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../styles/tokens";
 
 /** One state of a component, with the label that says which. */
@@ -67,7 +67,9 @@ export function SpecimenSection({
 /**
  * A tab's page: its sections at the board's width, scrolled both ways, so
  * a frame wider than the window (1280 on a laptop) is reached by
- * scrolling, never clipped.
+ * scrolling, never clipped. On the web it is one scroller for both axes,
+ * so both scrollbars sit at the window's edges; nested ScrollViews would
+ * put the horizontal one at the bottom of a long sheet.
  */
 export function Sheet({
   width,
@@ -76,10 +78,17 @@ export function Sheet({
   width: number;
   children: ReactNode;
 }) {
+  const content = <View style={{ width, gap: spacing.xl }}>{children}</View>;
+  if (Platform.OS === "web")
+    return (
+      <View style={styles.scroller}>
+        <View style={[styles.sheet, styles.fit]}>{content}</View>
+      </View>
+    );
   return (
     <ScrollView>
       <ScrollView horizontal contentContainerStyle={styles.sheet}>
-        <View style={{ width, gap: spacing.xl }}>{children}</View>
+        {content}
       </ScrollView>
     </ScrollView>
   );
@@ -87,6 +96,9 @@ export function Sheet({
 
 const styles = StyleSheet.create({
   sheet: { padding: spacing.lg, alignItems: "flex-start" },
+  scroller: { flex: 1, overflow: "scroll" },
+  // As wide as its content, so the padding holds on the right too.
+  fit: { alignSelf: "flex-start" },
   section: { gap: spacing.sm },
   note: { ...typography.caption, color: colors.textSecondary },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.lg },

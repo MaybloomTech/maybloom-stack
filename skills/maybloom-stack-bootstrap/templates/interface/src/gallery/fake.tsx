@@ -77,15 +77,20 @@ export function Play({
     let cancelled = false;
     (async () => {
       for (const step of JSON.parse(script) as PlayStep[]) {
+        // Checked after every wait, before acting: a run the effect has
+        // cleaned up (StrictMode's double effect, new steps) must not press
+        // or type, or the specimen submits twice.
         let done: unknown = null;
         if (typeof step === "string") {
           const target = await waitFor(() => findControl(root, step));
+          if (cancelled) return;
           target?.click();
           done = target;
         } else if ("fill" in step) {
           const field = (await waitFor(() =>
             findField(root, step.fill),
           )) as HTMLInputElement | null;
+          if (cancelled) return;
           if (field) fill(field, step.text);
           done =
             field &&
@@ -102,6 +107,7 @@ export function Play({
         }
         // Let the input land before the next step.
         await new Promise((r) => setTimeout(r, 50));
+        if (cancelled) return;
       }
     })();
     return () => {

@@ -4,7 +4,14 @@ import { colors, radii, spacing, typography } from "../styles/tokens";
 import { ComponentSheet } from "./ComponentSheet";
 import { DesignSheet } from "./DesignSheet";
 import { IconSheet } from "./IconSheet";
-import { anchorId, frames, type SheetProps, type Width } from "./layout";
+import { ViewportProvider } from "../styles/viewport";
+import {
+  anchorId,
+  frames,
+  heightOf,
+  type SheetProps,
+  type Width,
+} from "./layout";
 import { PageSheet } from "./PageSheet";
 import { PrimitiveSheet } from "./PrimitiveSheet";
 import sentinel from "./sentinel.json";
@@ -113,7 +120,14 @@ export function Gallery() {
           ))}
         </View>
       </View>
-      <Sheet key={view.tab} width={view.width} />
+      {/* Every sheet lays out for the board's width, not the window's: a
+          component that branches on useViewport() shows its 390 layout in
+          the 390 column. A page's PageFrame provides its own frame. */}
+      <ViewportProvider
+        value={{ width: view.width, height: heightOf(view.width) }}
+      >
+        <Sheet key={view.tab} width={view.width} />
+      </ViewportProvider>
     </View>
   );
 }

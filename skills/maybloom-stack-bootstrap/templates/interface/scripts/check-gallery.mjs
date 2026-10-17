@@ -37,13 +37,18 @@ const declared = new RegExp(
   "m",
 );
 const defaultWrapped = /^export default (?:memo|forwardRef)\(/m;
+const componentBase = String.raw`(?:React\.)?(?:Pure)?Component\b`;
 // What ComponentsOf cannot see: a default export of a component, or a
 // component class.
 const defaultComponent = new RegExp(
-  String.raw`^export default (?:(?:async )?function ${name}|class |(?:memo|forwardRef)\(|${name}\s*;)`,
+  String.raw`^export default (?:(?:async )?function ${name}|class (?:\w+ )?extends ${componentBase}|(?:memo|forwardRef)\(|${name}\s*;)`,
   "m",
 );
-const classComponent = new RegExp(String.raw`^export (?:default )?class ${name}`, "m");
+// Only a component class: `export class HttpError extends Error` is not one.
+const classComponent = new RegExp(
+  String.raw`^export (?:default )?class ${name}\s+extends ${componentBase}`,
+  "m",
+);
 // `export { Foo, bar as Baz }`, leaving out `type` names.
 const listedNames = (source) =>
   [...source.matchAll(/^export \{([^}]*)\}/gm)]

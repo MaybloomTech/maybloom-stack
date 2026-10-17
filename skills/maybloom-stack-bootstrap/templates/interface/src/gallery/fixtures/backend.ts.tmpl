@@ -115,8 +115,18 @@ function serviceOf(
         }),
       );
     },
-    archiveNote: (req) =>
-      replace(create(NoteSchema, { ...find(req.id), archivedAt: timestampNow() })),
+    // As the server does: archived_at is kept if already set, updated_at
+    // moves on every call.
+    archiveNote: (req) => {
+      const old = find(req.id);
+      return replace(
+        create(NoteSchema, {
+          ...fieldsOf(old),
+          archivedAt: old.archivedAt ?? timestampNow(),
+          updatedAt: timestampNow(),
+        }),
+      );
+    },
   };
 }
 

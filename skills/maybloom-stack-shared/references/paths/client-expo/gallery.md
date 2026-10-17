@@ -113,14 +113,20 @@ in-memory copy of the fixtures:
 `frames` (`layout.tsx`, the one list the toolbar's widths and the frame
 heights both come from): its own `Fake`, a
 `ViewportProvider` with the frame's size, and a `SafeAreaProvider` with
-that frame. That is why screens size themselves with `useViewport()`:
-inside the board, the window is the board's, and the frame is the page's.
+that frame. The other sheets get the board's width the same way
+(`Gallery.tsx` wraps every sheet in a `ViewportProvider` at the chosen
+width), so a component that branches on `useViewport()` shows its 390
+layout in the 390 column. That is why screens and components size
+themselves with `useViewport()`: inside the board, the window is the
+board's, and the frame is the page's.
 
 ## The tabs
 
 `src/gallery/Gallery.tsx` holds a toolbar (the tab and the width: 390,
 768, 1280) and the tab's sheet, which scrolls both ways, so a 1280 frame
-in a smaller window is scrolled to, not clipped. The URL hash keeps the
+in a smaller window is scrolled to, not clipped. On the web it is a
+single scroller under the toolbar, so both scrollbars sit at the
+window's edges. The URL hash keeps the
 view (`#components/NoteRow@768`, `#icons@390`), so a link opens it, and a
 linked entry is scrolled to when the entry changes.
 
@@ -164,7 +170,8 @@ drawn in red. Play is web-only, like the board.
 - **Default and class components** would slip past `ComponentsOf`, so
   `check:gallery` refuses them under `src/features/`: a feature component
   is a named function export (`export function NoteRow`), or a `memo` of
-  one.
+  one. Only a class that extends `Component` or `PureComponent` counts;
+  `export class HttpError extends Error` is not refused.
 - **Screens** are feature components too; their entry on the Components
   sheet is `{ path, seen: "Pages" }`, and the page itself goes on the
   Pages sheet with its scenarios.
