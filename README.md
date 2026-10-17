@@ -81,9 +81,10 @@ skills is two commands inside Claude Code:
 /plugin install maybloom-stack@maybloom-stack
 ```
 
-`/plugin marketplace update maybloom-stack` pulls new releases. See
-[`skills/README.md`](./skills/README.md) for team-wide pinning via
-`.claude/settings.json` and the contributor flow.
+Updating takes two steps, or auto-update; see
+[Updating](./skills/README.md#updating) in `skills/README.md`, which
+also covers team-wide pinning via `.claude/settings.json` and the
+contributor flow.
 
 ## Running the site
 

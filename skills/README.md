@@ -69,11 +69,32 @@ Claude Code:
 ```
 
 That installs the whole family in one step — the triggering skills, the
-`builder` and `mechanic` agents from `../agents/`, plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
+`builder`, `mechanic`, `reviewer` and `orchestrator` agents from
+`../agents/`, plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
 files, so the `../maybloom-stack-shared/references/...` links keep
 resolving on the installed copy. Installed skills are namespaced
-(`maybloom-stack:maybloom-stack-bootstrap`). Pull new releases with
-`/plugin marketplace update maybloom-stack`.
+(`maybloom-stack:maybloom-stack-bootstrap`).
+
+### Updating
+
+This is the one place the update steps are written down; the other
+documents and skills point here. Updating takes two steps, in a
+terminal:
+
+```
+claude plugin marketplace update maybloom-stack     # refresh the catalog
+claude plugin update maybloom-stack@maybloom-stack  # install the new version
+```
+
+then start a new session (or `/reload-plugins` in a running one). Inside
+Claude Code, `/plugin`, Marketplaces, "Update marketplace" does both in
+one step. Or turn on auto-update for the
+marketplace (`/plugin`, Marketplaces), which is off by default for
+marketplaces outside Anthropic's; it runs in the background after a
+session's first message. Either way, an installed copy changes only when the
+plugin's version does.
+
+### Pinning a team to the plugin
 
 To pin a whole team to the skills, commit this to a project's
 `.claude/settings.json` instead of installing by hand:
@@ -91,17 +112,18 @@ To pin a whole team to the skills, commit this to a project's
 
 ### Working on the skills themselves
 
-Add your clone as a local marketplace so the installed copy comes from the
-working tree and edits land in git rather than in a copy nobody reviews:
+Edit the clone, so changes land in git rather than in a copy nobody
+reviews. Adding it as a local marketplace tests the install path, the
+way a user gets the plugin:
 
 ```
 /plugin marketplace add ~/workspace/maybloom-stack
 /plugin install maybloom-stack@maybloom-stack
 ```
 
-After editing, `/plugin marketplace update maybloom-stack` re-syncs the
-installed copy from the clone; `/reload-plugins` applies it without
-restarting the session.
+To try edits as you make them, start a session on the working tree
+instead, with `claude --plugin-dir ~/workspace/maybloom-stack`;
+`/reload-plugins` applies further edits without restarting the session.
 
 ## Editing rules
 

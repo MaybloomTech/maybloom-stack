@@ -55,17 +55,10 @@
         "source": "github",
         "repo": "expo/skills"
       }
-    },
-    "vikunja-skill": {
-      "source": {
-        "source": "github",
-        "repo": "MaybloomTech/vikunja-skill"
-      }
     }
   },
   "enabledPlugins": {
     "maybloom-stack@maybloom-stack": true,
-    "expo@expo-plugins": true,
-    "vikunja@vikunja-skill": true
+    "expo@expo-plugins": true
   }
 }

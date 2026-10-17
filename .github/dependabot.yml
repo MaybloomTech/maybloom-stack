@@ -1,9 +1,10 @@
 version: 2
 
 updates:
-  # Conventional Commits are enforced by CI on both the PR title and every
-  # commit message, so the prefix here is not cosmetic: without it every
-  # Dependabot pull request fails the title check before anyone looks at it.
+  # Conventional Commits are enforced by CI on the PR title, which
+  # Dependabot builds from this prefix, so the prefix is not cosmetic:
+  # without it every Dependabot pull request fails the title check before
+  # anyone looks at it.
   - package-ecosystem: npm
     directory: /
     schedule:

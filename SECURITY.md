@@ -38,10 +38,11 @@ about where the risk lives:
 - **The site is static.** It builds to files and is served by nginx with
   no server-side code and no runtime data. Findings here would be build
   supply-chain issues rather than application ones.
-- **CI runs on untrusted input.** Pull request titles and commit messages
-  from forks reach workflow steps. These are passed through environment
-  variables rather than interpolated into shell, which is deliberate; a
-  path where that is not true is a finding.
+- **CI runs on untrusted input.** Pull request titles and the names of
+  the files a pull request changes reach workflow steps from forks. These
+  are passed through environment variables or read as data rather than
+  interpolated into shell, which is deliberate; a path where that is not
+  true is a finding.
 
 ## Out of scope
 
