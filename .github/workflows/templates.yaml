@@ -26,6 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         backend: [go, typescript]
+        # one scaffold of each visibility: go is private (the default)
+        include:
+          - backend: typescript
+            visibility: public
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,12 +37,17 @@ jobs:
       - name: Scaffold
         env:
           BACKEND: ${{ matrix.backend }}
+          VISIBILITY: ${{ matrix.visibility || 'private' }}
         run: |
           python3 skills/maybloom-stack-bootstrap/scripts/scaffold.py \
             --name Orchard --slug orchard --org @orchard-tech \
-            --out "$RUNNER_TEMP/orchard" --backend "$BACKEND"
+            --out "$RUNNER_TEMP/orchard" --backend "$BACKEND" --visibility "$VISIBILITY"
           if grep -rn '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/.github"; then
             echo "::error::a placeholder survived substitution in the workflows"
+            exit 1
+          fi
+          if grep -n '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/AGENTS.md"; then
+            echo "::error::a placeholder survived substitution in AGENTS.md"
             exit 1
           fi
       - name: Agent setup

@@ -59,6 +59,11 @@ round) is worth naming as such.
 Post one comment on the run's item, starting with `[reviewer]`:
 `Round <n> at <sha>`, then each finding as `<id> <severity> <kind>
 <file:line> — <what breaks, how to see it> — <the least-change fix>`,
-then what you ran, then the verdict: `changes requested`, or
-`APPROVED at <sha>. Merge allowed.` with the polish items the builder
-may fix before merging listed. Nothing else.
+then what you ran, then the verdict. An ordinary round ends `changes
+requested` or `no blocking findings`; it never grants a merge, because
+the orchestrator decides from the series when the run is ready. Only
+the deep review (the round the orchestrator names as the gate) may end
+`APPROVED at <sha>. Merge allowed.`, listing the polish items the
+builder may fix before merging, and only where the project owner allows
+builder merges; elsewhere it ends `ready for the owner's merge at
+<sha>`. Nothing else.

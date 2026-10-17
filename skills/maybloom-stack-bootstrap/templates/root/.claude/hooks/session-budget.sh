@@ -13,6 +13,9 @@
 #     MAYBLOOM_WEEK_WARN_PCT (default 90): finish, hand off, start nothing new.
 #     Once per window (keyed by its reset time); the .ok file does not silence it.
 #
+# When context falls below the last warning (a compaction), the mark comes down
+# with it, so crossing the budget again warns again.
+#
 # No status line, no sidecar, no jq: the hook prints nothing and exits 0. It
 # never blocks a prompt.
 set -u
@@ -57,6 +60,17 @@ if [ -r "$state" ]; then
 fi
 
 msgs=()
+dirty=""
+# Context fell below the last warning (a compaction, /clear): lower the mark to
+# the band ctx is in now, so the next crossing warns again.
+if [ -n "$ctx" ] && [ "$ctx" -lt "$ctx_level" ]; then
+  if [ "$ctx" -ge "$budget" ]; then
+    ctx_level=$(( budget + (ctx - budget) / step * step ))
+  else
+    ctx_level=0
+  fi
+  dirty=1
+fi
 if [ -n "$ctx" ] && [ ! -e "$ok" ] && [ "$ctx" -ge "$budget" ]; then
   level=$(( budget + (ctx - budget) / step * step ))
   if [ "$level" -gt "$ctx_level" ]; then
@@ -73,10 +87,11 @@ if [ -n "$week" ] && [ "$week" -ge "$week_warn" ] && [ "$week_fired" != "${week_
   msgs+=("Usage: the weekly window is at ${week}% (warning from ${week_warn}%). Finish the current step, post the hand-off on the run's item, and start nothing new.")
 fi
 
-[ "${#msgs[@]}" -gt 0 ] || exit 0
+[ "${#msgs[@]}" -gt 0 ] || [ -n "$dirty" ] || exit 0
 printf 'ctx_level=%s\nfive=%s\nweek=%s\n' "$ctx_level" "$five_fired" "$week_fired" > "$state.$$" \
   && mv -f "$state.$$" "$state"
 find "$state_dir" -type f -mtime +7 -delete 2>/dev/null
+[ "${#msgs[@]}" -gt 0 ] || exit 0
 jq -n --arg ctx "$(printf '%s\n\n' "${msgs[@]}")" \
   '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: ($ctx | rtrimstr("\n\n"))}}'
 exit 0

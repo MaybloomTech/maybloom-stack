@@ -227,6 +227,8 @@ if command -v curl >/dev/null 2>&1; then
     fi
     if mkdir "$usage_lock" 2>/dev/null; then
       : > "$usage_attempt"
+      # sidecars untouched for a week, at most once per USAGE_TTL
+      find "$usage_cache_dir/sessions" -name '*.json' -mtime +7 -delete 2>/dev/null
       ( refresh_usage_cache; rmdir "$usage_lock" ) >/dev/null 2>&1 &
       disown 2>/dev/null
     fi
@@ -309,7 +311,7 @@ join_parts() {
 # The per-session sidecar: the numbers this redraw shows, for the prompt hook.
 # Only for a session id that is safe as a file name; written to a temp file and
 # renamed, so a reader never sees half a file. Sidecars untouched for a week
-# are pruned.
+# are pruned with the usage refresh, above.
 write_sidecar() {
   local dir="$usage_cache_dir/sessions" tmp
   [[ "$session_id" =~ ^[A-Za-z0-9_-]+$ ]] || return 0
@@ -330,7 +332,6 @@ write_sidecar() {
                 pct: ($scoped | num), resets_at: ($scoped_resets | num) } }' \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$dir/$session_id.json"
   rm -f "$tmp"
-  find "$dir" -name '*.json' -mtime +7 -delete 2>/dev/null
   return 0
 }
 write_sidecar

@@ -90,7 +90,9 @@ next session resumes from the item alone. A fresh session beats
 compaction because compaction keeps going on a lossy summary of what the
 session knew. The status line shows the number and leaves it in a
 per-session file, and a prompt hook in every scaffolded project reads
-that file and says when the budget is crossed, once per step.
+that file and says when the budget is crossed, once per step. It speaks
+only when a prompt arrives, so a session that runs long on one prompt
+checks its own meter at each round boundary.
 
 ## What a repo supplies
 
@@ -101,8 +103,10 @@ from, and the checks each role runs at the end. Bootstrap writes the
 section into every new repo; one that predates it adds the section by
 hand, and the agents fall back to a `## Delegation` section in
 `CLAUDE.md`. A repo that needs a different builder ships its own
-`.claude/agents/builder.md`, which shadows the plugin's; the name and the
-report shape stay, so the review does not learn a second format.
+`.claude/agents/<name>.md` and launches it by that name; the plugin's
+agents are namespaced (`maybloom-stack:builder`), so a project agent sits
+beside them rather than replacing them. The report shape stays, so the
+review does not learn a second format.
 
 The full rules, the brief template and the `AGENTS.md` section are in the
 [skill itself](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md).

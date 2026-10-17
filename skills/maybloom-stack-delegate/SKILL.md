@@ -19,7 +19,8 @@ the decisions, plans with the architect and answers the questions the
 roles file. The owner is not a role and no agent fills it; write "the
 project owner" (or "the owner"), never a name. The architect is the
 session reading this skill when it plans; the other four are agents this
-plugin ships. A repo pins the actual models in its `AGENTS.md`.
+plugin ships. A repo may pin other models in its `AGENTS.md`, outside
+`## Delegation`.
 
 | Role | Model | Owns |
 |---|---|---|
@@ -64,7 +65,9 @@ the only role that reaches the owner outside the tracker. It is always a
 main session, never an `Agent` call: a run outlives any one call (it waits
 on review rounds), it needs the status line's context meter and the
 budget hook, which only a main session has, and nested launches are
-capped in depth.
+capped in depth. It does not start sessions itself: until a runner does,
+it posts the launch command and the starting prompt on the item and asks
+the owner to start the builder or reviewer session.
 
 **Builder** (`claude --agent maybloom-stack:builder --permission-mode
 acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
@@ -81,7 +84,8 @@ chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Grep, Glob; no Agent.
 
 **Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode
 default`, a fresh session every round). Decides alone: findings, their
-severity, the verdict, approval at a head. Files: a decision that stops
+severity, the verdict; approval at a head only in the deep review the
+orchestrator names as the gate. Files: a decision that stops
 the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
@@ -103,7 +107,7 @@ or Write, and it never pushes.
    test. The shipped agents refuse to edit them and report what they needed.
 4. **Review climbs a tier.** Builder PR → reviewer rounds (or architect
    `/code-review medium`) → the owner merges, or the builder merges on the
-   reviewer's approval where the owner has allowed it. Architect PR → a
+   deep review's approval where the owner has allowed it. Architect PR → a
    reviewer at higher effort (`/code-review high`) → the owner. Mechanic
    PR → a skim. `high` fans out to ~20 agents; it is for foundations and
    security, not for a screen slice. Severity is realistic breakage of
@@ -166,7 +170,10 @@ owner says continue, the session runs `touch
 The same hook warns once per window when the 5-hour usage reaches
 `MAYBLOOM_5H_WARN_PCT` (80) or the weekly reaches `MAYBLOOM_WEEK_WARN_PCT`
 (90): finish and hand off, start nothing new. Without the status line
-installed the hook has no numbers and stays silent.
+installed the hook has no numbers and stays silent. The hook speaks only when a prompt arrives, so a session that works for
+long from one prompt (an orchestrator between rounds, a builder on a
+brief, a reviewer's round) hears nothing in between: such a session
+checks its own meter at each round or step boundary.
 
 ### The hand-off
 
@@ -249,6 +256,8 @@ a repo that predates it adds one by hand, and the agents fall back to a
 ```
 
 A repo that needs a different builder, mechanic, reviewer or
-orchestrator ships its own `.claude/agents/<name>.md`; a project-level
-agent shadows the plugin's. Keep the name and the report shape, so the
-review does not have to learn a second format.
+orchestrator ships its own `.claude/agents/<name>.md` and launches it by
+that name (`claude --agent reviewer`, `subagent_type: builder`): the
+plugin's agents are namespaced (`maybloom-stack:reviewer`), so a project
+agent never replaces them under the launches this skill documents. Keep
+the report shape, so the review does not have to learn a second format.

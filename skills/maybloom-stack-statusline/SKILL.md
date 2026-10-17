@@ -19,7 +19,10 @@ The team's Claude Code status line, as one script. It renders two lines:
   50, yellow from 50, red from 80; the dim countdown is the time to its
   reset. `ctx:` has its own thresholds, from the session budget
   (`maybloom-stack-delegate`, Session budget): yellow from
-  `MAYBLOOM_CTX_BUDGET_PCT` (default 30), red from 50.
+  `MAYBLOOM_CTX_BUDGET_PCT` (default 30), red from 50. Set a changed
+  budget in the shell that starts Claude Code: whether a project's
+  `settings.json` `env` block reaches the status line is not verified
+  (it does reach the budget hook).
 
 The model-scoped weekly limit is a third usage window: a weekly cap that
 applies to one model only (on top of the all-models weekly window), shown

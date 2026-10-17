@@ -49,19 +49,32 @@ series decides the state:
   file a decision for the owner with the series attached and the
   least-change option among the choices.
 - **ready** — zero blocking this round and at most two the round before.
-  Run one deep review; zero blocking from it is the merge question for
-  the owner (or the builder merges on an approval the owner has allowed).
-  Blocking from it is back to converging.
+  Run one deep review, and say in the request that it is the gate; zero
+  blocking from it is the merge question for the owner (or the builder
+  merges on the deep review's approval, where the owner has allowed
+  that). Blocking from it is back to converging.
+
+## Starting sessions
+
+The builder and every reviewer round are sessions of their own, never
+your subagents (a reviewer must start fresh, and a builder slice over
+~500 lines does not fit a call). Until a runner starts them, post the
+launch on the run's item and ask the project owner to start it: the
+command from the skill (`claude --agent maybloom-stack:reviewer
+--permission-mode default`, or `maybloom-stack:builder` with
+`acceptEdits`) and the prompt it starts with (the round, the PR and its
+head, or the brief). Then wait on the item.
 
 On `HOLD` from any role, or a decision filed for the owner, stop and
 wait on that item until the owner's answer appears there.
 
 ## Budget
 
-You are a session, so the session budget applies: at the budget (the
-prompt hook says when), post the hand-off on the run's item in the
-format the skill fixes and stop, unless the owner has said to continue
-this session.
+You are a session, so the session budget applies: at the budget, post
+the hand-off on the run's item in the format the skill fixes and stop,
+unless the owner has said to continue this session. The prompt hook
+warns only when a prompt arrives, and you work for long stretches from
+one, so check your own context meter at every round boundary.
 
 ## Report
 
