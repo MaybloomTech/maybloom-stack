@@ -211,7 +211,7 @@ typed and say so when the save fails; the row takes the proto message.
 
 Every new primitive, feature component, icon and page gets an entry on
 the design board in the same change: the typecheck fails for a component
-of a listed module without one, and `pnpm check:gallery` for a feature
+of a listed module without one, and `check:gallery` for a feature
 module the Components sheet does not list. A new RPC also needs an
 answer in the fake backend, or the typecheck fails there.
 [gallery.md](./gallery.md) has the mechanism and the steps.
@@ -249,8 +249,10 @@ plain `onSuccess: invalidate` is fine.
   `createRouterTransport` hosts a scripted implementation in-process;
   pass it where the real transport goes and every hook and screen is
   testable under `jest-expo`. The design board's `fakeClient()` is
-  exactly that, in scenarios; a test mounts it through `ClientProvider`
-  the way the board does. React Native Testing Library 14 is async
+  exactly that, in scenarios; a test file under `src/` (`*.test.tsx`,
+  `__tests__/`, exempt from the board's import rule) mounts it through
+  `ClientProvider` the way the board does. The scaffold ships no test
+  runner; this is the shape for the first test. React Native Testing Library 14 is async
   end to end: `await render(...)` and `await fireEvent.*(...)`.
 - **Platform suffixes need the plain file too.** `store.native.ts`
   without `store.ts` fails `tsc`; make the web implementation the

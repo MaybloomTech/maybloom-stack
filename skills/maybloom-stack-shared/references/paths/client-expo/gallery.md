@@ -27,23 +27,34 @@ module.exports = ({ config }) => {
 };
 ```
 
-`pnpm gallery` serves it with live reload (`EXPO_PUBLIC_GALLERY=1 expo
-start --web`); `pnpm build:gallery` exports it to `dist-gallery/`. Every
+`pnpm --filter <scope>/interface gallery` serves it with live reload
+(`EXPO_PUBLIC_GALLERY=1 expo start --web`); `pnpm --filter
+<scope>/interface build:gallery` exports it to `dist-gallery/`. The
+scripts named below are the interface package's: from the repo root they
+take `--filter <scope>/interface`, from `packages/interface` they run as
+they are. Every
 other run and build keeps `app/` as the root, so Metro never reaches the
 board's files. Three things hold that line:
 
 - **Biome `noRestrictedImports`** (root `biome.json`, an override on
-  `packages/interface/**`): nothing imports `**/gallery` or `**/design`,
-  and `useWindowDimensions` is refused in favour of `useViewport`. A
+  `packages/interface/**`): nothing imports the gallery or `src/design`,
+  and `useWindowDimensions` is refused in favour of `useViewport`. Biome
+  matches the import's text, not the file it resolves to, so the patterns
+  name the specifiers that reach those folders: `@/gallery`,
+  `**/src/gallery`, and `./gallery` up to `../../../../gallery`, each with
+  `/**` (the same for `design`). `../styles/design` does not match. A
   second override turns the rule off inside `gallery/`, `src/gallery/`,
-  `src/design/` and `src/styles/viewport.ts`, the one file allowed to read
-  the window.
-- **`pnpm check:no-gallery`** (`scripts/check-no-gallery.mjs`): the
-  app's web export (`dist/`, after `pnpm build:web`) must not contain the
-  board's sentinel string (`design-board-gallery`, the testID on its
-  page), and no file under `app/` or `src/` outside the board may
-  `require()` or `require.context()` the gallery or `src/design`, which
-  Biome does not see. A minified bundle names modules by number, so the
+  `src/design/`, `src/styles/viewport.ts` (the one file allowed to read
+  the window) and test files under `src/` (`*.test.ts(x)`,
+  `__tests__/`), which Metro never bundles and which may reuse the fake
+  backend.
+- **`check:no-gallery`** (`scripts/check-no-gallery.mjs`): the app's web
+  export (`dist/`, after `build:web`) must not contain the board's
+  sentinel (the testID on its page, kept in `src/gallery/sentinel.json`,
+  which `Gallery.tsx` and both scripts read, so it cannot drift), and no
+  file under `app/` or `src/` outside the board and the test files may
+  `require()`, `require.context()` or `import()` the gallery or
+  `src/design`, which Biome does not see. A minified bundle names modules by number, so the
   export alone cannot show `src/design`; the source scan does.
 - **`scripts/gallery-export.mjs`** runs after the gallery export and
   refuses an export without the sentinel, so the app's bundle is never
@@ -98,7 +109,9 @@ in-memory copy of the fixtures:
   pages with `page_token` and leaves archived notes out unless asked,
   `archiveNote` sets `archived_at`, a missing id is `NotFound`.
 
-`PageFrame` wraps a page for the Pages tab: its own `Fake`, a
+`PageFrame` wraps a page for the Pages tab, at one of the board's
+`frames` (`layout.tsx`, the one list the toolbar's widths and the frame
+heights both come from): its own `Fake`, a
 `ViewportProvider` with the frame's size, and a `SafeAreaProvider` with
 that frame. That is why screens size themselves with `useViewport()`:
 inside the board, the window is the board's, and the frame is the page's.
@@ -106,8 +119,10 @@ inside the board, the window is the board's, and the frame is the page's.
 ## The tabs
 
 `src/gallery/Gallery.tsx` holds a toolbar (the tab and the width: 390,
-768, 1280) and the tab's sheet; the URL hash keeps the view
-(`#components/NoteRow@768`, `#icons@390`), so a link opens it.
+768, 1280) and the tab's sheet, which scrolls both ways, so a 1280 frame
+in a smaller window is scrolled to, not clipped. The URL hash keeps the
+view (`#components/NoteRow@768`, `#icons@390`), so a link opens it, and a
+linked entry is scrolled to when the entry changes.
 
 | Tab | Sheet | What it shows | Keyed by |
 | --- | --- | --- | --- |
@@ -121,10 +136,13 @@ inside the board, the window is the board's, and the frame is the page's.
 A specimen is `{ label, node }`: one state, labelled with which. A state
 a component reaches only by input (a failed save) is shown by driving it,
 never by a prop that exists for the board: `Play` (`fake.tsx`) runs steps
-inside the specimen once their targets appear, `"Add note"` to press a
-control by its text or accessibility label, `{ fill: "Title", text }`
-to type into a field by its accessibility label. A step whose target
-never appears is drawn in red. Play is web-only, like the board.
+inside the specimen: `"Add note"` presses the enabled control with that
+text or accessibility label (it waits for a disabled one to enable),
+`{ fill: "Title", text }` types into a field by its accessibility label
+and waits for the value to hold, and `{ expect: "Could not save" }` waits
+for text to show. End a Play with an `expect`, so a press that did
+nothing is reported. A step that does not come true in three seconds is
+drawn in red. Play is web-only, like the board.
 
 ## What makes a missing entry fail
 
@@ -136,13 +154,17 @@ never appears is drawn in red. Play is web-only, like the board.
 - **Feature components:** `ComponentSheet.tsx` imports each feature
   module as a type (`import type * as noteRow from
   "../features/notes/NoteRow"`) and keys its entries by the union of
-  `ComponentsOf<typeof module>` (the capitalised exports that are a
+  `ComponentsOf<typeof module>` (the capitalised named exports that are a
   function component or a memo). A new component in a listed module fails
-  the typecheck. A module not listed at all is what `pnpm check:gallery`
+  the typecheck. A module not listed at all is what `check:gallery`
   (`scripts/check-gallery.mjs`) catches: it scans `src/features/**/*.tsx`
   for modules that export a component (a platform variant such as
-  `.web.tsx` counts as its base module) and fails for any the sheet does
-  not import that way.
+  `.web.tsx` counts as its base module, `x/index.tsx` is module `x`) and
+  fails for any the sheet does not import that way.
+- **Default and class components** would slip past `ComponentsOf`, so
+  `check:gallery` refuses them under `src/features/`: a feature component
+  is a named function export (`export function NoteRow`), or a `memo` of
+  one.
 - **Screens** are feature components too; their entry on the Components
   sheet is `{ path, seen: "Pages" }`, and the page itself goes on the
   Pages sheet with its scenarios.

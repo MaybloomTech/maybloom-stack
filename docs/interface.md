@@ -169,8 +169,10 @@ Expo Router root (`gallery/`), chosen by `EXPO_PUBLIC_GALLERY=1` in
 pages through react-native-web, never copies. Its tabs are the three
 tiers (Primitives, Components, Pages), then Icons, Tokens and Design
 passes; a toolbar sets the width a design is checked at (390, 768, 1280)
-and the URL hash keeps the view, so a link opens it. `pnpm gallery` serves
-it with live reload.
+and the URL hash keeps the view, so a link opens it. `pnpm --filter
+<scope>/interface gallery` serves it with live reload (the scripts below
+are the interface package's, run from the repo root with `--filter` or
+from `packages/interface` as they are).
 
 Pages and components run against a fake backend: the real Connect client
 over `createRouterTransport`, answering the whole service from fixtures
@@ -186,11 +188,14 @@ The board is a rule as much as a tool, and the rules are mechanical:
 
 - a new primitive, feature component or icon fails the typecheck until it
   has an entry (the sheets are keyed by the modules' exports);
-- a feature module the Components sheet does not list fails `pnpm
-  check:gallery`;
-- Biome refuses an import of the gallery or `src/design` outside them,
-  and `useWindowDimensions` outside `viewport.ts`;
-- `pnpm check:no-gallery` fails an app export that carries the board, or
+- a feature module the Components sheet does not list fails
+  `check:gallery`, which also refuses a default or class component
+  export under `src/features/` (the typecheck sees named function
+  components only);
+- Biome refuses an import of the gallery or `src/design` outside them
+  (test files under `src/` excepted, so a test can reuse the fake
+  backend), and `useWindowDimensions` outside `viewport.ts`;
+- `check:no-gallery` fails an app export that carries the board, or
   app code that `require()`s it;
 - CI exports both bundles and runs both checks.
 
