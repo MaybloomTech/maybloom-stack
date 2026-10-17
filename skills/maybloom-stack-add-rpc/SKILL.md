@@ -181,7 +181,10 @@ method; `go build ./...` is the checklist.
   shows up as a screen that needs a manual refresh. An interface
   scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
   `useClient()`) uses the same library in an older layout: follow it, and
-  do not migrate it unless the owner asks.
+  do not migrate it unless the owner asks. Composing several RPCs or
+  filtering a big list in the interface is a sign the RPC is missing; the
+  "Custom queries" passage in the client-expo README says where the line
+  is.
 - **screen** — the control that triggers it, plus the disabled/failed
   states the new error codes make possible.
 - **design board** (Expo) — the fake backend in

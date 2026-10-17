@@ -134,6 +134,56 @@ puts it back and `onSettled` invalidates. Keep it in the resource's hook
 file rather than in the screen. For first-pass CRUD, plain `onSuccess:
 invalidate` is fine.
 
+### Custom queries
+
+A screen's own query is a React Query hook over `useBackend()`, in the
+feature that owns the screen, shaped like the hooks above:
+
+- **Parameters go in the key.** Invalidating the prefix refreshes every
+  variant.
+
+  ```ts
+  export function useSearch<Resources>(term: string) {
+    const { <app_slug>: api } = useBackend();
+    return useQuery({
+      queryKey: [...<RESOURCES>_KEY, 'search', term],
+      queryFn: () => api.search<Resources>({ term }),
+    });
+  }
+  ```
+
+  `qc.invalidateQueries({ queryKey: <RESOURCES>_KEY })` refreshes all
+  terms.
+
+- **`select` for derived data.** Map or pick from the cached answer, as
+  `use<Resources>` does, so screens never see more than they need.
+- **`enabled` for dependent queries.** A query that needs another's answer
+  (or a form value) waits for it:
+
+  ```ts
+  useQuery({
+    queryKey: [...<RESOURCES>_KEY, id, 'history'],
+    queryFn: () => api.list<Resource>History({ <resource>Id: id! }),
+    enabled: id !== undefined,
+  });
+  ```
+
+- **`useInfiniteQuery` for paging**, as in "A paged list".
+- **Combining a few RPCs.** One `queryFn` that awaits `Promise.all` of two
+  or three calls, or `useQueries` when each answer should cache and
+  refresh on its own.
+- **A fetch that is not an RPC** (a file, an image proxy, a health ping)
+  becomes a new member of `Backend`, so the design board and the tests can
+  fake it. The hook calls `useBackend().<member>`, never `fetch` directly.
+
+The limit: stitching many RPCs, filtering a large list on the client, or
+making N calls to build one screen means the contract lacks an RPC. Add it
+with `maybloom-stack-add-rpc` instead of composing it in the interface.
+
+A second feature that needs the same data imports the owning feature's
+hook and key rather than writing its own. Data that belongs to no feature
+(the session) lives in `src/data/`.
+
 ### connect-query as a variant
 
 `@connectrpc/connect-query` derives typed hooks from the service
