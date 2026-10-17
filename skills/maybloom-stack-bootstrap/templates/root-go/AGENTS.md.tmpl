@@ -96,9 +96,14 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 
 ## Change and dependency guardrails
 
+- `.claude/settings.json` allows the checks without a prompt. A `*` in a
+  rule there spans spaces (`pnpm --filter * build` also matches
+  `pnpm --filter x exec <anything> build`), so keep new rules as narrow
+  as the command they are for.
+
 - Never edit `pnpm-lock.yaml` or `go.sum` by hand; `pnpm install` and
   `go mod tidy` write them.
-- After a proto change, regenerate (`pnpm proto:gen`, `go generate .`)
+- After a proto change, regenerate (`pnpm proto:gen`, `scripts/go generate .`)
   before building anything that depends on it.
 - Biome lints and formats; no eslint or prettier.
 - Ask the project owner before adding a dependency or shifting the
@@ -165,8 +170,12 @@ subagent shares its parent's id and keeps to its `maxTurns`):
 ```bash
 jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
 ```
- When the owner says to go
-on, touch the `.ok` file the warning names. The thresholds are
+
+A `null`, or an empty `CLAUDE_CODE_SESSION_ID`, means no number yet:
+check again at the next boundary and say so in the hand-off (the
+variable is not in Claude Code's documentation; confirm it on your
+build). When the owner says to go on, touch the `.ok` file the warning
+names. The thresholds are
 `MAYBLOOM_CTX_BUDGET_PCT`, `MAYBLOOM_CTX_STEP_PCT`, `MAYBLOOM_5H_WARN_PCT`
 and `MAYBLOOM_WEEK_WARN_PCT`. The `env` block of `.claude/settings.json`
 reaches the hook; whether it reaches the status line is not verified, so

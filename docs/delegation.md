@@ -76,8 +76,13 @@ and item by that id, so it is the one convention the roles cannot vary.
 ## Budgets are enforced, not requested
 
 A subagent cannot compact and nobody watches its meter, so the agents
-carry their limit in frontmatter (`maxTurns`) rather than in prose. A
-slice that outgrows the budget is a fresh session, not a longer call.
+carry their limit in frontmatter (`maxTurns`) rather than in prose. That
+limit binds `Agent` calls only: a role launched as a session ignores
+`maxTurns` and works to the session budget below. A slice that outgrows
+the budget is a fresh session, not a longer call. Every agent has the
+Skill tool, so a session loads the tracker's skill and the delegation
+skill itself; the orchestrator launches with `acceptEdits`, so the small
+builders it dispatches can edit unattended.
 Splitting a slice in halves does not make it agent-sized: each half
 still replays the plan, the conventions and the codebase it touches, and
 in practice each half runs as long as the whole would have.

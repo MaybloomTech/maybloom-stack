@@ -3,7 +3,6 @@ name: reviewer
 description: Reviewer role (the maybloom-stack-delegate roster). Reviews one round of one maybloom-stack pull request in a fresh session — the PR body and diff, the items it closes, the repo's AGENTS.md — and posts findings by severity and a verdict. Never edits code. Launch it as a session (`claude --agent maybloom-stack:reviewer`), a new one every round.
 model: opus
 effort: high
-maxTurns: 150
 tools: Read, Grep, Glob, Bash, Skill
 ---
 
@@ -68,11 +67,23 @@ the orchestrator decides from the series when the run is ready. Only
 the deep review (the round the orchestrator names as the gate) may end
 `APPROVED at <sha>. Merge allowed.`, listing the polish items the
 builder may fix before merging (open should-fix findings are fixed
-first, which means another gate round at the new head, or put on that
+first, which means the deep review ends `changes requested` and another
+gate round follows at the new head, or put on that
 list if small and local, or deferred to a named item), and only
 where the project owner has allowed builder merges in a comment on the
 run's item; elsewhere it ends `ready for the owner's merge at <sha>`. A
 deep review with blocking findings ends `changes requested`. End with
-the `HANDOFF` block in the skill's fixed format (the series, open
-findings, what you ran and where your harnesses are, next step). Nothing
-else.
+the `HANDOFF` block in the skill's fixed format, with the series as an
+extra first line:
+
+```
+HANDOFF
+- Series: <one row per round>
+- Branch/head: <branch> at <sha> (PR <n>)
+- Open findings: <id: state> per finding, or "none"
+- Verified: <what you ran, the exact commands or harness paths, the result>
+- Known limits: <what was not run or not covered, and why>
+- Next step: <the one thing the next round or session does first>
+```
+
+Nothing else.

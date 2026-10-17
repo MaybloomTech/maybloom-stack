@@ -217,7 +217,7 @@ Then the root pieces from `templates/root-go/`: the Go scripts from its
 database creates), and the lines from its `AGENTS.md` the repo's lacks (a repo that
 keeps its guidance in `CLAUDE.md` takes them there), and the Go entries
 of its `.claude/settings.json` `permissions.allow` (`scripts/go`,
-`scripts/golangci-lint`, `go`, `pnpm test:backend`, the compose
+`scripts/golangci-lint`, `go`, `pnpm test:<SERVICE>`, the compose
 database) into the repo's, so the Go checks run without a prompt.
 The compose file already has the database; add `docker/postgres/` from
 `templates/root/` if the repo predates it.

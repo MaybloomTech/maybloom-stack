@@ -55,7 +55,10 @@ owner is in the session.
 **Orchestrator** (`claude --agent maybloom-stack:orchestrator
 --permission-mode acceptEdits`: it has no Edit or Write of its own, and
 the builders and mechanics it dispatches through `Agent` inherit its
-mode, so they can edit unattended). Decides alone: when to start the next round,
+mode, so they can edit unattended. The mode also auto-approves the
+orchestrator's own filesystem commands in Bash (`sed -i`, `mv`, `rm`),
+and a dispatched builder still asks at `git commit`, `git push` and
+`gh pr create`). Decides alone: when to start the next round,
 the round series and its state (converging / diverging / ready), which
 reviewer effort a round gets, whether a deferral goes to a new item.
 Files: a diverging series (with the series attached), the merge, a
