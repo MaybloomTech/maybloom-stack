@@ -117,7 +117,9 @@ restarting the session.
   substituted too (`cmd/__APP_SLUG__/`).
 - `templates/root/` is shared by both backends; `templates/root-go/` and
   `templates/root-typescript/` hold the root files that differ
-  (`package.json`, `CLAUDE.md`, the Go wrappers); `templates/backend-go/`
+  (`package.json`, `AGENTS.md`, `.claude/settings.json`, the Go
+  wrappers); `templates/private/` adds `docs/plans/` to a private repo;
+  `templates/backend-go/`
   lands at `go/` and `templates/backend-typescript/` at `packages/backend/`.
   `backend-go/go.mod.tmpl` and `go.sum` are a floor known to build
   together; refreshing them is a per-release chore (scaffold, `go get -u

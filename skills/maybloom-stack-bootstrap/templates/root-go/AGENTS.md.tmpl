@@ -1,0 +1,227 @@
+# AGENTS.md
+
+The operating guide for coding agents in __APP_NAME__. The stack's
+conventions are the `maybloom-stack` skills; this file holds only what is
+specific to this repository. `CLAUDE.md` is a pointer here; tool-specific
+files never repeat what this one says. Record decisions here as they are
+made, so the next session inherits them instead of rediscovering them.
+
+## Scope and priority
+
+When instructions conflict, this order wins:
+
+1. Runtime, system, developer and user instructions
+2. This file
+3. Tool-specific context files (`CLAUDE.md`)
+
+## Read first
+
+1. This file
+2. `docs/context.md`: what the project is for, its principles, who acts,
+   what is out of scope
+3. The work item you were given, its newest comments and its last hand-off
+4. `go/README.md` before backend work (settings, run recipes)
+5. `packages/interface/src/components/COMPONENT_LIBRARY.md` before
+   interface work
+
+## Project overview
+
+__APP_NAME__ is a maybloom-stack monorepo. The proto contract in
+`proto/__APP_SLUG__/` is the API; `go/` serves it (connect-go, sqlc + pgx,
+goose on Postgres), `packages/interface` (Expo Router) consumes it, and
+`packages/docs-site` renders it. Generated code
+(`packages/protocol-buffers/src/`, `go/gen/`, `go/internal/store/storedb/`)
+is never committed; `pnpm install` and `scripts/go generate .` produce it.
+
+## Working model
+
+- **Plan first.** A task of three or more steps, or one that crosses
+  packages, gets a short plan before code. If new facts break the plan,
+  stop and re-plan.
+- **Verify before done.** Nothing is complete until it has been run:
+  - TypeScript: `pnpm typecheck` and `pnpm lint`
+  - Proto: `pnpm lint` (buf lint), then `pnpm proto:gen` and `scripts/go
+    generate .`
+  - Go: `scripts/go vet ./...`, `pnpm test:backend` (`scripts/go test -p
+    1 ./...` on the compose network, against the test database; `-p 1`
+    because the database-backed packages share it) and
+    `scripts/golangci-lint run`; with Go installed, the same commands in
+    `go/` without the wrappers
+  - Interface components: `pnpm --filter __ORG_SCOPE__/interface
+    check:gallery`
+- **Prefer the small design.** Pragmatic over clever; no speculative
+  abstraction.
+- **Bugs go from reproduction to root cause to fix**, on the evidence of
+  logs, traces and failing tests, without avoidable questions.
+
+## Definition of done
+
+1. The requested scope is complete and nothing unrelated changed.
+2. The verification gates above pass for every area the change touches.
+3. A new primitive, feature component, icon or page has its design board
+   entry and its `COMPONENT_LIBRARY.md` row.
+4. Error handling is explicit for external calls and failure paths.
+5. The prose that describes the change (this file, a README, the docs)
+   says what is now true.
+
+## Commands
+
+From the repo root:
+
+| Action | Command |
+|---|---|
+| Install (also generates the TypeScript contract and builds) | `pnpm install` |
+| Regenerate the TypeScript contract | `pnpm proto:gen` |
+| Typecheck | `pnpm typecheck` |
+| Lint (buf lint + biome) | `pnpm lint` |
+| The development Postgres | `docker compose up -d db` |
+| Backend (on the compose network, `DEV_USER=dev`, `:8080`) | `pnpm dev:backend` |
+| Backend tests (the test database) | `pnpm test:backend` |
+| Interface | `pnpm dev:interface` |
+| Design board (fake backend, port 8082) | `pnpm --filter __ORG_SCOPE__/interface gallery` |
+| Go: contract + data layer | `scripts/go generate .` |
+| Go: build, vet | `scripts/go build ./...`, `scripts/go vet ./...` |
+| Go: lint | `scripts/golangci-lint run` |
+
+`scripts/go` and `scripts/golangci-lint` run the pinned toolchains in
+Docker for a machine without Go; with Go installed, run the same commands
+in `go/`.
+
+CI (`.github/workflows/ci.yml`) runs these same checks on every pull
+request, by the areas it touches, then builds and smoke-tests the
+images; from `main` it pushes them. Adding a package, an image or a job
+means editing the CI too: the table in its `changes` job, and for an
+image a Dockerfile line, a smoke step and the `REVISION` label (the
+maybloom-stack-bootstrap skill's CI reference lists every edit).
+
+## Change and dependency guardrails
+
+- `.claude/settings.json` allows the checks without a prompt. A `*` in a
+  rule there spans spaces (`pnpm --filter * build` also matches
+  `pnpm --filter x exec <anything> build`), so keep new rules as narrow
+  as the command they are for.
+
+- Never edit `pnpm-lock.yaml` or `go.sum` by hand; `pnpm install` and
+  `go mod tidy` write them.
+- After a proto change, regenerate (`pnpm proto:gen`, `scripts/go generate .`)
+  before building anything that depends on it.
+- Biome lints and formats; no eslint or prettier.
+- Ask the project owner before adding a dependency or shifting the
+  architecture. Prefer what the workspace already has.
+
+## Delegation (the `maybloom-stack-delegate` skill has the roles and rules)
+
+- **Protected paths** (architect-only, no subagents):
+  `go/internal/auth/`, `go/internal/config/`, `go/internal/postgres/`,
+  `go/internal/server/mux.go`, `go/internal/server/interceptors.go`,
+  `packages/interface/src/data/api/client.ts`. Add session and permission
+  files here as they appear.
+- **Commands run from:** the repo root (pnpm, `scripts/go`,
+  `scripts/golangci-lint`); `go/` for a native Go toolchain.
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
+  __ORG_SCOPE__/interface check:gallery` (after a proto change, first
+  `pnpm proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`:
+  the interface typechecks against the built contract); then
+  `scripts/go generate .`, `scripts/go vet ./...`, `pnpm test:backend`
+  (`scripts/go test -p 1 ./...` against the test database) and
+  `scripts/golangci-lint run`. A new component, icon or page has its
+  design board entry.
+- **Mechanic checks:** `pnpm lint`, `scripts/go vet ./...`, or the CI job
+  the chore touches.
+
+## Branches and pull requests
+
+- One work item, one branch, one PR. The branch is the item's tracker id,
+  a slash and a short slug (`PROJ-123/short-slug`, the id as the tracker
+  prints it, no `#`), cut from an up-to-date `main`.
+- The PR body names every item the PR closes, what was run and what was
+  not.
+- Commit messages and PR titles are Conventional Commits
+  (`commitlint.config.mjs`), checked on every PR. Merges are squashed, so
+  the PR title becomes the commit on `main`.
+- During review, never rewrite pushed history.
+
+## Session budget
+
+A session works inside 30% of its context window (the working default)
+unless the project owner raises it for that session. Size the work to fit; split
+what does not. At the budget, post the hand-off on the work item and
+stop; never mid-fix. The format is fixed, so the next session resumes
+from the item alone:
+
+```
+HANDOFF
+- Branch/head: <branch> at <sha> (PR <n>, or "no PR yet")
+- Open findings: <id: state> per finding, or "none"
+- Verified: <what was run, the exact commands, and the result>
+- Known limits: <what was not run or not covered, and why>
+- Next step: <the one thing the next session does first>
+```
+
+`.claude/hooks/session-budget.sh` (a prompt hook, registered in
+`.claude/settings.json`) says when the budget is crossed, once per 10
+points above it, and when the 5-hour or weekly usage is nearly spent. It
+reads the numbers the `maybloom-stack-statusline` status line writes;
+without that status line it stays silent. It speaks only when a prompt
+arrives, so a session that works long from one prompt reads its own
+number at each round or step boundary (sessions only: an `Agent`
+subagent shares its parent's id and keeps to its `maxTurns`):
+
+```bash
+jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
+```
+
+A `null`, or an empty `CLAUDE_CODE_SESSION_ID`, means no number yet:
+check again at the next boundary and say so in the hand-off (the
+variable is not in Claude Code's documentation; confirm it on your
+build). When the owner says to go on, touch the `.ok` file the warning
+names. The thresholds are
+`MAYBLOOM_CTX_BUDGET_PCT`, `MAYBLOOM_CTX_STEP_PCT`, `MAYBLOOM_5H_WARN_PCT`
+and `MAYBLOOM_WEEK_WARN_PCT`. The `env` block of `.claude/settings.json`
+reaches the hook; whether it reaches the status line is not verified, so
+set a changed budget in the shell that starts Claude Code too.
+
+## Docs
+
+__VISIBILITY_RULE__
+
+`go/README.md` is the backend's living documentation: its configuration
+table and run recipes change in the same commit as the code they
+describe.
+
+## Project-specific rules
+
+- Migrations are append-only; one schema change each; sqlc reads the
+  schema from them, so the migration comes before the query.
+- A new primitive, feature component, icon or page gets its design board
+  entry in the same change (`packages/interface/src/gallery/`, served by
+  `pnpm --filter __ORG_SCOPE__/interface gallery`): the typecheck fails
+  for a component of a listed module without one, `check:gallery` for a
+  module the Components sheet does not list. Screens live in
+  `src/features/` and size themselves with `useViewport()`; the app never
+  imports `src/gallery` or `src/design` (`check:no-gallery` fails a bundle
+  that contains them). Feature modules have no default exports (Biome).
+  `packages/interface/src/components/COMPONENT_LIBRARY.md` is the index
+  of what exists; read it before writing a component, update it with
+  one.
+- A new RPC is added to the proto first, then the handler, then the
+  interface, whose design board fake backend answers it too; the
+  generated handler interface refuses to compile until every declared RPC
+  has a method, so let the compiler be the checklist.
+- Input rules are `buf.validate` options in the contract, enforced by the
+  validate interceptor. Handlers do not check presence or ranges by hand.
+- Lists are cursor-paged (`page_size`, `page_token`, `next_page_token`);
+  how a resource leaves the default view is a per-resource decision made
+  as a dedicated RPC with its rule in its comment (Note: `ArchiveNote`),
+  never a flag on Update.
+- __LICENSE_RULE__
+
+## Lessons
+
+Hard-won, non-obvious gotchas, newest last, in this format:
+
+```
+### LESSON: <short title>
+**Context**: <what happened, with the evidence>
+**Rule**: <what to do from now on>
+```

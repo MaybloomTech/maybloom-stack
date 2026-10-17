@@ -5,7 +5,8 @@ plugin 0.6.0 they ship as templates:
 `../../maybloom-stack-bootstrap/templates/backend-go/` is the module
 (landing at `go/`) and `../../maybloom-stack-bootstrap/templates/root-go/`
 holds the repo-root pieces (`go.work`, `scripts/go`,
-`scripts/golangci-lint`, the Go `package.json` and `CLAUDE.md`). **The
+`scripts/golangci-lint`, the Go `package.json`, `AGENTS.md` and
+`.claude/settings.json`). **The
 templates are canonical; this file is the commentary**: what each file is
 for, which choices carry weight, and where a service may deviate. Copy
 the files (substituting `__GO_MODULE__`, `__APP_SLUG__`, `__APP_NAME__`

@@ -1,0 +1,71 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm proto:gen:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm --filter * check:gallery)",
+      "Bash(pnpm --filter * build)",
+      "Bash(buf lint:*)",
+      "Bash(pnpm test:backend:*)",
+      "Bash(scripts/go generate:*)",
+      "Bash(scripts/go build:*)",
+      "Bash(scripts/go vet:*)",
+      "Bash(scripts/go test:*)",
+      "Bash(scripts/golangci-lint run:*)",
+      "Bash(go generate:*)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)",
+      "Bash(docker compose up -d db)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-budget.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "maybloom-stack": {
+      "source": {
+        "source": "github",
+        "repo": "MaybloomTech/maybloom-stack"
+      }
+    },
+    "expo-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "expo/skills"
+      }
+    },
+    "vikunja-skill": {
+      "source": {
+        "source": "github",
+        "repo": "MaybloomTech/vikunja-skill"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "maybloom-stack@maybloom-stack": true,
+    "expo@expo-plugins": true,
+    "vikunja@vikunja-skill": true
+  }
+}

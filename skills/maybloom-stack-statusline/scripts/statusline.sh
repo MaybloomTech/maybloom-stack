@@ -2,6 +2,11 @@
 # Claude Code status line script
 # Shows: cwd | git branch | model | 5-hour usage+reset | weekly usage+reset | model-scoped week (e.g. Fable) | context usage
 #
+# ctx is coloured against the session budget: amber from MAYBLOOM_CTX_BUDGET_PCT
+# (default 30), red from 50. Every redraw also writes this session's numbers to
+# $XDG_CACHE_HOME/claude-statusline/sessions/<session_id>.json, which the
+# session-budget prompt hook reads (hooks do not receive context usage).
+#
 # STATUSLINE_DEBUG=1 runs the usage refresh in the foreground and reports on
 # stderr why the scoped segment is or is not available (no token, HTTP 401,
 # curl failure, stale cache); see SKILL.md, Troubleshooting.
@@ -37,6 +42,23 @@ color_pct() {
   if [ "$pct" -ge 80 ]; then
     printf '%b%s%%%b' "$c_red" "$pct" "$c_reset"
   elif [ "$pct" -ge 50 ]; then
+    printf '%b%s%%%b' "$c_yellow" "$pct" "$c_reset"
+  else
+    printf '%b%s%%%b' "$c_green" "$pct" "$c_reset"
+  fi
+}
+
+# Color the context percentage against the session budget: green under it,
+# yellow from it, red from 50 (or from the budget, when the budget is higher).
+ctx_budget="${MAYBLOOM_CTX_BUDGET_PCT:-30}"
+[[ "$ctx_budget" =~ ^[0-9]+$ ]] || ctx_budget=30
+color_ctx() {
+  local pct="${1%%.*}" red=50
+  [[ "$pct" =~ ^[0-9]+$ ]] || return 0
+  [ "$ctx_budget" -gt "$red" ] && red="$ctx_budget"
+  if [ "$pct" -ge "$red" ]; then
+    printf '%b%s%%%b' "$c_red" "$pct" "$c_reset"
+  elif [ "$pct" -ge "$ctx_budget" ]; then
     printf '%b%s%%%b' "$c_yellow" "$pct" "$c_reset"
   else
     printf '%b%s%%%b' "$c_green" "$pct" "$c_reset"
@@ -97,9 +119,10 @@ iso_to_epoch() {
 
 # Everything the status-line payload gives us, in one jq call. Missing values
 # come through as empty fields; US keeps empty fields in place.
-IFS="$US" read -r raw_cwd model used_pct five_pct five_resets week_pct week_resets < <(
+IFS="$US" read -r session_id raw_cwd model used_pct five_pct five_resets week_pct week_resets < <(
   printf '%s' "$input" | jq -r --arg us "$US" '
-    [ (.workspace.current_dir // .cwd // ""),
+    [ (.session_id // ""),
+      (.workspace.current_dir // .cwd // ""),
       (.model.display_name // ""),
       (.context_window.used_percentage // ""),
       (.rate_limits.five_hour.used_percentage // ""),
@@ -115,6 +138,7 @@ if [ -n "$HOME" ]; then
   if [ "$raw_cwd" = "$HOME" ]; then
     cwd='~'
   elif [[ "$raw_cwd" == "$HOME"/* ]]; then
+    # shellcheck disable=SC2088 # a literal ~ for display, never expanded
     cwd="~/${raw_cwd#"$HOME"/}"
   fi
 fi
@@ -203,6 +227,8 @@ if command -v curl >/dev/null 2>&1; then
     fi
     if mkdir "$usage_lock" 2>/dev/null; then
       : > "$usage_attempt"
+      # sidecars untouched for a week, at most once per USAGE_TTL
+      find "$usage_cache_dir/sessions" -name '*.json' -mtime +7 -delete 2>/dev/null
       ( refresh_usage_cache; rmdir "$usage_lock" ) >/dev/null 2>&1 &
       disown 2>/dev/null
     fi
@@ -266,7 +292,7 @@ seg=$(usage_segment "5h" "$five_pct" "$five_resets" hm);                 [ -n "$
 seg=$(usage_segment "weekly" "$week_pct" "$week_resets" dhm);            [ -n "$seg" ] && line2+=("$seg")
 seg=$(usage_segment "${scoped_name:-model}" "$scoped_pct" "$scoped_resets" dhm); [ -n "$seg" ] && line2+=("$seg")
 if [ -n "$used_pct" ]; then
-  colored=$(color_pct "$used_pct")
+  colored=$(color_ctx "$used_pct")
   [ -n "$colored" ] && line2+=("$(printf 'ctx:%s' "$colored")")
 fi
 
@@ -281,6 +307,34 @@ join_parts() {
   done
   printf '%s' "$out"
 }
+
+# The per-session sidecar: the numbers this redraw shows, for the prompt hook.
+# Only for a session id that is safe as a file name; written to a temp file and
+# renamed, so a reader never sees half a file. Sidecars untouched for a week
+# are pruned with the usage refresh, above.
+write_sidecar() {
+  local dir="$usage_cache_dir/sessions" tmp
+  [[ "$session_id" =~ ^[A-Za-z0-9_-]+$ ]] || return 0
+  mkdir -p "$dir" 2>/dev/null || return 0
+  tmp="$dir/.$session_id.$$"
+  jq -n \
+    --arg session_id "$session_id" --arg ctx "$used_pct" \
+    --arg five "$five_pct" --arg five_resets "$five_resets" \
+    --arg week "$week_pct" --arg week_resets "$week_resets" \
+    --arg scoped "$scoped_pct" --arg scoped_name "$scoped_name" --arg scoped_resets "$scoped_resets" \
+    --arg budget "$ctx_budget" --argjson updated_at "$(date +%s)" '
+    def num: if . == "" then null else (tonumber? // null) end;
+    { session_id: $session_id, updated_at: $updated_at,
+      ctx_pct: ($ctx | num), ctx_budget_pct: ($budget | num),
+      five_hour: { pct: ($five | num), resets_at: ($five_resets | num) },
+      seven_day: { pct: ($week | num), resets_at: ($week_resets | num) },
+      scoped: { name: (if $scoped_name == "" then null else $scoped_name end),
+                pct: ($scoped | num), resets_at: ($scoped_resets | num) } }' \
+    > "$tmp" 2>/dev/null && mv -f "$tmp" "$dir/$session_id.json"
+  rm -f "$tmp"
+  return 0
+}
+write_sidecar
 
 l1=$(join_parts "${line1[@]}")
 l2=$(join_parts "${line2[@]}")

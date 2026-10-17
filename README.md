@@ -33,7 +33,7 @@ docker run --rm -p 8080:80 ghcr.io/maybloomtech/maybloom-stack:latest
 6. [Sites](./docs/sites.md), Astro for the public, static surfaces
 7. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
 8. [Skills](./docs/skills.md), how the stack ships as agent skills
-9. [Delegation](./docs/delegation.md), how work on the stack is split between model tiers
+9. [Delegation](./docs/delegation.md), how work on the stack is split between roles and model tiers
 10. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
 11. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
@@ -63,7 +63,7 @@ stands up a Go service inside a repo that already has the contract,
 `maybloom-stack-add-resource` adds the Nth resource end-to-end through
 every layer, `maybloom-stack-extend-resource` changes a resource that
 already exists, `maybloom-stack-add-rpc` adds a single operation, and
-`maybloom-stack-delegate` says which model tier owns which of those tasks,
+`maybloom-stack-delegate` says which role and model tier owns which of those tasks,
 and `maybloom-stack-statusline` installs the status line that shows the
 usage budget that delegation is spending.
 `maybloom-stack-shared` holds the references they all load — the
