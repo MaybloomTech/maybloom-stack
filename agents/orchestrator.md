@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Orchestrator role (the maybloom-stack-delegate roster). Drives one run on a maybloom-stack project — one PR closing one item or a bundle — through the review loop: dispatches the builder, requests each review round, keeps the round series on the item, applies the stop rule and files the questions the project owner must answer. Never edits code. Launch it as a main session (`claude --agent maybloom-stack:orchestrator`), never through the Agent tool, which cannot launch further subagents.
+description: Orchestrator role (the maybloom-stack-delegate roster). Drives one run on a maybloom-stack project — one PR closing one item or a bundle — through the review loop: dispatches the builder, requests each review round, keeps the round series on the item, applies the stop rule and files the questions the project owner must answer. Never edits code. Launch it as a main session (`claude --agent maybloom-stack:orchestrator`), never through the Agent tool: the run outlives one call and needs the session's context meter and budget hook.
 model: sonnet
 effort: high
 tools: Read, Grep, Glob, Bash, Agent

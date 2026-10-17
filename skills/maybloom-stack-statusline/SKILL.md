@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-statusline
-description: Use when the user wants the maybloom status line in Claude Code — the two-line terminal status line that shows the working directory, git branch, model, the 5-hour and weekly usage percentages with their reset countdowns, the model-scoped weekly limit (the "Fable" week), and context usage. Triggers on "install the status line", "add the statusline", "show usage in the status line", "add fable to the status line", "same status line as the other machine", "my status line is missing the fable limit", or "the status line stopped showing usage". Installs or updates `~/.claude/statusline-command.sh` and the `statusLine` key in `~/.claude/settings.json` from the script this skill ships; nothing about the stack's code is involved, and no sibling skill covers it. Not for the `/statusline` built-in that writes a fresh script from a description — this one is the team's fixed script.
+description: Use when the user wants the maybloom status line in Claude Code — the two-line terminal status line that shows the working directory, git branch, model, the 5-hour and weekly usage percentages with their reset countdowns, the model-scoped weekly limit (the "Fable" week), and context usage against the session budget; it also writes the per-session numbers file the scaffolded session-budget hook reads. Triggers on "install the status line", "add the statusline", "show usage in the status line", "add fable to the status line", "same status line as the other machine", "my status line is missing the fable limit", "the status line stopped showing usage", or "the budget hook never warns". Installs or updates `~/.claude/statusline-command.sh` and the `statusLine` key in `~/.claude/settings.json` from the script this skill ships; nothing about the stack's code is involved, and no sibling skill covers it. Not for the `/statusline` built-in that writes a fresh script from a description — this one is the team's fixed script.
 ---
 
 # maybloom-stack-statusline
@@ -15,8 +15,24 @@ The team's Claude Code status line, as one script. It renders two lines:
 - Line 1: working directory (`$HOME` shortened to `~`), git branch when the
   directory is a checkout, model display name.
 - Line 2: the 5-hour window, the 7-day window, the model-scoped weekly
-  limit, and context-window usage. Each percentage is green under 50,
-  yellow from 50, red from 80; the dim countdown is the time to its reset.
+  limit, and context-window usage. Each usage percentage is green under
+  50, yellow from 50, red from 80; the dim countdown is the time to its
+  reset. `ctx:` has its own thresholds, from the session budget
+  (`maybloom-stack-delegate`, Session budget): yellow from
+  `MAYBLOOM_CTX_BUDGET_PCT` (default 30), red from 50.
+
+The model-scoped weekly limit is a third usage window: a weekly cap that
+applies to one model only (on top of the all-models weekly window), shown
+under that model's name. An account without one shows no segment.
+
+Every redraw also writes the numbers it shows to a per-session file,
+`~/.cache/claude-statusline/sessions/<session_id>.json` (`ctx_pct`,
+`ctx_budget_pct`, `five_hour`, `seven_day` and `scoped`, each with `pct`
+and `resets_at` as epoch seconds; `null` where the payload had none), by
+a temporary file and a rename. Hooks do not receive context usage and
+the status line does, so this file is how the session-budget hook a
+scaffolded project carries (`.claude/hooks/session-budget.sh`) knows
+where the session stands. Files untouched for a week are deleted.
 
 The first two usage numbers come from the JSON Claude Code pipes into
 every status-line command. The model-scoped one does not: the status-line
@@ -109,11 +125,14 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
    refresh, the second prints the scoped segment:
 
    ```sh
-   echo '{"model":{"display_name":"test"},"workspace":{"current_dir":"'"$PWD"'"},"context_window":{"used_percentage":12},"rate_limits":{"five_hour":{"used_percentage":31,"resets_at":'$(( $(date +%s) + 7200 ))'},"seven_day":{"used_percentage":55,"resets_at":'$(( $(date +%s) + 200000 ))'}}}' \
+   echo '{"session_id":"statusline-check","model":{"display_name":"test"},"workspace":{"current_dir":"'"$PWD"'"},"context_window":{"used_percentage":12},"rate_limits":{"five_hour":{"used_percentage":31,"resets_at":'$(( $(date +%s) + 7200 ))'},"seven_day":{"used_percentage":55,"resets_at":'$(( $(date +%s) + 200000 ))'}}}' \
      | bash "$CFG/statusline-command.sh"
    ```
 
-   Expected: two lines, the second ending in `fable:NN% (...) | ctx:12%`.
+   Expected: two lines, the second ending in `fable:NN% (...) | ctx:12%`,
+   and the sidecar
+   `${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/statusline-check.json`
+   with `"ctx_pct": 12` (delete it afterwards).
    The running session picks the new command up on its next redraw; a
    session started before `settings.json` changed may need a restart.
 
@@ -156,6 +175,8 @@ The script is the source of truth and is meant to be edited here, not in
 place on one machine: a change that should reach every machine is a pull
 request on this repo, and the install repeats on each. Segment labels are
 the `printf` format strings in the "Line 2" section (`5h:`, `weekly:`,
-`ctx:`); the colour thresholds are in `color_pct`; `USAGE_TTL` (seconds)
+`ctx:`); the colour thresholds are in `color_pct` and, for context,
+`color_ctx`; the sidecar's fields are in `write_sidecar` (the hook reads
+them, so change both together); `USAGE_TTL` (seconds)
 is both the cache lifetime and the minimum gap between two requests,
 successful or not.

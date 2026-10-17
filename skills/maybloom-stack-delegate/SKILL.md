@@ -61,8 +61,10 @@ Starts with: the run's item(s), the PR if one exists, `AGENTS.md` §
 Delegation. Tools: Read, Grep, Glob, Bash (the tracker CLI, `gh`, `git`),
 Agent (to launch a mechanic or a small builder); no Edit or Write. It is
 the only role that reaches the owner outside the tracker. It is always a
-main session, never an `Agent` call: a subagent cannot launch subagents,
-so an orchestrator started through `Agent` could not dispatch anything.
+main session, never an `Agent` call: a run outlives any one call (it waits
+on review rounds), it needs the status line's context meter and the
+budget hook, which only a main session has, and nested launches are
+capped in depth.
 
 **Builder** (`claude --agent maybloom-stack:builder --permission-mode
 acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
