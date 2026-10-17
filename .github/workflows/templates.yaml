@@ -13,6 +13,7 @@ on:
   pull_request:
     paths:
       - skills/maybloom-stack-bootstrap/**
+      - skills/maybloom-stack-statusline/**
       - .github/workflows/templates.yaml
 
 permissions:
@@ -22,6 +23,8 @@ jobs:
   workflows:
     name: Lint the scaffolded workflows
     runs-on: ubuntu-latest
+    env:
+      VISIBILITY: ${{ matrix.visibility || 'private' }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +40,6 @@ jobs:
       - name: Scaffold
         env:
           BACKEND: ${{ matrix.backend }}
-          VISIBILITY: ${{ matrix.visibility || 'private' }}
         run: |
           python3 skills/maybloom-stack-bootstrap/scripts/scaffold.py \
             --name Orchard --slug orchard --org @orchard-tech \
@@ -51,8 +53,6 @@ jobs:
             exit 1
           fi
       - name: Agent setup
-        env:
-          VISIBILITY: ${{ matrix.visibility || 'private' }}
         run: |
           cd "$RUNNER_TEMP/orchard"
           jq empty .claude/settings.json
@@ -71,6 +71,8 @@ jobs:
             test ! -e docs/plans
           fi
           shellcheck .claude/hooks/*.sh
+      - name: shellcheck the status line
+        run: shellcheck skills/maybloom-stack-statusline/scripts/statusline.sh
       - name: actionlint
         run: |
           cd "$RUNNER_TEMP/orchard"

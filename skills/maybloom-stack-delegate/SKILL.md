@@ -53,18 +53,21 @@ the item and the plan it belongs to. Tools: all. Mode: `default`; the
 owner is in the session.
 
 **Orchestrator** (`claude --agent maybloom-stack:orchestrator
---permission-mode default`). Decides alone: when to start the next round,
+--permission-mode acceptEdits`: it has no Edit or Write of its own, and
+the builders and mechanics it dispatches through `Agent` inherit its
+mode, so they can edit unattended). Decides alone: when to start the next round,
 the round series and its state (converging / diverging / ready), which
 reviewer effort a round gets, whether a deferral goes to a new item.
 Files: a diverging series (with the series attached), the merge, a
 reviewer's stop-the-line decision, a run that will not fit its budget.
 Starts with: the run's item(s), the PR if one exists, `AGENTS.md` §
-Delegation. Tools: Read, Grep, Glob, Bash (the tracker CLI, `gh`, `git`),
-Agent (to launch a mechanic or a small builder); no Edit or Write. It is
+Delegation. Tools: Read, Bash (search, the tracker CLI, `gh`, `git`),
+Agent (to launch a mechanic or a small builder), Skill (the tracker's
+skill and this one); no Edit or Write. It is
 the only role that reaches the owner outside the tracker. It is always a
 main session, never an `Agent` call: a run outlives any one call (it waits
-on review rounds), it needs the status line's context meter and the
-budget hook, which only a main session has, and nested launches are
+on review rounds), it needs the per-session numbers the status line
+writes and the budget hook, which only a main session has, and nested launches are
 capped in depth. It does not start sessions itself: until a runner does,
 it posts the launch command and the starting prompt on the item and asks
 the owner to start the builder or reviewer session.
@@ -75,12 +78,13 @@ Decides alone: anything inside the brief and the repo's rules; a
 finding's disposition (fixed, disputed, deferred, not addressed).
 Files (by stopping and reporting, never by guessing): a brief that is
 wrong, a contract gap, a protected path it needs. Starts with: the brief,
-`AGENTS.md`. Tools: Read, Edit, Write, Bash, Grep, Glob; no Agent.
+`AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent. As a
+session it posts on the item like any role (the agent file says how).
 
 **Mechanic** (`Agent` with `subagent_type: maybloom-stack:mechanic`).
 Decides alone: anything inside the chore. Files (by stopping): a chore
 that turns out to need product code or a protected path. Starts with: the
-chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Grep, Glob; no Agent.
+chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent.
 
 **Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode
 default`, a fresh session every round). Decides alone: findings, their
@@ -89,8 +93,8 @@ orchestrator names as the gate. Files: a decision that stops
 the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
-rubric. Tools: Read, Grep, Glob, Bash (to run checks and post); no Edit
-or Write, and it never pushes.
+rubric. Tools: Read, Bash (to search, run checks and post), Skill (the
+tracker's skill and this one); no Edit or Write, and it never pushes.
 
 ## The rules
 
@@ -122,7 +126,9 @@ or Write, and it never pushes.
    multi-agent `Workflow` only when the owner opts in.
 6. **Every subagent has a budget** and stops at it: the builder at 120
    turns or ~150K context, the mechanic at 60 or ~100K. The agents carry
-   the limit as `maxTurns`, so it is enforced rather than requested. A
+   the limit as `maxTurns`, so it is enforced rather than requested (for
+   `Agent` calls only: a session launched with `--agent` ignores
+   `maxTurns` and works to the session budget instead). A
    subagent cannot compact and nobody watches its meter; a slice that
    outgrows the budget is a session, not a longer `Agent` call. Splitting
    a slice in halves does not make it `Agent`-sized: each half still
@@ -174,17 +180,25 @@ The same hook warns once per window when the 5-hour usage reaches
 installed the hook has no numbers and stays silent.
 
 The hook speaks only when a prompt arrives, so a session that works for
-long from one prompt (an orchestrator between rounds, a builder on a
-brief, a reviewer's round) hears nothing in between. Such a session reads
-its own number at each round or step boundary, from the file the status
-line writes for it:
+long from one prompt (an orchestrator between rounds, a builder session
+on a brief, a reviewer's round) hears nothing in between. Such a session
+reads its own number at each round or step boundary, from the file the
+status line writes for it. This is for sessions only: an `Agent`
+subagent inherits its parent's session id, so it would read the parent's
+number, and keeps to its `maxTurns` and the brief size instead.
 
 ```bash
 jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
 ```
 
 `CLAUDE_CODE_SESSION_ID` is the session id the status line and the hook
-receive; reading the file does not use up the hook's warnings.
+receive; reading the file does not use up the hook's warnings. A `null`, or an empty `CLAUDE_CODE_SESSION_ID`, means no number yet:
+check again at the next boundary and say so in the hand-off. The
+variable is not in Claude Code's documentation, so confirm it on your
+build.
+In a scaffolded project the line is not in the permission allowlist, so
+a `default`-mode session asks once; allow it there if that gets in the
+way.
 
 ### The hand-off
 
