@@ -19,7 +19,9 @@ import { Sheet, type SheetProps, type Specimen, SpecimenSection } from "./layout
 type ComponentsOf<M> = {
   [K in keyof M]: K extends string
     ? K extends Capitalize<K>
-      ? M[K] extends ((props: never) => ReactNode) | NamedExoticComponent<never>
+      ? M[K] extends
+          | ((props: never) => ReactNode | Promise<ReactNode>)
+          | NamedExoticComponent<never>
         ? K
         : never
       : never

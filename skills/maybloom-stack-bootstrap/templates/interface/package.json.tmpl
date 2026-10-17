@@ -10,7 +10,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web",
-    "gallery": "EXPO_PUBLIC_GALLERY=1 expo start --web",
+    "gallery": "EXPO_PUBLIC_GALLERY=1 expo start --web --port 8082",
     "build:gallery": "EXPO_PUBLIC_GALLERY=1 expo export --platform web --output-dir dist-gallery && node scripts/gallery-export.mjs dist-gallery",
     "check:gallery": "node scripts/check-gallery.mjs",
     "check:no-gallery": "expo export --platform web --source-maps --output-dir dist-check && node scripts/check-no-gallery.mjs dist-check",

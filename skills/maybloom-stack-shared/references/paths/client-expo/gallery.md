@@ -209,7 +209,7 @@ When the change adds…
    changes what it shows, plus any `Play` that reaches a state by input.
 4. **An icon:** export it from `src/icons`; say what it stands for in
    `IconSheet.tsx`.
-5. **An RPC or a resource:** answer it in `fixtures/backend.ts`; add
+5. **An RPC or a resource:** After `pnpm proto:gen`, rebuild the contract (`pnpm --filter <ORG_SCOPE>/protocol-buffers build`): the interface reads its built `dist/*.d.ts`, or the typecheck below will not see the new RPC. Then answer it in `fixtures/backend.ts`; add
    fixtures for a new message in `fixtures/` built with `create()`.
 6. **A design pass:** copy `src/design/example/` to
    `src/design/<pass>/`, give each comparison the current component and

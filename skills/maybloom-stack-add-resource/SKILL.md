@@ -336,7 +336,9 @@ client and cannot tell which language serves it. Read
 Even with no UI yet, the board's fake backend has to answer the new
 RPCs: it is typed as the whole service, so the interface's typecheck
 fails until `src/gallery/fixtures/backend.ts` implements them (and
-fixtures for the new message sit beside it). If the user is just adding a
+fixtures for the new message sit beside it). That holds only once the
+interface sees the new contract: after `pnpm proto:gen`, rebuild the contract (`pnpm --filter <ORG_SCOPE>/protocol-buffers build`): the interface reads its built `dist/*.d.ts`, so without it local checks
+pass and CI, which rebuilds on install, fails. If the user is just adding a
 resource and not yet a UI for it, stop after that and the data layer —
 the user will request the UI separately.
 

@@ -182,7 +182,8 @@ method; `go build ./...` is the checklist.
   states the new error codes make possible.
 - **design board** (Expo) — the fake backend in
   `src/gallery/fixtures/backend.ts` answers the RPC the way the server's
-  rule does (the interface's typecheck fails until it exists), and the
+  rule does (the interface's typecheck fails until it exists, once the
+  contract is rebuilt: after `pnpm proto:gen`, rebuild the contract (`pnpm --filter <ORG_SCOPE>/protocol-buffers build`): the interface reads its built `dist/*.d.ts`), and the
   new states get specimens: a `failing: ["<method>"]` page state for the
   error, a `Play` that taps the control. See
   `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
@@ -261,7 +262,8 @@ gets the client from `useClient()` and invalidates the notes list key,
 because the operation changes list membership; the row's Archive button
 calls `mutate(item.id)`. On the Expo path the design board's fake backend
 (`src/gallery/fixtures/backend.ts`) answers it too, setting `archived_at`
-on its copy, or the interface's typecheck fails; see
+on its copy, or the interface's typecheck fails (after `pnpm proto:gen`
+and `pnpm --filter <ORG_SCOPE>/protocol-buffers build`); see
 `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
 
 **Verify**: archive, then list (the note is gone), then list with

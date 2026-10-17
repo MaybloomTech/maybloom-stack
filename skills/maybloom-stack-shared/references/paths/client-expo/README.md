@@ -156,10 +156,11 @@ the new top-level route in `app/_layout.tsx` so it shows up in the nav.
 The bootstrap's `_layout.tsx` is just a `Stack` — there's no navigation
 to update.
 
-Two rules the board depends on, both enforced by Biome: a screen sizes
-itself with `useViewport()` (`src/styles/viewport.ts`), never
-`useWindowDimensions`, and nothing outside the gallery imports
-`src/gallery` or `src/design`.
+Two rules the board depends on: a screen sizes itself with
+`useViewport()` (`src/styles/viewport.ts`), never `useWindowDimensions`
+(Biome refuses it), and nothing outside the gallery imports `src/gallery`
+or `src/design` (Biome refuses only the alias spellings, `@/gallery` and
+`**/src/gallery`; `check:no-gallery` is the guarantee, on the web bundle).
 
 ### Screen pattern (mirroring the bootstrap's NotesScreen)
 

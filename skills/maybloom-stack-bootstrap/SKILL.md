@@ -220,7 +220,8 @@ start dev servers.
    pnpm --filter <ORG_SCOPE>/interface gallery
    ```
 
-   It opens on the Primitives tab; Components and Pages show the Note
+   It serves on port 8082, beside the app's 8081, and opens on the
+   Primitives tab; Components and Pages show the Note
    components and the notes screen in each fake-backend scenario.
    Tell the user the rule that comes with it: every new primitive,
    feature component, icon and page gets an entry on the board in the

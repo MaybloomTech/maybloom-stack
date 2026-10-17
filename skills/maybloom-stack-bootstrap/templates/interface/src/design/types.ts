@@ -10,7 +10,8 @@ export type Comparison = {
 /**
  * A design pass: variants of components under src/design/<pass>/, shown in
  * the gallery next to the components they would replace. Only the gallery
- * imports src/design (a Biome rule enforces it); a variant that is taken
+ * imports src/design (check:no-gallery keeps it out of the app's web
+ * bundle; Biome flags the alias imports); a variant that is taken
  * moves into the component itself and leaves here.
  */
 export type DesignPass = {

@@ -56,7 +56,9 @@ messages and pull request titles are Conventional Commits
   files here as they appear.
 - **Commands run from:** the repo root for pnpm, `go/` for Go.
 - **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
-  __ORG_SCOPE__/interface check:gallery`; in `go/`: `go generate
+  __ORG_SCOPE__/interface check:gallery` (after a proto change, first `pnpm
+  proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`: the
+  interface typechecks against the built contract)`; in `go/`: `go generate
   .`, `go vet ./...`, `go test ./...`, `scripts/golangci-lint run`.
 - **Mechanic checks:** `pnpm lint`, `go vet ./...`, or the CI job the chore
   touches.

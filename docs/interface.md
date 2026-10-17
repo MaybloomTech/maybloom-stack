@@ -240,6 +240,4 @@ web and iOS. Two chromes, one route tree, one data layer.
   path; the web session is proven only on the hosted build. Native
   carries its token in the body and never meets the problem.
 - CI builds the export on every pull request, checks the design board
-  stayed out of it, exports the board as a second bundle, and runs the
-  export smoke against the app's, with the Expo CLI told to stay offline (`EXPO_OFFLINE=1`,
-  `EXPO_NO_TELEMETRY=1`) so it does not reach for the Expo API.
+  stayed out of it, and exports the board as a second bundle.
