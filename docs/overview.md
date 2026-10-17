@@ -82,8 +82,9 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
   to the contract (protovalidate) where the path supports it.
 - **wiring** — the service implementation object registered with Connect. The
   compiler refuses to build until every RPC in the proto has a handler.
-- **api / queries / screen** — the interface mirror: typed client wrappers,
-  React Query hooks, and screens. See [Interface](./interface.md).
+- **backend context / feature hooks / screen** — the interface mirror: the
+  typed client in a context, React Query hooks in each feature, and
+  screens. See [Interface](./interface.md).
 
 ## Principles
 

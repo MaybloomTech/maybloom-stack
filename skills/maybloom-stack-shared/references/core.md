@@ -93,13 +93,14 @@ whatever framework the project uses, but keep the seams.
 
 **Client side:**
 
-- **api** — thin typed wrappers over the generated client, one module
-  per resource. This tier exists so screens never import generated
-  types directly.
-- **queries/mutations** — a server-state cache layer (React Query in the
-  validated path; whatever the framework's equivalent is) keyed
+- **backend context** — one place that bundles the generated client
+  (and whatever else a screen reaches the backend through), provided to
+  the tree and replaceable per test or specimen.
+- **feature hooks** — each feature owns its data, in the feature: hooks
+  over the backend context on a server-state cache (React Query in the
+  validated path; whatever the framework's equivalent is), keyed
   per-resource, with list keys and item keys distinct so invalidation
-  can be precise.
+  can be precise. A write invalidates the keys it changes.
 - **screens** — UI on top. Never talks to the wire directly.
 
 "Interface" is the stack's word for the client package; a project may
@@ -145,7 +146,7 @@ web framework), don't refuse and don't force the defaults. Proceed:
 |---|---|---|
 | Contract | proto + Buf + Connect-RPC, conventions in `proto-conventions.md` | — |
 | Server | handler/store/adapter seams, generated edges, unary by default | connect-go + sqlc + goose (the default; Postgres or MariaDB), or Fastify + Drizzle + PGlite |
-| Client | generated client + api/cache/screens tiers | Expo Router + React Query |
+| Client | generated client + backend context/feature hooks/screens | Expo Router + React Query hooks in the feature |
 | Monorepo | contract at the root, consumed by every package | pnpm workspace, biome, the catalog |
 | Naming | one service per backend; resources PascalCase singular in proto | "interface", file layout, camelCase plural tables |
 

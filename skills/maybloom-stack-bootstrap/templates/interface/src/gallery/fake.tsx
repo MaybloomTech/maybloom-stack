@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ClientProvider } from '../data/api/client';
+import { BackendProvider } from '../data/client';
 import { colors } from '../styles/tokens';
 import { ViewportProvider } from '../styles/viewport';
-import { type FakeOptions, fakeClient } from './fixtures/backend';
+import { type FakeOptions, fakeBackend } from './fixtures/backend';
 import { heightOf, type Width } from './layout';
 
 /**
@@ -17,20 +17,23 @@ export function Fake({
   children,
   ...options
 }: FakeOptions & { children: ReactNode }) {
-  const [client] = useState(() => fakeClient(options));
+  const [backend] = useState(() => fakeBackend(options));
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: false },
-          mutations: { retry: false },
+          // gcTime Infinity, on queries and on mutations: a specimen's cache
+          // dies with the specimen, and no garbage-collection timer is left
+          // to hold a test run open.
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { retry: false, gcTime: Number.POSITIVE_INFINITY },
         },
       }),
   );
   return (
-    <ClientProvider value={client}>
+    <BackendProvider value={backend}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ClientProvider>
+    </BackendProvider>
   );
 }
 

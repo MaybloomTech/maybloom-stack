@@ -1,0 +1,50 @@
+import { type Client, createClient } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
+import { __APP_NAME__Service } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb';
+import { createContext, useContext } from 'react';
+
+// EXPO_PUBLIC_ vars are inlined at build time and visible to the bundle.
+// Override per-environment via .env or EAS build profiles.
+export const API_URL =
+  process.env.EXPO_PUBLIC___APP_SLUG_UPPER___API_URL ?? 'http://localhost:__BACKEND_PORT__';
+
+export type AppClient = Client<typeof __APP_NAME__Service>;
+
+const transport = createConnectTransport({
+  baseUrl: API_URL,
+});
+
+/**
+ * Everything a screen reaches the backend through. Today that is the
+ * service's Connect client. An app grows this type as it needs more:
+ * - URL builders for things the backend serves outside the RPCs (a file
+ *   or image proxy): `fileUrl: (file) => string`;
+ * - trips that leave the page (`signIn`, `signOut`, connecting another
+ *   account): the live ones navigate away and return a promise that never
+ *   settles, while a fake backend settles them with where the trip would
+ *   have come back to.
+ *
+ * The app uses `liveBackend`. The design board mounts a `BackendProvider`
+ * per specimen with a backend answered from fixtures
+ * (src/gallery/fixtures/backend.ts), which is how a screen is shown, and
+ * tested, without a server.
+ */
+export type Backend = {
+  __APP_SLUG__: AppClient;
+};
+
+export const liveBackend: Backend = {
+  __APP_SLUG__: createClient(__APP_NAME__Service, transport),
+};
+
+const BackendContext = createContext<Backend>(liveBackend);
+
+// The app never mounts this provider, so every screen talks to liveBackend.
+export const BackendProvider = BackendContext.Provider;
+
+// The backend for this screen: the live one unless a provider says
+// otherwise. A feature's hooks call it; components never reach the
+// network any other way.
+export function useBackend(): Backend {
+  return useContext(BackendContext);
+}

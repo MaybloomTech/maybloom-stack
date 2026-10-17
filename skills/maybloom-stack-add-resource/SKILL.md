@@ -11,7 +11,7 @@ the maybloom stack:
 ```
 proto      →  schema   →  adapter  →  store  →  handlers  →  wiring
                                                                 ↓
-                                                        api/queries/screen
+                                                        hook/screen
 ```
 
 Each layer has one canonical pattern, documented per path under
@@ -312,22 +312,31 @@ and the generated interface grew with the proto. Run `go build ./...` —
 the compiler lists every missing method by name, which is the same
 exhaustiveness check the ServiceImpl object gives TypeScript.
 
-### 7. Interface: api wrapper, hooks, screen
+### 7. Interface: feature hook, screen
 
 Identical on both backends — the interface talks to the generated Connect
 client and cannot tell which language serves it. Read
-`../maybloom-stack-shared/references/paths/client-expo/README.md`. Three files:
+`../maybloom-stack-shared/references/paths/client-expo/README.md`. Three pieces:
 
-- `packages/interface/src/data/api/<resources>.ts` — thin functions that
-  take the client and call `client.<method>(...)`, returning the proto
-  messages directly.
-- `packages/interface/src/data/queries/use<Resources>.ts` — React Query
-  hooks: one `useQuery` for list/get, one `useMutation` per create/update
-  and for the verb RPC with `onSuccess: invalidateQueries({ queryKey: [...] })`.
+- `packages/interface/src/features/<resources>/use<Resources>.ts` —
+  React Query hooks over `useBackend()` (the Backend context in
+  `src/data/client.ts`), calling the client directly: one exported key
+  const, a `useQuery` for list/get, and a `useMutation` per create/update
+  and for the verb RPC, each with `onSuccess: invalidateQueries({ queryKey:
+  KEY })`. Use `src/features/notes/useNotes.ts` as the shape. An interface
+  scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
+  `useClient()`) uses the same library in an older layout: follow that
+  project's layout, and do not migrate it unless the owner asks.
 - A screen and its components under `src/features/<resources>/`, and a
   route under `packages/interface/app/<resources>/` that renders the
   screen. Use the bootstrap's `src/features/notes/` (NotesScreen,
-  NoteForm, NoteRow) as the reference for the minimum shape.
+  NoteForm, NoteRow) as the reference for the minimum shape, and a screen
+  test beside the screen (`<Screen>.test.tsx`, over `Fake` and a scenario
+  of the board's fake backend, as `NotesScreen.test.tsx` does) where the
+  interface has the jest harness (a `test` script). A pre-0.9 interface has
+  none, and adding it is the owner's call. A helper a second feature needs
+  (such as `errorMessage`) moves to `src/data/`, not imported across
+  features. After writing files, run `pnpm lint:ts:fix`.
 - Their design board entries, in the same change: the module on the
   Components sheet, the screen on the Pages sheet with its scenarios.
   `../maybloom-stack-shared/references/paths/client-expo/gallery.md`

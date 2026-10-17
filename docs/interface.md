@@ -1,29 +1,29 @@
 ---
 title: Interface
-description: The Expo Router + React Query client blueprint
+description: The Expo Router client blueprint, React Query hooks in each feature over a Backend context
 order: 5
 ---
 
 # Interface
 
 The interface is one Expo app that ships to Android, iOS, and the web from a
-single codebase. Expo Router owns navigation, React Query owns server state,
-and the generated Connect client owns the wire. The package is called the
-interface everywhere, because it is the human side of the system rather than
-a "front" to the backend.
+single codebase. Expo Router owns navigation, React Query owns server state
+(each feature's hooks read it), and the generated Connect client owns the
+wire. The package is called the interface everywhere, because it is the
+human side of the system rather than a "front" to the backend.
 
 Neither the word nor the framework is the load-bearing part. What the
 stack's core guarantees is that any client, in any language Connect or
 gRPC-Web reaches, starts from generated code that already knows every
 resource, RPC, and field the service offers. Expo is the validated
 implementation because one codebase ships to Android, iOS, and the web;
-the shape documented here — typed wrappers over the generated client, a
-server-state cache, screens on top — transfers to other frameworks, and
+the shape documented here — the generated client in a context, query hooks
+per feature, screens on top — transfers to other frameworks, and
 the skills carry a language-neutral version of it for projects that
 choose differently.
 
-The bootstrap skill scaffolds this blueprint, on either backend, with a working example screen
-wired to the example resource.
+The bootstrap skill scaffolds this blueprint, on either backend, with a
+working example screen wired to the example resource.
 
 ## Structure
 
@@ -32,15 +32,14 @@ app/                     Expo Router route files, thin by rule
   notes/index.tsx        re-exports a screen, nothing else
 gallery/                 the design board's router root (EXPO_PUBLIC_GALLERY=1)
 src/
-  features/<area>/       the real screens, and the components they are made of
+  features/<area>/       the real screens, and what they are made of:
+                         components, the query hooks, formatting
   components/            primitives + shells
   icons/                 the app's icons
   data/
-    api/                 typed client wrappers, one module per resource
-    queries/             useQuery hooks + the query-key factory
-    mutations/           useMutation hooks with invalidation
-    queryClient.ts       one QueryClient, tuned defaults
-  state/                 app-level contexts (mode, auth)
+    client.ts            the Backend context: the Connect client, liveBackend,
+                         BackendProvider, useBackend()
+    queryClient.ts       the one QueryClient, mounted in app/_layout.tsx
   styles/                design tokens: colors, type, spacing, breakpoints;
                          viewport.ts, the size a screen lays itself out for
   gallery/               the design board: sheets, fake backend, fixtures
@@ -54,46 +53,48 @@ the URL stays stable and nothing redirects.
 
 ## The data layer
 
-Three tiers, one module per resource in each:
+Three pieces, in this order:
 
-1. **api** wraps the generated client: `client.createNote(...)`, converting
-   proto messages to plain view types at the boundary (timestamps to ISO
-   strings, enums to unions). This mirrors the backend adapter, one shape
-   translation on each side of the wire.
-2. **queries** are `useQuery` hooks keyed by a central factory
-   (`queryKeys.notes(filters)`, `queryKeys.note(id)`). List keys and item
-   keys are distinct so invalidation can be precise.
-3. **mutations** are `useMutation` hooks that invalidate both the item key
-   and the list key on success. Optimistic updates are an opt-in per
-   mutation, added when a screen's feel demands it.
+1. **The Backend context** (`src/data/client.ts`) bundles everything a
+   screen reaches the backend through. In the scaffold that is the service's
+   Connect client: `createConnectTransport({ baseUrl })` from
+   `@connectrpc/connect-web` plus `createClient(AppService, transport)`,
+   exported as `liveBackend`, with `BackendProvider` and `useBackend()`. The
+   app never mounts the provider, so a screen talks to the network; the
+   design board and the tests provide a fake one per specimen. The type
+   grows as the app needs URL builders (a file proxy) and trips that leave
+   the page (`signIn`, `signOut`, connecting another account).
+2. **Query hooks per feature** (`src/features/notes/useNotes.ts`) are
+   React Query over `useBackend()`: a `useQuery` for the list, a
+   `useMutation` per write, one key exported from the hook file (list keys
+   and item keys distinct, so invalidation can be precise), and each write
+   invalidating the keys it changes. A `queryFn` calls the client directly;
+   there is no api or queries tier. This is the default because it is what
+   makes the app feel quick: one cache shared by every screen, requests
+   de-duplicated, retries, and paging (`useInfiniteQuery` over the page
+   token) handled for you. Optimistic updates go through `onMutate`.
+3. **The screen** renders what the hooks return and calls what they expose.
 
-A second walked shape collapses the first two tiers into generated code:
-`@connectrpc/connect-query` derives typed `useQuery`/`useMutation` hooks
-straight from the service descriptor, with keys from
-`createConnectQueryKey`, so a screen calls `useQuery(listNotes)` and no
-one hand-writes an api module. It is the right choice when the resource
-count is large and the view types are the proto types; the hand-written
-api tier earns its keep when screens want narrower view models than the
-wire carries. Either way, generated protos are deep-imported and never
+The skills' `client-expo/README.md` reference has the code for each
+piece. Generated protos are deep-imported and never
 re-exported through a barrel file, because Metro does not tree-shake and a
 barrel over the contract drags every message into every bundle.
 
+Variants. `@connectrpc/connect-query` derives typed hooks straight from the
+service descriptor, with keys from `createConnectQueryKey`; it fits when the
+resource count is large and the view types are the proto types. An app
+that wants no cache at all can drop the library for hand-written
+`useState`/`useEffect` hooks, and then owns what Query did: cancelling late
+answers, de-duplicating pages, retrying a failed one with a back-off.
+The reference says how, in a paragraph; it is not the default. The board's
+`Fake` gives each specimen its own `QueryClient`.
+
 A persisted query cache (`@tanstack/react-query-persist-client` for an
-instant cold start) cannot hold protobuf-es messages as they are: every
+instant cold start) is an option. It cannot hold protobuf-es messages as they are: every
 `int64` is a `bigint`, including `Timestamp.seconds`, and `JSON.stringify`
 throws on it; `bytes` is a `Uint8Array` that serializes as an object of
 indexes. The persister has to tag both and reverse the tags on restore.
 Neither library documents this; the first persisted list finds it.
-
-The app has one live Connect client (`src/data/api/client.ts`):
-`createConnectTransport({ baseUrl })` from `@connectrpc/connect-web` plus
-`createClient(AppService, transport)`. The query hooks reach it through
-`useClient()`, a context whose default is that client and which the app
-never provides, so a screen talks to the network; the design board
-provides a fake one per specimen. The api functions take the client as
-an argument rather than importing it. connect-web v2 dropped the
-`credentials` option, so a client whose session is a cookie passes a
-`fetch` override that sets `credentials: "include"` on every request.
 
 **A transport note the upstream docs will not give you:** connect-es
 officially targets Node and browsers; React Native is unsupported
@@ -106,6 +107,19 @@ has walked it yet; the first candidate is the server-push stream the Go
 document describes.
 
 ## Sessions and environment
+
+The scaffold has no auth, so it ships no session. An app that adds auth
+writes the pattern below; the reference has the code. The session is a
+query: `useMe` over `GetMe` with `staleTime: Infinity`, so it is fetched
+once and shared, and a first visit costs one round trip rather than one per
+screen. A `Session` union (`loading`, `signedOut`, `signedIn` with the
+person, `error`) is derived from it, with `Unauthenticated` as `signedOut`,
+and feeds a route gate: loading state, then a signed-out card, then the
+screen. `signIn` and `signOut` are off-page trips on the Backend whose live
+promises never settle; sign-out drops the query cache (`resetQueries()`
+where the page stays, as on native; `clear()` only before a reload).
+connect-web v2 dropped the `credentials` option, so a client whose session
+is a cookie passes a `fetch` override that sets `credentials: "include"`.
 
 Two session shapes have been walked, and they are the client halves of the
 two auth shapes in the [Go document](./backend-go.md#auth).
@@ -148,18 +162,23 @@ same origin, which is what production builds use.
 
 ## Testing
 
-The validated harness is `jest-expo` with React Native Testing Library,
-because Vitest cannot render React Native components. connect-es's
-`createRouterTransport` runs a fake service in-process, so the session
-state machine, the refresh classification and every screen can be tested
-against a scripted server with nothing listening on a port (the design
-board's fake backend is one, ready to reuse); a test that
-flips the fake to `Unavailable` mid-session and expects the session to
-survive is the one that pins the sign-out rule. Testing Library 14 is
-asynchronous end to end: `await render(...)` and `await fireEvent.*`, or
-the next render in the file comes back empty two tests away from the
-cause. End-to-end web checks run Playwright against a real deployed
-server, never a mock, because the contract is what is being validated.
+The scaffold ships the harness and one test: `jest-expo` with React Native
+Testing Library (Vitest cannot render React Native components), a `test`
+script in the interface and at the repo root, and
+`src/features/notes/NotesScreen.test.tsx`, which renders the screen inside
+the board's `Fake` and asserts what a user sees in the `notes`, `empty` and
+`error` scenarios. CI runs it in the interface's job. connect-es's
+`createRouterTransport` runs a fake service in-process, so a screen is
+tested against a scripted server with nothing listening on a port; the
+board's `fakeBackend` is that server, ready to reuse (`Fake` mounts it with
+a fresh `QueryClient`, retries off). A session state
+machine, once an app has one, is tested the same way: a test that flips the
+fake to `Unavailable` mid-session and expects the session to survive pins
+the sign-out rule. Use Testing Library's async queries (`findByText`): the
+query answers after the first render. Testing Library 14 is asynchronous end
+to end (`await render(...)`, `await fireEvent.*`); the scaffold pins 13.
+End-to-end web checks run Playwright against a real deployed server, never
+a mock, because the contract is what is being validated.
 
 ## The design board
 
@@ -176,7 +195,7 @@ from `packages/interface` as they are).
 
 Pages and components run against a fake backend: the real Connect client
 over `createRouterTransport`, answering the whole service from fixtures
-built with the contract's own `create()`, one copy and one query cache
+built with the contract's own `create()`, one copy
 per specimen, in scenarios (`notes`, `empty`, `long`, `loading`,
 `error`, and calls named to fail). The service implementation is typed as
 the whole `ServiceImpl`, so a new RPC fails the typecheck until the board

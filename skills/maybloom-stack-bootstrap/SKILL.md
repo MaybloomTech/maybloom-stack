@@ -8,9 +8,9 @@ description: Use whenever the user wants to start a new project that uses the "m
 Bootstrap a fresh monorepo on the maybloom stack: a pnpm workspace with
 the contract at the root (Buf, the vendored protovalidate rules, Connect-ES
 generated TypeScript), a backend, an interface (Expo Router + React Query
-+ Connect Web client), a docs site (Astro, static) that renders the
-contract itself, and the CI that checks all of it: GitHub Actions
-workflows for the per-area checks, the image build-and-push, and
+hooks in each feature, over a Backend context on the Connect Web client), a
+docs site (Astro, static) that renders the contract itself, and the CI that
+checks all of it: GitHub Actions workflows for the per-area checks, the image build-and-push, and
 Conventional Commits.
 
 The backend is **Go by default**: connect-go on the stdlib mux, sqlc + pgx
@@ -245,6 +245,10 @@ start dev servers.
    same change, and the typecheck and `check:gallery` hold them to it
    (`../maybloom-stack-shared/references/paths/client-expo/gallery.md`).
 
+   `pnpm test` runs the interface's one test (`NotesScreen.test.tsx`, under
+   jest-expo, against the same fake backend); a new screen or hook gets its
+   test beside it.
+
 6. **Run the docs site.** In another terminal:
 
    ```bash
@@ -352,13 +356,16 @@ These are the patterns embedded in the templates. When the user asks
 - **Root-relative imports on the TypeScript backend.** `tsconfig.json`
   sets `baseUrl: "src"`, so import from `db/...`, `core/...`,
   `handlers/...` — not `../../db/...`.
-- **One live Connect client, reached through `useClient()`.**
-  `interface/src/data/api/client.ts` exports `liveClient` and the
-  `ClientProvider`/`useClient()` context whose default it is. The React
-  Query hooks under `src/data/queries/` call `useClient()` and pass the
-  client to the api functions, which take it as their first argument;
-  nothing imports the client directly. That is how the design board
-  swaps in a fake one.
+- **One live Backend, reached through `useBackend()`.**
+  `interface/src/data/client.ts` exports `liveBackend` (the service's
+  Connect client, in one field) and the `BackendProvider`/`useBackend()`
+  context whose default it is. Each feature owns its React Query hooks
+  (`src/features/notes/useNotes.ts`: `useQuery` and `useMutation` over
+  `useBackend()`, one exported key, writes invalidate it) that its screen
+  uses; nothing else imports the client. That is how the design board and
+  the tests swap in a fake one, each specimen with its own `QueryClient`.
+  `src/data/queryClient.ts` and the `QueryClientProvider` in
+  `app/_layout.tsx` are the one cache.
 - **The design board is a second router root.** `app.config.js` switches
   Expo Router to `gallery/` when `EXPO_PUBLIC_GALLERY=1`; the app's
   bundle never contains it (Biome's restricted imports and
@@ -498,11 +505,9 @@ Point the user there once they're past the initial scaffold.
     │   ├── gallery/             # the design board's router root (EXPO_PUBLIC_GALLERY=1)
     │   ├── src/
     │   │   ├── data/
-    │   │   │   ├── api/client.ts    # live Connect client + useClient(), default URL on the backend's port
-    │   │   │   ├── api/notes.ts     # thin domain wrappers taking the client (paged list, archive)
-    │   │   │   ├── queries/useNotes.ts  # React Query hooks
+    │   │   │   ├── client.ts        # Backend context: liveBackend, BackendProvider, useBackend(); default URL on the backend's port
     │   │   │   └── queryClient.ts
-    │   │   ├── features/notes/  # NotesScreen, NoteForm, NoteRow
+    │   │   ├── features/notes/  # NotesScreen, NoteForm, NoteRow, useNotes (React Query hooks), NotesScreen.test.tsx
     │   │   ├── components/primitives/  # Button, Card, TextField
     │   │   ├── components/COMPONENT_LIBRARY.md  # the index of primitives, components, icons
     │   │   ├── icons/           # the app's icons (react-native-svg)

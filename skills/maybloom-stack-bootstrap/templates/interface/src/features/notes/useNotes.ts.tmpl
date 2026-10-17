@@ -1,0 +1,50 @@
+import { ConnectError } from '@connectrpc/connect';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useBackend } from '../../data/client';
+
+// The notes' cache key. Every hook below reads or invalidates it; a screen
+// that needs one note adds a key under it: [...NOTES_KEY, id].
+export const NOTES_KEY = ['notes'] as const;
+
+// A ConnectError's message carries a "[code]" prefix; rawMessage is the text
+// the server sent.
+export const errorMessage = (err: unknown) =>
+  err instanceof ConnectError
+    ? err.rawMessage
+    : err instanceof Error
+      ? err.message
+      : String(err);
+
+// The first page only: the example screen has no scroll-to-load. A screen
+// that pages uses useInfiniteQuery over the page_token instead:
+// initialPageParam '', getNextPageParam: (page) => page.nextPageToken || undefined.
+export function useNotes() {
+  const { __APP_SLUG__: api } = useBackend();
+  return useQuery({
+    queryKey: NOTES_KEY,
+    queryFn: () => api.listNotes({ pageSize: 50, pageToken: '' }),
+    select: (page) => page.notes,
+  });
+}
+
+export function useCreateNote() {
+  const { __APP_SLUG__: api } = useBackend();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { title: string; body: string }) =>
+      api.createNote({ note: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+  });
+}
+
+// ArchiveNote is how a note leaves the default list in this example: the
+// row and its id stay, ListNotes leaves it out unless asked. (A real
+// resource answers that question its own way; see the contract's comment.)
+export function useArchiveNote() {
+  const { __APP_SLUG__: api } = useBackend();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.archiveNote({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+  });
+}

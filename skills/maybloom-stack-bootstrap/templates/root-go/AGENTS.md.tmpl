@@ -48,7 +48,7 @@ is never committed; `pnpm install` and `scripts/go generate .` produce it.
     `scripts/golangci-lint run`; with Go installed, the same commands in
     `go/` without the wrappers
   - Interface components: `pnpm --filter __ORG_SCOPE__/interface
-    check:gallery`
+    check:gallery`; interface logic and screens: `pnpm test`
 - **Prefer the small design.** Pragmatic over clever; no speculative
   abstraction.
 - **Bugs go from reproduction to root cause to fix**, on the evidence of
@@ -73,6 +73,7 @@ From the repo root:
 | Install (also generates the TypeScript contract and builds) | `pnpm install` |
 | Regenerate the TypeScript contract | `pnpm proto:gen` |
 | Typecheck | `pnpm typecheck` |
+| Interface tests (jest-expo, over the design board's fake backend) | `pnpm test` |
 | Lint (buf lint + biome; formatting is checked, fix it with `pnpm lint:ts:fix`) | `pnpm lint` |
 | The development Postgres | `docker compose up -d db` |
 | Backend (on the compose network, `DEV_USER=dev`, `:8080`) | `pnpm dev:backend` |
@@ -114,18 +115,18 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 - **Protected paths** (architect-only, no subagents):
   `go/internal/auth/`, `go/internal/config/`, `go/internal/postgres/`,
   `go/internal/server/mux.go`, `go/internal/server/interceptors.go`,
-  `packages/interface/src/data/api/client.ts`. Add session and permission
+  `packages/interface/src/data/client.ts`. Add session and permission
   files here as they appear.
 - **Commands run from:** the repo root (pnpm, `scripts/go`,
   `scripts/golangci-lint`); `go/` for a native Go toolchain.
 - **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
-  __ORG_SCOPE__/interface check:gallery` (after a proto change, first
-  `pnpm proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`:
-  the interface typechecks against the built contract); then
-  `scripts/go generate .`, `scripts/go vet ./...`, `pnpm test:backend`
-  (`scripts/go test -p 1 ./...` against the test database) and
-  `scripts/golangci-lint run`. A new component, icon or page has its
-  design board entry.
+  __ORG_SCOPE__/interface check:gallery`, `pnpm test` (after a proto
+  change, first `pnpm proto:gen && pnpm --filter
+  __ORG_SCOPE__/protocol-buffers build`: the interface typechecks against
+  the built contract); then `scripts/go generate .`, `scripts/go vet
+  ./...`, `pnpm test:backend` (`scripts/go test -p 1 ./...` against the
+  test database) and `scripts/golangci-lint run`. A new component, icon or
+  page has its design board entry.
 - **Mechanic checks:** `pnpm lint`, `scripts/go vet ./...`, or the CI job
   the chore touches.
 
@@ -205,6 +206,12 @@ describe.
   `packages/interface/src/components/COMPONENT_LIBRARY.md` is the index
   of what exists; read it before writing a component, update it with
   one.
+- The interface reaches the backend through `useBackend()`
+  (`src/data/client.ts`), in a React Query hook inside the feature that
+  uses it (`src/features/<feature>/use<Things>.ts`); screens and
+  components never call the client themselves. A write invalidates the
+  key it changes. The design board and the tests mount `Fake`
+  (`fakeBackend`, with its own query cache) in its place.
 - A new RPC is added to the proto first, then the handler, then the
   interface, whose design board fake backend answers it too; the
   generated handler interface refuses to compile until every declared RPC

@@ -71,32 +71,51 @@ how imports are spelled:
 
 ## How a page runs without a server
 
-Screens reach the backend only through the React Query hooks, and the
-hooks get the Connect client from `useClient()` (`src/data/api/client.ts`).
-The app never mounts `ClientProvider`, so the context's default, the
-live client, is what every screen uses. The board mounts one per
-specimen:
+Screens reach the backend only through a feature's hooks, and the hooks
+get the `Backend` from `useBackend()` (`src/data/client.ts`). The app
+never mounts `BackendProvider`, so the context's default, `liveBackend`,
+is what every screen uses. The board mounts one per specimen:
 
 ```tsx
 // src/gallery/fake.tsx
 export function Fake({ children, ...options }: FakeOptions & { children: ReactNode }) {
-  const [client] = useState(() => fakeClient(options));
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+  const [backend] = useState(() => fakeBackend(options));
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          // gcTime Infinity: no garbage-collection timer is left to hold
+          // a test run open (a mutation has its own).
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        },
+      }),
+  );
   return (
-    <ClientProvider value={client}>
+    <BackendProvider value={backend}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ClientProvider>
+    </BackendProvider>
   );
 }
 ```
 
-Each specimen has its own client and its own query cache, so what one
+Each specimen has its own backend and its own `QueryClient`, so what one
 changes (a note added, a note archived) stays its own, and two specimens
-of one page in different states do not share a cache key.
+of one page in different states do not share a cache key. Retries are off,
+so the `error` scenario shows its error at once instead of after the
+backoff. The live `queryClient.ts` keeps React Query's default retry (three
+tries, about 7 s of spinner before a failed load shows its error, and
+non-transient codes like `InvalidArgument` or `NotFound` are retried too);
+add a `retry` predicate there that skips those codes if that matters. The
+same `Fake` is what the interface's tests mount. The `Infinity` `gcTime` in
+`Fake` is for the board and tests only; the live `queryClient.ts` keeps the
+default `gcTime`, or the cache never evicts.
 
-`fakeClient()` (`src/gallery/fixtures/backend.ts`) is the real Connect
-client over `createRouterTransport`, answering the service from an
-in-memory copy of the fixtures:
+`fakeBackend(options)` (`src/gallery/fixtures/backend.ts`) returns a whole
+`Backend`: the real Connect client over `createRouterTransport`, answering
+the service from an in-memory copy of the fixtures. When the app's
+`Backend` grows URL builders or off-page trips, the fake answers those
+too.
 
 - The implementation is typed as the whole `ServiceImpl<typeof
   <App>Service>`, so an RPC added to the contract fails the interface's

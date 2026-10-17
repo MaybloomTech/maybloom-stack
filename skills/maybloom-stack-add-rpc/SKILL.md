@@ -172,12 +172,19 @@ method; `go build ./...` is the checklist.
 
 ### 6. Client
 
-- **api** — one thin wrapper next to the resource's existing ones.
-- **query or mutation** — a list RPC is a `useQuery` with its own key
-  under the resource's key factory. An action is a `useMutation` that
-  invalidates the keys the operation affects: the item key always, the
-  list key when the operation can change list membership or ordering.
-  Getting this wrong shows up as a screen that needs a manual refresh.
+- **feature hook** — in the resource's hook file
+  (`src/features/<resources>/use<Resources>.ts`), calling the client from
+  `useBackend()`. A list RPC is a `useQuery` with its own key under the
+  resource's key. An action is a `useMutation` that invalidates the keys
+  the operation affects: the item key always, the list key when the
+  operation can change list membership or ordering. Getting this wrong
+  shows up as a screen that needs a manual refresh. An interface
+  scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
+  `useClient()`) uses the same library in an older layout: follow it, and
+  do not migrate it unless the owner asks. Composing several RPCs or
+  filtering a big list in the interface is a sign the RPC is missing; the
+  "Custom queries" passage in the client-expo README says where the line
+  is.
 - **screen** — the control that triggers it, plus the disabled/failed
   states the new error codes make possible.
 - **design board** (Expo) — the fake backend in
@@ -256,11 +263,11 @@ is `Unauthenticated`), call the store, wrap the note. Go: a method on
 `Service` in `internal/server/notes.go`; TypeScript: `src/handlers/archiveNote.ts`,
 added to the service object in `main.ts`.
 
-**Client**: `archiveNote(client, id)` in `src/data/api/notes.ts` calls
-`client.archiveNote({ id })`; `useArchiveNote` is a `useMutation` that
-gets the client from `useClient()` and invalidates the notes list key,
-because the operation changes list membership; the row's Archive button
-calls `mutate(item.id)`. On the Expo path the design board's fake backend
+**Client**: `useArchiveNote` in `src/features/notes/useNotes.ts` is a
+`useMutation` that calls `archiveNote({ id })` on the client from
+`useBackend()` and invalidates the notes key, because the operation
+changes list membership; the row's Archive button calls `mutate(item.id)`.
+On the Expo path the design board's fake backend
 (`src/gallery/fixtures/backend.ts`) answers it too, setting `archived_at`
 on its copy, or the interface's typecheck fails (after `pnpm proto:gen`
 and `pnpm --filter <ORG_SCOPE>/protocol-buffers build`); see
