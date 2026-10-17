@@ -7,7 +7,7 @@ import { NoteRow } from "../features/notes/NoteRow";
 import type * as notesScreen from "../features/notes/NotesScreen";
 import { Play } from "./fake";
 import { oneNote } from "./fixtures/notes";
-import { type SheetProps, type Specimen, Sheet, SpecimenSection } from "./layout";
+import { Sheet, type SheetProps, type Specimen, SpecimenSection } from "./layout";
 
 // ---------------------------------------------------------------------------
 // Coverage: the sheet is keyed by every component the feature modules

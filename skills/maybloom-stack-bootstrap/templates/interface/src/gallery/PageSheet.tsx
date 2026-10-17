@@ -4,8 +4,8 @@ import { NotesScreen } from "../features/notes/NotesScreen";
 import { PageFrame, Play, type PlayStep } from "./fake";
 import type { FakeOptions } from "./fixtures/backend";
 import {
-  type SheetProps,
   Sheet,
+  type SheetProps,
   SpecimenSection,
   specimenInset,
 } from "./layout";

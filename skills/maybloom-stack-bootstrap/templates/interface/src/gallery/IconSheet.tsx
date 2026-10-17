@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import * as icons from "../icons";
 import { colors, spacing, typography } from "../styles/tokens";
-import { type SheetProps, Sheet, SpecimenSection } from "./layout";
+import { Sheet, type SheetProps, SpecimenSection } from "./layout";
 
 // Keyed by every export of src/icons, so a new icon fails the typecheck
 // until it says here what it stands for.

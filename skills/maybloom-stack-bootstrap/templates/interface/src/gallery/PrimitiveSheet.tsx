@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import * as primitives from "../components/primitives";
 import { Button, Card, TextField } from "../components/primitives";
 import { sampleBody } from "../design/samples";
-import { type SheetProps, type Specimen, Sheet, SpecimenSection } from "./layout";
+import { Sheet, type SheetProps, type Specimen, SpecimenSection } from "./layout";
 
 const noop = () => {};
 

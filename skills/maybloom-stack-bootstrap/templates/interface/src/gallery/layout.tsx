@@ -96,7 +96,10 @@ export function Sheet({
 
 const styles = StyleSheet.create({
   sheet: { padding: spacing.lg, alignItems: "flex-start" },
-  scroller: { flex: 1, overflow: "scroll" },
+  // "auto", so a scrollbar shows only on the axis that overflows (Windows
+  // and Linux draw "scroll" bars always). React Native's type has no
+  // "auto"; react-native-web passes it through, and this style is web-only.
+  scroller: { flex: 1, overflow: "auto" as "scroll" },
   // As wide as its content, so the padding holds on the right too.
   fit: { alignSelf: "flex-start" },
   section: { gap: spacing.sm },

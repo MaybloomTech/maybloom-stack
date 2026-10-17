@@ -75,6 +75,8 @@ export function Play({
     const root = ref.current as unknown as HTMLElement | null;
     if (Platform.OS !== "web" || !root?.querySelectorAll) return;
     let cancelled = false;
+    // A replay starts clean: a failure from an earlier run is not this one's.
+    setMissing(null);
     (async () => {
       for (const step of JSON.parse(script) as PlayStep[]) {
         // Checked after every wait, before acting: a run the effect has

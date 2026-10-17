@@ -1,6 +1,6 @@
 import { Text } from "react-native";
 import { passes } from "../design/passes";
-import { type SheetProps, Sheet, SpecimenSection } from "./layout";
+import { Sheet, type SheetProps, SpecimenSection } from "./layout";
 
 /** The design passes, each comparison as current beside variant. */
 export function DesignSheet({ width }: SheetProps) {

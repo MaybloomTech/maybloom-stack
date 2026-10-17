@@ -38,7 +38,9 @@ board's files. What holds that line is checked on what was built, not on
 how imports are spelled:
 
 - **`check:no-gallery`** (`scripts/check-no-gallery.mjs`) is the
-  guarantee. It exports the app again with source maps, to `dist-check/`
+  guarantee for the **web** bundle; native bundles are not checked (a
+  `.native.ts` file that imports `src/design` would ship in them
+  unnoticed). It exports the app again for the web with source maps, to `dist-check/`
   (the shipped `dist/` from `build:web` has no maps and is left alone),
   and fails if any source under `gallery/`, `src/gallery/` or
   `src/design/` is in the bundle's maps, or if the bundle carries the
@@ -174,12 +176,13 @@ drawn in red. Play is web-only, like the board.
   for modules that export a component (a platform variant such as
   `.web.tsx` counts as its base module, `x/index.tsx` is module `x`) and
   fails for any the sheet does not import that way.
-- **Default and class components** would slip past `ComponentsOf`. Biome's
-  `style/noDefaultExport` is on for `src/features/**` (tests exempt), so a
-  default export of any shape fails lint; `check:gallery` refuses a class
-  that extends `Component` or `PureComponent` (`export class HttpError
-  extends Error` is not one). A feature component is a named function
-  export (`export function NoteRow`), or a `memo` of one.
+- **Feature components are function components:** a named function
+  export (`export function NoteRow`), or a `memo` of one. Default exports
+  would slip past `ComponentsOf`, so Biome's `style/noDefaultExport` is on
+  for `src/features/**` (tests exempt). Class components are not checked:
+  `check:gallery` refuses the plain `export class X extends Component`
+  form, but other spellings (generics, a class exported through
+  `export { }`) pass with no entry, so don't write them.
 - **Test files** (`*.test.tsx`, `__tests__/`) are skipped by
   `check:gallery`: a render wrapper in a test helper is not a component of
   the app.

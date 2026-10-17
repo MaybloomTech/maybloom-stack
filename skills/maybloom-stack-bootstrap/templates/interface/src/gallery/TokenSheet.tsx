@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../styles/tokens";
-import { type SheetProps, Sheet, SpecimenSection } from "./layout";
+import { Sheet, type SheetProps, SpecimenSection } from "./layout";
 
 // Read from src/styles/tokens.ts as it is: a new token shows here with no
 // entry to write.

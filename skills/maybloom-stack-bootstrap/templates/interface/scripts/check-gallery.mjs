@@ -24,7 +24,14 @@ const files = existsSync(features)
   ? readdirSync(features, { recursive: true })
       .map((f) => join(features, f))
       .filter((f) => statSync(f).isFile() && f.endsWith(".tsx"))
-      .filter((f) => !/\.test\.tsx$|[\\/]__tests__[\\/]/.test(f))
+      // Tested on the path inside src/features, so a checkout under a
+      // folder called __tests__ skips nothing.
+      .filter(
+        (f) =>
+          !/\.test\.tsx$|(^|\/)__tests__\//.test(
+            relative(features, f).split(sep).join("/"),
+          ),
+      )
   : [];
 
 // A component here is an export with a component's name: capitalised with
