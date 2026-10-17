@@ -625,7 +625,8 @@ stage regenerates the contract, so it needs `proto/` and the buf configs as
 well as `go/`. The Maybloom backend's:
 
 ```dockerfile
-FROM golang:1.26.7-alpine AS build   # the patch matches go.mod and scripts/go; GOTOOLCHAIN=local
+# The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.
+FROM golang:1.26.9-alpine AS build
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -639,16 +640,22 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
       -o /out/<service> ./cmd/<service>
 
 FROM alpine:3.22
+ARG VERSION=dev
+# CI passes the full SHA; a local build gets VERSION.
+ARG REVISION=${VERSION}
 RUN adduser -D -u 10001 <service>
 COPY --from=build /out/<service> /usr/local/bin/<service>
 USER <service>
+LABEL org.opencontainers.image.revision="${REVISION}"
 HEALTHCHECK CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
 ENTRYPOINT ["<service>"]
 ```
 
 The version is stamped from the git short SHA at build time and reported
 by the `Health` RPC, so the running image can always say which commit it
-is. Also stamp it as the `org.opencontainers.image.revision` label; OCF
+is. Also stamp the commit as the `org.opencontainers.image.revision`
+label (a `REVISION` build arg defaulting to `VERSION`, so CI can pass the
+full SHA and a local build gets the short one); OCF
 IMS's first image carried none and the digest was the only way to know
 what was running. The healthcheck can be busybox `wget` on alpine or
 the binary's own `healthcheck` subcommand; both are walked.
@@ -685,7 +692,7 @@ second run is fast:
 docker run --rm -i --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
   -v <repo>-gomodcache:/go/pkg -v <repo>-gocache:/tmp/gocache -v <repo>-gohome:/tmp/gohome \
-  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.7-alpine go "$@"   # the same pinned patch
+  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.9-alpine go "$@"   # the same pinned patch
 ```
 
 `scripts/go build ./...`, `scripts/go test ./...`, `scripts/go tool sqlc
@@ -699,9 +706,11 @@ image tag defaults to `latest` with `pull_policy: always`, a demo seed
 loads on an empty database, and a cron job on the host pulls on a
 schedule and restarts only when the image changed. `latest` is moved only
 by the CI job that runs after lint, the test suite and an image smoke
-test, so the instance can only ever receive a tested build, and the host
-needs no inbound access and GitHub holds no deploy key. Pin the tag in
-`.env` to freeze it for a test session. Nothing real ever goes on it.
+test (the scaffold's image workflow is that job; see
+[CI and images](./overview.md#ci-and-images)), so the instance can only
+ever receive a tested build, and the host needs no inbound access and
+GitHub holds no deploy key. Pin the tag in `.env` to freeze it for a test
+session. Nothing real ever goes on it.
 
 ## Patterns adopted, patterns left behind
 

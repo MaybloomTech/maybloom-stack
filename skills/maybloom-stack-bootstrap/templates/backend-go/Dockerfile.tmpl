@@ -16,7 +16,7 @@
 # GOTOOLCHAIN=local refuses to download another toolchain, so a go line
 # ahead of the image fails here instead of fetching one silently. Raise the
 # four together.
-FROM golang:1.26.7-alpine AS build
+FROM golang:1.26.9-alpine AS build
 ENV GOTOOLCHAIN=local
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./
@@ -46,7 +46,10 @@ USER __APP_SLUG__
 # port; change both together, or map a different host port with -p instead.
 ENV ADDR=:8080
 EXPOSE 8080
-LABEL org.opencontainers.image.revision="${VERSION}"
+# The commit the image is built from: CI passes the full SHA as REVISION
+# (its tag check reads it), a local build gets VERSION's short one.
+ARG REVISION=${VERSION}
+LABEL org.opencontainers.image.revision="${REVISION}"
 # The binary answers /healthz; busybox wget is what alpine has.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1

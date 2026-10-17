@@ -38,6 +38,15 @@ scripts/golangci-lint run
 TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/__APP_SLUG___test go test -p 1 ./...  # the compose test database; the two packages share it, one at a time
 ```
 
+CI (`.github/workflows/ci.yml`) runs these same checks on every pull
+request, by the areas it touches, then builds and smoke-tests the
+images; from `main` it pushes them. Adding a package, an image or a job
+means editing the CI too: the table in its `changes` job, and for an
+image a Dockerfile line, a smoke step and the `REVISION` label (the
+maybloom-stack-bootstrap skill's CI reference lists every edit). Commit
+messages and pull request titles are Conventional Commits
+(`commitlint.config.mjs`), checked on every PR.
+
 ## Delegation (the `maybloom-stack-delegate` skill has the roster and rules)
 
 - **Protected paths** (architect-only, no subagents):

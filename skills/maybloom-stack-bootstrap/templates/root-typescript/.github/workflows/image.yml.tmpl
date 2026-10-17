@@ -1,0 +1,418 @@
+# The deployable images: the backend (packages/backend/Dockerfile) and the
+# docs site (packages/docs-site/Dockerfile). Each is built from the repo
+# root, started and asked something it can only answer when the build is
+# sound, and, when the caller says so, pushed. CI calls this after lint
+# and the packages pass, with push on for main only, so every pushed tag
+# is a tested commit.
+#
+# Where the images go is a repository setting, never this file:
+#
+#   REGISTRY            repository variable: the image prefix, e.g.
+#                       registry.example.com/team or ghcr.io/<owner>
+#   REGISTRY_USERNAME   secret
+#   REGISTRY_PASSWORD   secret: a token allowed to push there
+#
+# REGISTRY is a variable, not a secret, because it is not a credential and
+# a secret's value is masked in every log line, the pushed tags included.
+# The registry has to ask for credentials (every hosted one does) and be
+# served over HTTPS, or run on localhost: the check that a SHA tag is not
+# already there decides only on an authenticated answer over HTTPS, so a
+# registry without auth, or a plain-HTTP one on another host, fails it.
+# Until all three are set the images are built and smoke-tested and
+# nothing is pushed, with a notice saying which is missing, so a new
+# repository is green before it has a registry.
+#
+# Tags: the commit's short SHA, which the backend build also stamps as the
+# version Health reports, pushed by each image's job and never replaced
+# (a host rolls back by it: a rerun finds it and builds nothing, and a
+# short-SHA collision fails rather than reuse another commit's build);
+# then `latest`, moved for every image at once by the `latest` job.
+# That job runs one at a time across the repository and moves `latest`
+# only if the commit is main's tip at that moment, so an older run cannot
+# move it back and the images' `latest` tags name the same commit. What
+# runs the images, and where, is not this repository's business: a host
+# pulls a tag.
+name: Image
+
+on:
+  workflow_call:
+    inputs:
+      images:
+        description: The images to build, as a JSON list of names (backend, docs-site)
+        type: string
+        required: true
+      push:
+        description: Push the smoke-tested images to REGISTRY
+        type: boolean
+        default: false
+    secrets:
+      REGISTRY_USERNAME:
+        required: false
+      REGISTRY_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(inputs.images) }}
+    # The same in every leg, so whichever leg sets them last is right.
+    # Nothing derived from REGISTRY crosses the job boundary: GitHub drops
+    # a job output that holds a secret's value, and the registry path
+    # often holds the username (ghcr.io/<login>, docker.io/<user>). The
+    # `latest` job names the registry again from the variable.
+    outputs:
+      push: ${{ steps.name.outputs.push }}
+      short: ${{ steps.name.outputs.short }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Name the image
+        id: name
+        env:
+          REGISTRY: ${{ vars.REGISTRY }}
+          # Whether the secrets exist, never their values.
+          HAS_USERNAME: ${{ secrets.REGISTRY_USERNAME != '' }}
+          HAS_PASSWORD: ${{ secrets.REGISTRY_PASSWORD != '' }}
+          PUSH: ${{ inputs.push }}
+          NAME: ${{ matrix.image }}
+          IMAGE: __APP_SLUG__-${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          # Each image's Dockerfile, built from the repository root.
+          case "$NAME" in
+            backend) dockerfile=packages/backend/Dockerfile ;;
+            docs-site) dockerfile=packages/docs-site/Dockerfile ;;
+            *)
+              echo "::error::no Dockerfile for the image '$NAME': add it to this step"
+              exit 1 ;;
+          esac
+          # Registries refuse uppercase in a repository name.
+          registry="$(printf '%s' "${REGISTRY%/}" | tr '[:upper:]' '[:lower:]')"
+          push=false
+          if [ "$PUSH" = true ]; then
+            missing=""
+            [ -n "$registry" ] || missing="$missing the REGISTRY variable,"
+            [ "$HAS_USERNAME" = true ] || missing="$missing the REGISTRY_USERNAME secret,"
+            [ "$HAS_PASSWORD" = true ] || missing="$missing the REGISTRY_PASSWORD secret,"
+            if [ -z "$missing" ]; then
+              push=true
+            else
+              echo "::notice::$IMAGE is built and smoke-tested, not pushed, the repository is missing${missing%,}"
+            fi
+          fi
+          {
+            echo "dockerfile=$dockerfile"
+            echo "short=${GITHUB_SHA::7}"
+            echo "ref=${registry:+$registry/}$IMAGE"
+            echo "registry=$registry"
+            echo "host=${registry%%/*}"
+            echo "push=$push"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: steps.name.outputs.push == 'true'
+        with:
+          registry: ${{ steps.name.outputs.host }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # A SHA tag names one build for good. If it is there already (a
+      # manual rerun of main), this leg builds and pushes nothing.
+      #
+      # Whether it is there is the registry's answer to a HEAD on the
+      # tag's manifest made as the pusher, decided on the numeric HTTP
+      # status alone (never on a reason phrase or a tool's wording). An
+      # answer to an unauthenticated request decides nothing: it only
+      # yields the challenge (or GET /v2/ does). Bearer → a token from the
+      # realm, fetched with the pushing credential; Basic → the credential
+      # itself; any other scheme, no challenge at all, or a token response
+      # without a token fails. Then: 200 → there; 404 → absent; 401 or 403
+      # (on the manifest, or from the token endpoint) → absent, since the
+      # pushing credential can read whatever it can push, so a refusal
+      # cannot hide an existing tag, and if it really cannot read, docker
+      # push fails too. Anything else (429, 5xx, a redirect, a curl error,
+      # a timeout, DNS) fails the job rather than push over the tag.
+      #
+      # When the tag is there, the full SHA in the image's revision label
+      # (the Dockerfile's REVISION arg) tells a rerun from a short-SHA
+      # collision.
+      - name: Is the SHA tag in the registry
+        id: tag
+        if: steps.name.outputs.push == 'true'
+        env:
+          HOST: ${{ steps.name.outputs.host }}
+          REF: ${{ steps.name.outputs.ref }}
+          SHORT: ${{ steps.name.outputs.short }}
+          USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          image="$REF:$SHORT"
+          repo="${REF#"$HOST"/}"
+          # The registry API: plain HTTP for a registry on this machine, as
+          # Docker allows; Docker Hub's API lives on its own host.
+          case "$HOST" in
+            localhost | localhost:* | 127.0.0.1 | 127.0.0.1:*) api="http://$HOST" ;;
+            docker.io | index.docker.io) api="https://registry-1.docker.io" ;;
+            *) api="https://$HOST" ;;
+          esac
+          url="$api/v2/$repo/manifests/$SHORT"
+          accept="application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json"
+          headers="$RUNNER_TEMP/tag-headers"
+          fail() {
+            echo "::error::could not tell whether $image is in the registry ($1); nothing is pushed"
+            exit 1
+          }
+          absent() {
+            echo "$image is not in the registry ($1)"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          # A request; prints the status. An Authorization header, when
+          # given, goes through curl's config on stdin, never on the
+          # command line.
+          request() {
+            local auth="$1"; shift
+            printf '%s' "${auth:+header = \"Authorization: $auth\"}" |
+              curl -sS -K - -D "$headers" --max-time 30 -w '%{http_code}' "$@"
+          }
+          # Every challenge the last response carried, one header a line.
+          challenges() {
+            grep -i '^www-authenticate:' "$headers" | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true
+          }
+          # A parameter of the Bearer challenge, from its own text only.
+          param() {
+            grep -oiE "(^|[ ,])$1=\"[^\"]*\"" <<<"$bearer" | head -n 1 | sed 's/^[^"]*"//; s/"$//' || true
+          }
+
+          # Unauthenticated, for the challenge only; its status is ignored.
+          request "" -I -o /dev/null -H "Accept: $accept" "$url" >/dev/null ||
+            fail "the request failed"
+          offered="$(challenges)"
+          if [ -z "$offered" ]; then
+            request "" -o /dev/null "$api/v2/" >/dev/null || fail "the request failed"
+            offered="$(challenges)"
+          fi
+          # Bearer wherever it is offered (first, second, or in a second
+          # header); Basic only when it is the one scheme offered for it.
+          bearer="$(grep -ioE '(^|,[[:space:]]*)bearer[[:space:]].*' <<<"$offered" | head -n 1 | sed -E 's/^,[[:space:]]*//' || true)"
+          if [ -n "$bearer" ]; then
+            realm="$(param realm)"
+            service="$(param service)"
+            [ -n "$realm" ] || fail "a Bearer challenge with no realm"
+            [ -n "$USERNAME" ] || fail "no credential to fetch a token with"
+            basic="Basic $(printf '%s:%s' "$USERNAME" "$PASSWORD" | base64 -w0)"
+            token_json="$RUNNER_TEMP/tag-token"
+            code="$(request "$basic" -G -o "$token_json" \
+              ${service:+--data-urlencode "service=$service"} \
+              --data-urlencode "scope=repository:$repo:pull" "$realm")" ||
+              fail "the token request failed"
+            case "$code" in
+              200) ;;
+              401 | 403) absent "the token endpoint answered $code" ;;
+              *) fail "the token endpoint answered $code" ;;
+            esac
+            # The first non-empty string of the two fields registries use.
+            token="$(jq -r '[.token, .access_token] | map(select(type == "string" and length > 0)) | first // empty' \
+              "$token_json" 2>/dev/null)" || fail "the token endpoint sent no JSON"
+            [ -n "$token" ] || fail "the token endpoint sent no token"
+            echo "::add-mask::$token"
+            auth="Bearer $token"
+          elif grep -qiE '^basic([[:space:]]|$)' <<<"$offered" && [ "$(grep -c '' <<<"$offered")" = 1 ]; then
+            [ -n "$USERNAME" ] || fail "no credential for Basic"
+            auth="Basic $(printf '%s:%s' "$USERNAME" "$PASSWORD" | base64 -w0)"
+          elif [ -z "$offered" ]; then
+            fail "the registry asked for no authentication"
+          else
+            fail "an authentication scheme this check does not speak"
+          fi
+
+          code="$(request "$auth" -I -o /dev/null -H "Accept: $accept" "$url")" ||
+            fail "the request failed"
+          case "$code" in
+            200) echo "$image is in the registry (the registry answered 200)" ;;
+            404 | 401 | 403) absent "the registry answered $code" ;;
+            *) fail "the registry answered $code" ;;
+          esac
+
+          # A single-platform manifest, as this workflow pushes; a
+          # multi-platform index needs a platform key here.
+          if ! revision="$(docker buildx imagetools inspect "$image" \
+            --format '{{ index .Image.Config.Labels "org.opencontainers.image.revision" }}')"; then
+            echo "::error::$image is in the registry but its revision label could not be read; nothing is pushed"
+            exit 1
+          fi
+          if [ "$revision" != "$GITHUB_SHA" ]; then
+            echo "::error::$image holds a build of '${revision:-an unlabelled image}', not $GITHUB_SHA: a short-SHA collision or a push from elsewhere. Nothing is pushed."
+            exit 1
+          fi
+          echo "::notice::$image is already in the registry: not rebuilt, not replaced"
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.tag.outputs.exists != 'true'
+
+      # Loaded into the runner's Docker rather than pushed from the builder,
+      # so what the smoke test runs is the image that gets pushed.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        if: steps.tag.outputs.exists != 'true'
+        with:
+          context: .
+          file: ${{ steps.name.outputs.dockerfile }}
+          load: true
+          tags: ${{ steps.name.outputs.ref }}:${{ steps.name.outputs.short }}
+          # VERSION is what Health reports; REVISION, the full SHA, goes in
+          # the revision label the tag check above reads.
+          build-args: |
+            VERSION=${{ steps.name.outputs.short }}
+            REVISION=${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          # linux/amd64, the runner's own platform. Adding linux/arm64 needs
+          # a push from the builder instead of `load`, QEMU for the build
+          # stages, and a per-platform key in the tag check's --format
+          # (`.Image` is then a map by platform, and the index fails).
+          platforms: linux/amd64
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Smoke test the backend
+        if: matrix.image == 'backend' && steps.tag.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.name.outputs.ref }}:${{ steps.name.outputs.short }}
+          SHORT: ${{ steps.name.outputs.short }}
+        run: |
+          set -euo pipefail
+          # DEV_USER and the default PGlite database inside the container:
+          # the image boots and serves, as `pnpm docker:backend:run` does.
+          docker run -d --name smoke -p 3000:3000 -e DEV_USER=dev "$IMAGE"
+          ready=false
+          for _ in $(seq 30); do
+            if curl -fsS http://localhost:3000/readyz; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::the backend did not become ready in 30 seconds"
+            exit 1
+          fi
+          echo
+          # The Health RPC over Connect: the server serves the contract and
+          # reports the commit it was built from.
+          health="$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' \
+            http://localhost:3000/__APP_SLUG__.service.v1.__APP_NAME__Service/Health)"
+          echo "$health"
+          version="$(jq -r .version <<<"$health")"
+          if [ "$version" != "$SHORT" ]; then
+            echo "::error::Health reports version '$version', expected '$SHORT'"
+            exit 1
+          fi
+
+      - name: Smoke test the docs site
+        if: matrix.image == 'docs-site' && steps.tag.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.name.outputs.ref }}:${{ steps.name.outputs.short }}
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 8080:80 "$IMAGE"
+          ok=false
+          for _ in $(seq 15); do
+            # The index lists the service by name, so a page that renders it
+            # was built from the contract.
+            # To a file, then grep: grep -q stops reading at the first match
+            # and, under pipefail, curl's broken pipe would fail the test.
+            if curl -fsS -o "$RUNNER_TEMP/index.html" http://localhost:8080/ &&
+              grep -q '__APP_NAME__Service' "$RUNNER_TEMP/index.html"; then ok=true; break; fi
+            sleep 1
+          done
+          if [ "$ok" != true ]; then
+            echo "::error::the docs site did not serve a page naming __APP_NAME__Service"
+            exit 1
+          fi
+
+      - name: Container log
+        if: always()
+        run: docker logs smoke 2>&1 || true
+
+      - name: Push the SHA tag
+        if: steps.name.outputs.push == 'true' && steps.tag.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.name.outputs.ref }}:${{ steps.name.outputs.short }}
+        run: docker push "$IMAGE"
+
+  # `latest` for every image, once each has pushed its SHA tag. One at a
+  # time across the repository, and the tip is read inside that job right
+  # before the move, so no other run can move `latest` between the check
+  # and the tag. GitHub keeps one waiting job per group: when a third merge
+  # lands while one moves `latest` and another waits, the waiting one is
+  # cancelled and the newest moves `latest` instead, which is the commit it
+  # should name. That older run, and so its `CI passed` check, then shows
+  # red on main for a good commit: its SHA tags are pushed, and only the
+  # `latest` move it no longer needs was cancelled.
+  latest:
+    name: latest
+    needs: image
+    if: needs.image.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: image-latest-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      # As `Name the image` does in the image job.
+      - name: Name the registry
+        id: registry
+        env:
+          REGISTRY: ${{ vars.REGISTRY }}
+        run: |
+          set -euo pipefail
+          registry="$(printf '%s' "${REGISTRY%/}" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "registry=$registry"
+            echo "host=${registry%%/*}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ steps.registry.outputs.host }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Move latest if this commit is main's tip
+        env:
+          TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          REGISTRY: ${{ steps.registry.outputs.registry }}
+          SHORT: ${{ needs.image.outputs.short }}
+          IMAGES: ${{ join(fromJSON(inputs.images), ' ') }}
+        run: |
+          set -euo pipefail
+          # Plain git over HTTPS, so it asks any forge the same way. The
+          # token goes in a header through git's environment config, as
+          # actions/checkout does, never on the command line.
+          auth="$(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
+          tip="$(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraheader \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth" \
+            git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "refs/heads/$BRANCH" |
+            awk -v ref="refs/heads/$BRANCH" '$2 == ref { print $1 }')"
+          if [ -z "$tip" ]; then
+            echo "::error::could not read $BRANCH from $GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+            exit 1
+          fi
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::notice::$BRANCH has moved on to ${tip::7}: latest stays where it is"
+            exit 0
+          fi
+          # A new tag on the manifest already in the registry: nothing is
+          # pulled or rebuilt, and with --prefer-index=false `latest` is
+          # the SHA tag's own manifest (same digest), not an index over it.
+          for name in $IMAGES; do
+            ref="$REGISTRY/__APP_SLUG__-$name"
+            docker buildx imagetools create --prefer-index=false --tag "$ref:latest" "$ref:$SHORT"
+          done

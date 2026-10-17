@@ -40,7 +40,7 @@ to their published routes at build time.
 
 ## What CI enforces
 
-Three checks run on every pull request, and all three are mechanical:
+These checks run on pull requests, and all of them are mechanical:
 
 - **Validate commit messages** and **Validate PR title** — both
   [Conventional Commits](https://www.conventionalcommits.org). The PR
@@ -52,6 +52,23 @@ Three checks run on every pull request, and all three are mechanical:
 
   ```
   python3 scripts/check-skill-tree.py
+  ```
+- **Lint the scaffolded workflows** (the Templates workflow, on pull
+  requests that touch the bootstrap skill) — scaffolds both backends,
+  fails if a placeholder survives in `.github/`, and runs actionlint
+  (with shellcheck) over the workflows a new project would receive. To
+  run it locally, with Docker:
+
+  ```
+  for backend in go typescript; do
+    out="$(mktemp -d)/orchard"
+    python3 skills/maybloom-stack-bootstrap/scripts/scaffold.py \
+      --name Orchard --slug orchard --org @orchard-tech \
+      --out "$out" --backend "$backend"
+    grep -rn '__[A-Z][A-Z_]*__' "$out/.github" && echo "placeholder left"
+    (cd "$out" && git init -q &&
+      docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12)
+  done
   ```
 
 ## Adding a path to the skill tree
@@ -88,8 +105,8 @@ Skills are read by an agent, not by a person, and the difference matters:
 
 ## Maintainers' chores
 
-Two pins in the bootstrap templates are floors a new project starts from,
-and both go stale on their own:
+Some pins in the bootstrap templates are floors a new project starts
+from, and they go stale on their own:
 
 - **The Go module pins.** `skills/maybloom-stack-bootstrap/templates/backend-go/go.mod.tmpl`
   and the `go.sum` beside it ship the versions a fresh scaffold builds
@@ -108,6 +125,20 @@ and both go stale on their own:
 - **The pnpm catalog.** `templates/root/pnpm-workspace.yaml` is the
   same floor for the TypeScript side; the bootstrap skill's checklist
   refreshes it the same way.
+- **The workflow pins.** The scaffolded workflows
+  (`templates/root/.github/workflows/` and the `root-go` and
+  `root-typescript` ones beside it) pin every action to a commit SHA with
+  the release in a comment. A scaffolded project's Dependabot moves its
+  own copies; nothing moves the templates'. Per release, raise each pin to
+  the action's latest release (`gh api repos/<owner>/<action>/releases/latest`
+  for the tag, `gh api repos/<owner>/<action>/commits/<tag>` for the SHA),
+  the same action to the same SHA in every file, and `govulncheck@`
+  in the Go `ci.yml.tmpl` to the latest `golang.org/x/vuln`. The `root-go`
+  and `root-typescript` workflows are near copies of each other (the pins,
+  the `changes` job and the `latest` job appear in both), so a change to
+  one is made to the other in the same commit. The Templates workflow runs
+  actionlint over a fresh scaffold of both paths, so a pin to a missing
+  input fails there.
 
 ## Style
 

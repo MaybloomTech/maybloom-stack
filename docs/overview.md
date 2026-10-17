@@ -142,6 +142,7 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
     interface/               Expo Router + React Query
     <name>-site/             Astro sites, one package per site
   scripts/go, scripts/golangci-lint   the Go toolchain and linter in their pinned images
+  .github/workflows/       CI, the image build-and-push, the conventional-commit checks
   skills/                  the agent skills that scaffold and extend the stack
   buf.yaml, buf.gen.yaml   contract toolchain, at the root
   pnpm-workspace.yaml      workspace + version catalog
@@ -166,6 +167,55 @@ Naming that the stack treats as vocabulary, everywhere:
   `internal/store/` in Go.
 - Resources are PascalCase singular in protos (`Note`), camelCase plural in
   tables and collections (`notes`).
+
+## CI and images
+
+Every scaffold ships its CI, because a repo whose checks arrive later
+merges its first weeks unchecked. Three workflows:
+
+- **CI** runs, on each pull request, only the areas it touches: lint
+  (`buf lint` and biome), one job per package (build, typecheck, the
+  interface's web export, the docs site), and on the Go path the module's
+  gates (generate, `go mod tidy -diff`, vet, build, golangci-lint at the
+  version its wrapper script pins, govulncheck, and the tests with `-race`
+  against a throwaway Postgres). One table in the workflow maps each path
+  to the areas it checks; a change to a root config or a workflow runs
+  everything, and so does a push to main. A single `CI passed` job
+  reports under the same name on every run and fails if anything that ran
+  failed, so it is the one check a repository requires.
+- **Image** is called by CI once those pass, for the images the change
+  feeds. It builds them, starts each and asks it something only a sound
+  build answers (the backend's `Health` RPC must report the commit it was
+  built from), and on main pushes that same image, tagged with the short
+  SHA. A SHA tag is never replaced, so a host can roll back by it: a rerun
+  that finds its commit's tag builds nothing, and one that cannot tell, or
+  finds another commit's build under the tag, fails. Then one job, run one
+  at a time across the repository, moves `latest` on every image together,
+  and only if the commit is main's tip when it looks: a host that follows
+  `latest` receives a tested build, the images' `latest` tags name the
+  same commit, and an older run cannot move them back. When merges land
+  faster than that job runs, GitHub cancels the older waiting one: that
+  run, and its `CI passed` check, show red on main with `latest`
+  cancelled. It is not a failure: its SHA tags were pushed and a newer
+  commit moves `latest`. The registry is a repository variable and its
+  credentials are secrets; until all three are set the images are built
+  and tested and nothing is pushed. The registry must require
+  credentials and be served over HTTPS (or run on localhost), as every
+  hosted one is: the tag check asks it only as the pusher, over HTTPS.
+  Where the images run is not the repository's concern: a deploy pulls a
+  tag.
+- **Conventional commits** lints the pull request title and every commit
+  on the branch with commitlint (pinned by the lockfile, through the
+  workspace catalog), in one job. The title is the one that lands on
+  main when the repository squash-merges.
+
+Every action is pinned to a commit SHA with its release in a comment,
+because a tag can be moved to other code and a SHA cannot; Dependabot
+proposes the new SHAs weekly. Checkouts keep no credentials
+(`persist-credentials: false`), the workflows hold `contents: read` and
+nothing more, and untrusted text (a pull request title, a changed file's
+name) is read through the environment or with workflow commands stopped,
+never interpolated into a script.
 
 ## What the stack is for
 

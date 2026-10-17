@@ -242,8 +242,75 @@ both backends.
 
 Make the service reachable the way everything else in the repo is: a
 `dev:<SERVICE>` script in the root `package.json`, an entry in the compose
-file, a route in the reverse proxy config if the repo has one, and the Go
-build in CI alongside the existing typecheck.
+file, a route in the reverse proxy config if the repo has one, and CI.
+
+The bootstrap's CI lives in `.github/workflows/`; the Go path's version is
+`../maybloom-stack-bootstrap/templates/root-go/.github/workflows/`, and
+its `ci.yml.tmpl` and `image.yml.tmpl` are the source for what follows
+(substitute `__APP_SLUG__`, `__APP_NAME__` and `__ORG_SCOPE__` as for the
+module).
+
+Paths map to areas in one place: the `AREAS` table in the `changes`
+job's env. Every edit to the `changes` job below is a line in that table;
+its script is never touched.
+
+- **The repo has a `ci.yml` without a `go` job** (scaffolded with
+  `--backend typescript`):
+  0. If the TypeScript backend was deleted (the Go-first path above),
+     take it out of CI first, or the next contract change fails: drop
+     `package:backend` and `image:backend` from the table's lines, the
+     `packages/backend/*` line, the `backend)` line in `image.yml`'s
+     `Name the image` step and its port-3000 smoke step. The Go service's
+     image takes its place as `image:<SERVICE>` below.
+  1. Copy the template's `go` job into `ci.yml` as it is, with its
+     Postgres service on `<APP_SLUG>_test`. It runs generate, `go mod
+     tidy -diff`, vet, build, golangci-lint at the version
+     `scripts/golangci-lint` pins, govulncheck and `go test -p 1 -race`.
+  2. In the table, add `go image:<SERVICE>` to the `proto/*`,
+     `buf.yaml`, `buf.gen.yaml` and `third_party/*` lines (the service
+     generates its code from the contract, so a contract change rebuilds
+     and smoke-tests its image), and add the lines
+     `go/* go image:<SERVICE>`, `go.work go`, `scripts/go go` and
+     `scripts/golangci-lint go`.
+  3. Add `go` to the `needs` of the `image` job and of `passed`, so a
+     failing Go job holds the image back and fails `CI passed`.
+- **The service's image**, in `image.yml`:
+  1. A line for it in the `Name the image` step's case
+     (`<SERVICE>) dockerfile=<path to its Dockerfile> ;;`). An image the
+     table names without a line here fails that step by name. Its
+     Dockerfile carries the backend's `ARG REVISION=${VERSION}` and
+     `LABEL org.opencontainers.image.revision="${REVISION}"` in the
+     runtime stage: CI passes the full SHA there and the tag check reads
+     it, so an image without the label fails every rerun as unlabelled.
+  2. A smoke step, `if: matrix.image == '<SERVICE>' &&
+     steps.tag.outputs.exists != 'true'` (a rerun whose tag is already
+     pushed builds nothing, so there is nothing to smoke), that boots it
+     with `DEV_USER` against the job's Postgres and calls its `Health` at
+     `/<APP_SLUG>.<SERVICE_PROTO_PKG>.v1.<SERVICE_NAME>/Health`, checking
+     the version is the short SHA. The Go template's backend step is the
+     one to copy, with the port the service listens on (each image has
+     its own leg, so no other container holds it).
+  3. On the TypeScript path `image.yml` has no Postgres service: copy the
+     `services:` block from the Go template's `image` job (it starts one
+     for every leg).
+  The `latest` job needs nothing: it moves `latest` on every image CI
+  named.
+- **A repo with no `.github/workflows/` from the bootstrap at all**:
+  copy rather than write a Go job from scratch.
+  1. From `../maybloom-stack-bootstrap/templates/root/`:
+     `.github/workflows/conventional-commits.yml`, `.github/dependabot.yml`
+     and `commitlint.config.mjs`. The commit check runs
+     `pnpm exec commitlint`, so also add `@commitlint/cli` and
+     `@commitlint/config-conventional` to the root `package.json`'s
+     devDependencies as `catalog:`, with their catalog entries from that
+     directory's `pnpm-workspace.yaml`, and refresh the lockfile.
+     Without them the check fails on every pull request.
+  2. `ci.yml.tmpl` and `image.yml.tmpl`: from `root-go/` if the Go
+     module is the repo's only backend (they already have the Go job,
+     its table lines and the backend image); or from `root-typescript/`
+     if a TypeScript backend stays alongside it, and then the first
+     bullet above to add the Go job. Either way, trim the table, the
+     matrix and the image steps to the packages and images the repo has.
 
 ## Verification before claiming done
 
@@ -276,7 +343,8 @@ A bootstrap that typechecks but doesn't run is not done.
 Say these out loud rather than leaving them to be discovered.
 
 - **Two backends means two deploys.** The compose file, the proxy, and CI
-  each grew an entry, and both images need building on release.
+  each grew an entry, and the image workflow now builds, smoke-tests and
+  pushes both images from main.
 - **The contract is the only coupling that is safe.** If the two services
   start sharing tables, that coupling is invisible to the wire and will
   break in production rather than at build time.

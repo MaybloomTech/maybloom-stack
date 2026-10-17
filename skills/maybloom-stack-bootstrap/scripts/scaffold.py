@@ -36,7 +36,8 @@ Layout mapping (templates → output):
 
   templates/root/*                       → <out>/                (shared)
   templates/root-<backend>/*             → <out>/                (package.json, CLAUDE.md,
-                                           and for Go: go.work, scripts/go, scripts/golangci-lint)
+                                           .github/workflows/ci.yml and image.yml, and for Go:
+                                           go.work, scripts/go, scripts/golangci-lint)
   templates/third_party/*                → <out>/third_party/    (vendored buf/validate/validate.proto)
   templates/proto/package.json.tmpl      → <out>/packages/protocol-buffers/...
   templates/proto/tsconfig.json          → <out>/packages/protocol-buffers/...
@@ -298,7 +299,7 @@ def main(argv: list[str]) -> int:
     print("  pnpm install   # runs proto:gen + proto:descriptor + build via postinstall")
     if args.backend == "go":
         print("  docker compose up -d db            # the development Postgres (and <slug>_test)")
-        print("  scripts/go mod tidy && scripts/go generate .   # the Go toolchain in Docker: go.sum, then the contract and the data layer")
+        print("  scripts/go generate . && scripts/go mod tidy   # the Go toolchain in Docker: the contract and the data layer, then go.sum")
         print("  pnpm test:backend                  # the Go tests against the test database")
         print("  pnpm dev:backend                   # through scripts/go on the compose network; migrates on boot, listens on :8080")
     else:

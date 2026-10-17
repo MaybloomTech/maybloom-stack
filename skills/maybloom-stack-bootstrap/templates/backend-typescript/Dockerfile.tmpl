@@ -25,10 +25,12 @@ RUN pnpm deploy --filter __ORG_SCOPE__/backend --prod /deploy
 FROM node:24-alpine AS runner
 
 # The git short SHA, from `--build-arg VERSION=...`; the Health RPC reports
-# it through the config, and the label names the build.
+# it through the config. The label names the commit: CI passes the full
+# SHA as REVISION (its tag check reads it), a local build gets VERSION.
 ARG VERSION=dev
+ARG REVISION=${VERSION}
 ENV NODE_ENV=production VERSION=${VERSION}
-LABEL org.opencontainers.image.revision="${VERSION}"
+LABEL org.opencontainers.image.revision="${REVISION}"
 WORKDIR /app
 
 COPY --from=build /deploy /app

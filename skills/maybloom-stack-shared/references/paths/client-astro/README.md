@@ -67,7 +67,12 @@ driven the same way from the repo root.
   publishes by accident.
 - **The same deploy shape as everything else.** Multi-stage Dockerfile
   (node build, nginx serve), image tagged with the git SHA, one entry in
-  the compose file, one route in the reverse proxy.
+  the compose file, one route in the reverse proxy. In a scaffolded repo
+  the site's image also goes into CI: its lines in the `changes` table,
+  a Dockerfile line and a smoke step in `image.yml`, and the `REVISION`
+  arg and revision label in its Dockerfile. The bootstrap skill's
+  reference ("CI runs the same checks the builder runs, by area") lists
+  them.
 
 ## Where the contract fits
 

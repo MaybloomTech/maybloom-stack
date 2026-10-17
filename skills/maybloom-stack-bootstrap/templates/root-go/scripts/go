@@ -20,7 +20,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GO_IMAGE="${GO_IMAGE:-golang:1.26.7-alpine}"
+GO_IMAGE="${GO_IMAGE:-golang:1.26.9-alpine}"
 PROJECT="$(basename "${REPO_ROOT}")"
 
 # A named volume is root-owned when Docker creates it, and the container runs
