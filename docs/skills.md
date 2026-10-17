@@ -152,9 +152,10 @@ plugin marketplace (`.claude-plugin/marketplace.json`), so
 `/plugin marketplace add MaybloomTech/maybloom-stack` followed by
 `/plugin install maybloom-stack@maybloom-stack` puts the whole family —
 including the shared references the skills load by relative path — on a
-machine. The exact commands, how to update (two steps, or
-auto-update), the team-pinning settings, and the contributor flow are
-in `skills/README.md`.
+machine. The exact commands, how to
+[update](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/README.md#updating)
+(two steps, or auto-update), the team-pinning settings, and the
+contributor flow are in `skills/README.md`.
 
 A skill that tells the agent to go read code the reader has no access to is
 a defect rather than a shortcut: every pattern a skill relies on has to

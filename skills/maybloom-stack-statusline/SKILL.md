@@ -142,13 +142,14 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 ## Update
 
-Update the plugin first, as the Updating section of `../README.md`
-says (two commands, or nothing if the marketplace auto-updates). The
-running session still has the old version loaded, and `<this-skill-dir>`
-still points at the old copy, so step 2 would copy the old script: ask
-the user to run `/reload-plugins` or start a new session, and continue
-from there. Then repeat step 2 (the diff check included) and step 4.
-Step 3 is already in place.
+A session cannot update the plugin it is running from: `<this-skill-dir>`
+stays the old version's folder for the rest of the session, even after
+`/reload-plugins`, so step 2 would copy the old script. So don't copy
+anything here. Tell the user to update the plugin (the Updating section
+of `../README.md`; auto-update, if it is on, runs only after a session's
+first message and can take minutes), then start a new session and ask
+for the status line again. That session repeats step 2 (the diff check
+included) and step 4; step 3 is already in place.
 
 ## Troubleshooting
 

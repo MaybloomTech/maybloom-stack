@@ -152,8 +152,15 @@ A pull request that touches only `docs/`, `site/` or the repository's
 own workflows needs no bump, with one exception: the plugin installs the
 whole repository, and some skills send agents to a `docs/` page (the
 bootstrap skill reads `docs/choosing.md`, the bootstrap-go skill
-`docs/adopting.md`). When such a page changes what
-a skill tells an agent to do, bump the version so the change ships.
+`docs/adopting.md`, the shared gotchas `docs/interface.md`). When such a
+page changes what a skill tells an agent to do, bump the version so the
+change ships.
+
+The check lists the shipped directories (`SHIPPED` in
+`scripts/check-plugin-version.py`) rather than everything outside
+`docs/` and `site/`. When the plugin gains a new top-level component,
+such as `hooks/`, `commands/`, `output-styles/` or `.mcp.json`, add it
+to `SHIPPED` in the same pull request.
 
 ## Maintainers' chores
 

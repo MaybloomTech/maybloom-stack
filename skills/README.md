@@ -78,14 +78,23 @@ resolving on the installed copy. Installed skills are namespaced
 ### Updating
 
 This is the one place the update steps are written down; the other
-documents and skills point here. Updating takes two steps: `/plugin marketplace update maybloom-stack`
-refreshes the catalog, and `claude plugin update
-maybloom-stack@maybloom-stack` installs the new version (then
-`/reload-plugins`, or a new session). Or turn on auto-update for the
+documents and skills point here. Updating takes two steps, in a
+terminal:
+
+```
+claude plugin marketplace update maybloom-stack     # refresh the catalog
+claude plugin update maybloom-stack@maybloom-stack  # install the new version
+```
+
+then start a new session (or `/reload-plugins` in a running one). Inside
+Claude Code, `/plugin`, Marketplaces, "Update marketplace" does both in
+one step. Or turn on auto-update for the
 marketplace (`/plugin`, Marketplaces), which is off by default for
 marketplaces outside Anthropic's; it runs in the background after a
 session's first message. Either way, an installed copy changes only when the
 plugin's version does.
+
+### Pinning a team to the plugin
 
 To pin a whole team to the skills, commit this to a project's
 `.claude/settings.json` instead of installing by hand:
@@ -112,11 +121,9 @@ way a user gets the plugin:
 /plugin install maybloom-stack@maybloom-stack
 ```
 
-The installed copy changes only when the plugin's version does, so an
-edit does not reach it until the version is raised. To try edits as you
-make them, start a session on the working tree instead, with
-`claude --plugin-dir ~/workspace/maybloom-stack`; `/reload-plugins`
-applies further edits without restarting the session.
+To try edits as you make them, start a session on the working tree
+instead, with `claude --plugin-dir ~/workspace/maybloom-stack`;
+`/reload-plugins` applies further edits without restarting the session.
 
 ## Editing rules
 
