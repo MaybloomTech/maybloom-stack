@@ -38,8 +38,8 @@ go/
   generate.go             `go generate .` runs buf then sqlc
 ```
 
-The bootstrap skill scaffolds exactly this (`templates/backend-go/`), with
-`Note` as the specimen in every layer; read its files as the live
+The bootstrap skill scaffolds exactly this (`skills/maybloom-stack-bootstrap/templates/backend-go/`),
+with `Note` as the specimen in every layer; read its files as the live
 exemplar before writing a new resource.
 
 A larger service may package by domain instead (`internal/<domain>/`
@@ -47,7 +47,10 @@ holding that domain's handlers, store and adapters, with a `Service`
 struct per domain and a leaf `internal/server` for the cross-cutting
 code). Detect it by the presence of resource-named directories under
 `internal/`; the per-layer patterns below are the same, only the file
-paths move into the domain directory.
+paths move into the domain directory. In either layout, logic that is pure
+lives in its own `internal/<rules>` package, and each third party gets one
+adapter package, `internal/<provider>`, and no other package imports the
+vendor's types.
 
 If both `packages/backend/` and `go/` exist, ask the user which service the
 resource belongs to — backend choice is per-service, never per-RPC.
@@ -145,7 +148,8 @@ directory, because embed paths cannot reach up the tree) and applied on
 boot through `goose.NewProvider(...).Up(ctx)`, so there is no separate
 "apply" step in dev — boot the server; the log says `migrations applied
 applied=N version=M`. Migrations are
-schema-only; seed data is a store function switched by config.
+schema-only; seed data is a store function switched by config, run once
+against an empty database (after that the app owns the data).
 
 ## Queries (sqlc)
 

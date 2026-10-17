@@ -36,7 +36,7 @@ Where neither went, the section says so.
 | Data layer | sqlc-generated queries; pgx/v5 on Postgres, `database/sql` on MariaDB | both | Drizzle ORM |
 | Schema truth | `db/migrations/*.sql` (goose format), read by sqlc | both | `src/db/schema.ts` |
 | Migrations | goose, embedded, applied on boot | both | drizzle-kit, manual in prod |
-| Validation | protovalidate constraints in the contract, enforced by an interceptor | OCF IMS | hand-written presence checks |
+| Validation | protovalidate constraints in the contract, enforced by an interceptor | both | hand-written presence checks |
 | Config | struct + env tags (`caarlos0/env`) + `Validate()` | Maybloom | TypeBox + `@fastify/env` |
 | Logging | `log/slog`; JSON in production, text in development | both | Fastify pino logger |
 | Codegen | buf and every plugin pinned as `go tool` binaries in go.mod, run from `go/` | both | pnpm catalog |
@@ -86,8 +86,8 @@ server is testable as a function.
 ### Layer packages or domain packages
 
 The layout above packages by layer: every handler in `server`, every store
-in `store`. That is the right shape for a small service, and it is what
-the Maybloom backend uses at four RPCs.
+in `store`. That is the right shape for a small service, and it is where
+every service starts.
 
 OCF IMS, at 60 RPCs across a dozen resources, packages by domain instead:
 `internal/incident`, `internal/person`, `internal/event`, each holding its
@@ -105,6 +105,19 @@ shape work:
   report and journal-entry code was mutually recursive, so it became one
   `internal/incident` package rather than three. Splitting further would
   have meant moving logic, which a restructure must not do.
+
+Two kinds of package sit beside the layer packages, or beside the domain
+packages, in either layout. A **pure rule package** (`internal/<rules>`)
+holds logic that is a function of its inputs, such as a recurrence
+calculation or a scoring rule: no I/O, no store, no generated types, so
+its tests are plain table tests and both the handler and the store can
+import it. An **adapter package per third party** (`internal/<provider>`)
+holds the client for one external service, with its configuration, its
+error mapping and its generated code (see "OpenAPI, optionally"), behind a
+small interface the consumer declares; nothing else in the module imports
+the vendor's types. The Maybloom backend has both: its rule packages are
+leaves, and its one third-party adapter is the only code that knows that
+service's wire format.
 
 Start with layer packages. Move to domain packages when a layer package
 stops fitting in one head, and move whole files when you do. The
@@ -176,8 +189,8 @@ CI and the Dockerfile all run it. For buf and sqlc that is two
 module root; OCF IMS, with four generators and the repo-root/module-root
 split to manage, drives them from a `bin/build/build.go` with a
 `-generate-only` flag that the Dockerfile and CI both call. The Maybloom
-backend runs the two commands by hand in three places, which is the
-version of this rule that a new service should not copy.
+backend has three `go:generate` lines (buf, sqlc, oapi-codegen), and its
+README, CI and Dockerfile run `go generate .` and nothing else.
 
 ### Lint and vulnerabilities
 
@@ -188,8 +201,7 @@ disable list where every disable carries a one-line reason. Scope
 `funlen` to the transport layer by an exclusion rule with a `path-except`
 so a fat route table is a named `//nolint` rather than a limit tuned high
 enough to pass it; domain code is exempt on purpose. `govulncheck` runs in
-CI. OCF IMS carries the config; the Maybloom backend runs `gofmt` and
-`vet` only, and adopting the config is on its list.
+CI. Both services carry the config.
 
 ### OpenAPI, optionally
 
@@ -198,6 +210,31 @@ document for people who will never read a proto, and it costs one line
 in `go/buf.gen.yaml`. OCF IMS generates it; the Maybloom repo answers the
 same need with the scaffolded docs site that renders the descriptor set.
 Choose one, and only when someone will read it.
+
+The other direction is an OpenAPI document you consume: a third-party
+service publishes one, and `oapi-codegen` turns it into a typed client.
+The shape the Maybloom backend settled on:
+
+- **Vendor the document, unchanged**, in the adapter package
+  (`internal/<provider>/<provider>-openapi-<release>.json`, next to the
+  generator config), named for the release it came from, so bumping the
+  pin is replacing one file and the diff is the upstream diff.
+  `third_party/` stays the buf module root for vendored protos.
+- **A third `//go:generate` line** in `generate.go`
+  (`go tool oapi-codegen -config <config> <document>`), with
+  `oapi-codegen` in the `tool` block (the generated client also imports
+  `github.com/oapi-codegen/runtime`, a direct `require`). A small config
+  file in the adapter package lists the operation ids the app calls
+  (`include-operation-ids`), so the client and its models stay small and
+  unused schemas are pruned.
+- **The output is gitignored**: add `internal/<provider>/<provider>api/` to
+  `go/.gitignore`, which lists only `gen/` and `internal/store/storedb/`.
+  The build stage regenerates it through the same one command. The
+  Docker-context ignore entries belong to the ship reference.
+- **A hand-written client for what the document leaves out.** Specs omit
+  endpoints (a streamed download, an unlisted route); those calls live in
+  the adapter package beside the generated client, behind the same
+  interface, so the consumer cannot tell which is which.
 
 Two small facts that cost an afternoon each: buf refuses to generate an
 empty module, so the clean contract of a restarted app starts with a
@@ -235,7 +272,8 @@ func run(ctx context.Context, cfg config.Config) error {
 }
 ```
 
-The mux the Maybloom backend builds, which is the general shape:
+The general shape of the stack's mux (the request id interceptor is the
+stack's own prescription; see the spine below):
 
 ```go
 func NewMux(d Deps) http.Handler {
@@ -244,14 +282,14 @@ func NewMux(d Deps) http.Handler {
         RequestID(),
         Recover(d.Log),
         Logging(d.Log),
-        auth.Interceptor(d.Authenticator, servicev1connect.MaybloomServiceHealthProcedure),
+        auth.Interceptor(d.Authenticator, servicev1connect.<Name>ServiceHealthProcedure),
         validate.NewInterceptor(),
     )
-    mux.Handle(servicev1connect.NewMaybloomServiceHandler(NewService(d.Store), interceptors))
-    d.OIDC.Register(mux)                       // GET /auth/login, /auth/callback, POST /auth/logout
+    mux.Handle(servicev1connect.New<Name>ServiceHandler(NewService(d.Store), interceptors))
+    d.Auth.Register(mux) // GET /auth/login, /auth/callback, POST /auth/logout
     mux.HandleFunc("GET /healthz", ...)        // liveness
     mux.HandleFunc("GET /readyz", ...)         // pings the pool
-    mux.Handle("/", web.Handler())             // the built web app, SPA fallback
+    mux.Handle("/", webHandler)                // the built web app, SPA fallback
     return mux
 }
 ```
@@ -321,9 +359,8 @@ interceptor, with no hand-written checks. Two rules from doing it:
   envelopes.
 
 The validate interceptor runs before the handler, so it enforces the
-contract even on an RPC that is not wired yet. The Maybloom backend has not
-adopted protovalidate at four RPCs; it is the recommended default from the
-first RPC that takes real input.
+contract even on an RPC that is not wired yet. Both services run it; it is the
+recommended default from the first RPC that takes real input.
 
 ## Persistence
 
@@ -384,11 +421,14 @@ to migrate.
 
 **Seeding is not migrating.** Reference data every environment needs
 (a taxonomy) goes in the baseline migration. Environment data does not:
-OCF IMS loads a demo seed into an empty database when `IMS_SEED=demo`; the
-Maybloom backend upserts its node, zones and activity types from files in
-`SEED_DIR` on every boot, archiving what left the files, until an in-app
-editor exists. Both are a store function called from `run()` after the
-migration, switched by config, off in production.
+seed an empty database once, from files a config setting names, and after
+that the app owns the data. OCF IMS loads a demo seed into an empty
+database when `IMS_SEED=demo`; the Maybloom backend reads the directory
+named by `SEED_DIR` on a boot where no node exists yet and skips it, with a
+log line, on every boot after, because the data is edited in the app from
+then on. Either is a store function called from `run()` after the
+migration, switched by config, off in production. A seed that re-applies on
+every boot fights the editor it exists to hand over to.
 
 Transactions go through one helper:
 
@@ -529,6 +569,69 @@ https). Startup logs the config once through a `Summary()` that masks the
 secrets. Every new setting is a field, a validation case, and a line in
 `.env.example`.
 
+### Secrets at rest
+
+A third-party credential a user hands the service (an API key for another
+system) is stored sealed, never in the clear. Seal it with AES-256-GCM
+under one key from config (32 bytes as 64 hex characters, validated at
+boot), and pass the owning user's id as the associated data. The stored
+value is a format byte, the random nonce and the ciphertext, so the layout
+can change later; opening with another key, another owner or a tampered
+value fails. A dump of the database alone then reveals nothing, and a
+sealed value copied onto another user's row does not open. The key lives
+only in the process environment. The API never answers the secret: a read
+says that a key is set and whose it is, and nothing more.
+
+## Jobs
+
+Work that is not a request has three shapes, and a service picks the
+smallest that fits.
+
+**A subcommand.** A one-shot task runs as `<service> <name>` from the same
+binary, so it shares the config, the migrations and the stores. `main`
+dispatches on `os.Args` before it starts the server and exits with the
+task's status:
+
+```go
+if len(os.Args) > 1 && os.Args[1] == "export" {
+    os.Exit(export(context.Background(), os.Args[2:]))
+}
+```
+
+**An in-process ticker job.** A periodic task runs as a goroutine started
+from `run()`, stopped by the same signal context, on an interval from
+config. `0` disables it, and `Validate` refuses values so small they would
+hammer a dependency:
+
+```go
+if cfg.SyncInterval > 0 {
+    go every(ctx, cfg.SyncInterval, log, sync)
+}
+```
+
+The loop is a `time.Ticker` and a `select` on `ctx.Done()`; a failure is
+logged and the next tick tries again. This is single-process honesty: with
+two replicas every instance would run it, which is the day to move the
+schedule out of the binary.
+
+**A long run started from an RPC.** The handler starts the work, answers at
+once, and the client reads the outcome later:
+
+- It **answers at once** with the run's identity; the request does not
+  wait for the work.
+- It runs **detached**: the work does not run under the request context, so
+  the caller going away does not abort it. It gets the server context from
+  `run()`, so a shutdown stops it. Use `context.WithoutCancel(ctx)` only
+  where request values must carry and the work is short.
+- It **claims one run per owner**: an in-memory set guarded by a mutex,
+  and a second start while one is running answers an "already running"
+  error rather than a second run.
+- It **reports through a later read**: the run writes its progress and its
+  result, the error text included, to a row, and an ordinary read RPC
+  returns it. The finishing write also uses the non-cancelled context, or a
+  shutdown loses the result. It is still best effort, unless `run()` waits
+  for running jobs before it closes the pool.
+
 ## The dev database and tests
 
 The first version of this document promised embedded-postgres as the Go
@@ -609,6 +712,22 @@ it:
   not fit a broadcast, so private content is redacted at publish time. The
   planned replacement is a Connect server-streaming RPC; no service has
   walked that yet.
+- **A streamed, authenticated proxy to a third-party media service.** The
+  browser asks the backend for an image or a download by the app's own id
+  (`GET /media/{id}`); the handler authenticates the session, looks the id
+  up and checks the caller may see it, fetches the file from the other
+  service with the stored third-party key, and copies the body through. The
+  key never reaches the browser, the browser never talks to the other
+  service, and the response carries a private cache header so a shared
+  cache keeps nothing.
+- **Connecting a user's account on another service.** An OAuth round-trip
+  on two plain routes (`GET /<provider>/connect` and its callback): the
+  first creates the state and a PKCE verifier, carries them in a
+  short-lived HMAC-signed `HttpOnly` cookie scoped to the route, and
+  redirects; the callback checks the state against the cookie, clears the
+  cookie, exchanges the code with the verifier, uses the token to mint a
+  narrow credential, stores that sealed, and ends the token's session (see
+  "Secrets at rest").
 - **The web export**, when the binary serves it (next section).
 
 Two mechanics on that mux: Go 1.22 method patterns (`"POST /path"`) answer
@@ -621,8 +740,10 @@ which the test suite asserts.
 ## Build and deploy
 
 Multi-stage Dockerfile, built with the **repo root as context**: the build
-stage regenerates the contract, so it needs `proto/` and the buf configs as
-well as `go/`. The Maybloom backend's:
+stage regenerates the contract, so it needs `proto/`, `third_party/` and the
+buf configs as well as `go/`. The scaffold's
+(`skills/maybloom-stack-bootstrap/templates/backend-go/Dockerfile.tmpl`),
+trimmed:
 
 ```dockerfile
 # The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.
@@ -632,8 +753,10 @@ COPY go/go.mod go/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY buf.yaml /src/buf.yaml
 COPY proto /src/proto
+COPY third_party /src/third_party
 COPY go ./
-RUN go tool buf generate ../proto --template buf.gen.yaml && go tool sqlc generate
+# Generated code is never committed: one entry point produces all of it.
+RUN go generate .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
       -ldflags "-s -w -X <module>/internal/version.Version=${VERSION}" \
@@ -695,8 +818,9 @@ docker run --rm -i --user "$(id -u):$(id -g)" \
   -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.9-alpine go "$@"   # the same pinned patch
 ```
 
-`scripts/go build ./...`, `scripts/go test ./...`, `scripts/go tool sqlc
-generate`. Running as the invoking user keeps `go.sum` and the generated
+`scripts/go build ./...`, `scripts/go test -p 1 ./...` (packages that
+touch the database share one, so they run one at a time), `scripts/go
+generate .`. Running as the invoking user keeps `go.sum` and the generated
 files owned by the person, not root.
 
 ### A test instance that follows the branch

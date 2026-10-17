@@ -77,9 +77,24 @@ everything runs:
 ```
 
 `go generate .` from `go/`. The README, CI and the Dockerfile run that and
-nothing else. A repo with more generators (an OpenAPI client through
-oapi-codegen, for one) adds a third line; two or three `//go:generate`
-lines do not need a build program.
+nothing else. A repo with more generators adds lines; two or three
+`//go:generate` lines do not need a build program. The usual third is an
+OpenAPI client for a third-party service:
+
+```go
+//go:generate go tool oapi-codegen -config internal/<provider>/oapi.yaml internal/<provider>/<provider>-openapi-<release>.json
+```
+
+The provider's document is vendored unchanged in the adapter package, next to
+`oapi.yaml` (`third_party/` stays the buf module root for protos),
+`oapi-codegen` joins the `tool` block in `go.mod` and
+`github.com/oapi-codegen/runtime` becomes a direct `require` (the generated
+client imports it), the config lists only
+the operation ids the app calls, and the output lands in a package inside
+the adapter (`internal/<provider>/<provider>api/`) that you add to
+`go/.gitignore`, which lists only `gen/` and `internal/store/storedb/`.
+Calls the document does not describe are a hand-written client beside it. The
+Docker-context ignore entry for the output is in the ship reference.
 
 ## Config
 

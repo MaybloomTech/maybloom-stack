@@ -91,6 +91,12 @@ matters more than the column.
 - **A required scalar needs a value for existing rows.** Either give the
   column a SQL default (`NOT NULL DEFAULT ''`, `DEFAULT 0`, `DEFAULT now()`)
   or add it nullable, backfill, then tighten. Say which you chose and why.
+- **A backfill computed from existing rows goes in the same migration as
+  the column**: `ALTER TABLE ... ADD COLUMN` (nullable or defaulted), then
+  an `UPDATE` deriving the value from the rows already there, then the
+  `SET NOT NULL`, all in one file so no environment sees the column
+  half-filled. The schema-only rule for migrations stays: this is the
+  derivation of one new column, not a place for general data migrations.
 - **Prefer the stack's empty-string convention** over NULL for strings the
   proto declares non-optional: proto has no NULL, so a nullable column
   round-trips as `""` anyway. `optional string` is the signal that absence
@@ -103,6 +109,19 @@ matters more than the column.
   db:generate` may ask whether a column was renamed or dropped-and-added;
   answering by reflex is how data disappears. The prompt is documented in
   `../maybloom-stack-shared/references/gotchas.md`.
+
+**On Go, verify the migration against rows, not only an empty database.**
+Create a fresh database on the test server and open it with `pgxpool.New`,
+not `postgres.Open`, which migrates to the latest version and would leave
+the backfill unexercised. Call the scaffold's
+`postgres.Migrate(ctx, pool, N)` to reach the version before yours, insert
+rows shaped like production's, call `Migrate(ctx, pool, N+1)` and check the
+backfilled values, then migrate down (`Migrate` only goes up and keeps its
+goose provider inside; add `Rollback(ctx, pool, version)`, exported from
+`postgres.go` and called only by tests, that builds the provider the same
+way and calls `DownTo`) and confirm the `Down` section restores the old
+shape. A migration test that does this once per backfill keeps the step from
+rotting.
 
 ## Sequence
 
