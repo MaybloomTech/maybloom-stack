@@ -163,14 +163,15 @@ start dev servers.
 
    ```bash
    docker compose up -d db
-   cd go && go mod tidy && go generate . && cd ..
+   cd go && go generate . && go mod tidy && cd ..
    ```
 
-   `go mod tidy` confirms `go.sum` against the pins (the shipped one is a
-   floor) and `go generate .` writes `go/gen/` (buf) and
-   `go/internal/store/storedb/` (sqlc), both gitignored. Without Go
-   installed, `scripts/go mod tidy` and `scripts/go generate .` run the
-   same in the pinned Docker image.
+   `go generate .` comes first: it writes `go/gen/` (buf) and
+   `go/internal/store/storedb/` (sqlc), both gitignored, and tidy run
+   before them tries to fetch those packages from the network and fails.
+   `go mod tidy` then confirms `go.sum` against the pins (the shipped one
+   is a floor). Without Go installed, `scripts/go generate .` and
+   `scripts/go mod tidy` run the same in the pinned Docker image.
 
    **TypeScript** — the skill ships a Drizzle schema for `Note` but no
    migration file (those are environment-specific):
@@ -226,7 +227,9 @@ start dev servers.
    refresh, and the page has changed.
 
 7. **Initialize git.** The scaffolder doesn't `git init` — let the user
-   do that explicitly so they own the first commit. `git status` must show
+   do that explicitly so they own the first commit, as `git init -b main`:
+   the workflows run on `main`, and a git without `init.defaultBranch`
+   names the first branch `master`, where CI never runs. `git status` must show
    no generated code: `go/gen/`, `go/internal/store/storedb/`,
    `packages/protocol-buffers/src/` and the descriptor are all ignored.
    `pnpm-lock.yaml` *is* committed: CI installs with `--frozen-lockfile`

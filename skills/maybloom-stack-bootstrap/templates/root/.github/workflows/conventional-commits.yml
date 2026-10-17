@@ -1,6 +1,7 @@
 # Conventional Commits on every pull request: each commit on the branch and
-# the title, against commitlint.config.mjs with the commitlint pinned in the
-# root package.json, so a local `pnpm exec commitlint` answers the same.
+# the title, against commitlint.config.mjs with the commitlint the
+# lockfile pins (through the workspace catalog), so a local
+# `pnpm exec commitlint` answers the same.
 # The title matters most: a squash merge makes it the commit on main.
 name: Conventional commits
 
@@ -32,7 +33,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # No pnpm cache: one root-only install, which under the
+          # lockfile's key would shadow CI's full-workspace store.
       # Only the root package, where commitlint is a devDependency.
       # --ignore-scripts skips the root postinstall (codegen and every build).
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter "{.}"

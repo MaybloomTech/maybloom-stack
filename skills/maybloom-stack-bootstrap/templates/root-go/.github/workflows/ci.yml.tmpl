@@ -207,7 +207,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # No pnpm cache: this job installs the root package only, and
+          # under the lockfile's key it would save a store the web legs
+          # then restore instead of the full one.
       # Only the root package: biome and buf are its devDependencies, and
       # nothing under packages/ is needed to lint. --ignore-scripts skips the
       # root postinstall (proto:gen + every build); biome ignores the

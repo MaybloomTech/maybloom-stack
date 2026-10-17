@@ -256,6 +256,12 @@ its script is never touched.
 
 - **The repo has a `ci.yml` without a `go` job** (scaffolded with
   `--backend typescript`):
+  0. If the TypeScript backend was deleted (the Go-first path above),
+     take it out of CI first, or the next contract change fails: drop
+     `package:backend` and `image:backend` from the table's lines, the
+     `packages/backend/*` line, the `backend)` line in `image.yml`'s
+     `Name the image` step and its port-3000 smoke step. The Go service's
+     image takes its place as `image:<SERVICE>` below.
   1. Copy the template's `go` job into `ci.yml` as it is, with its
      Postgres service on `<APP_SLUG>_test`. It runs generate, `go mod
      tidy -diff`, vet, build, golangci-lint at the version
