@@ -201,7 +201,7 @@ disable list where every disable carries a one-line reason. Scope
 `funlen` to the transport layer by an exclusion rule with a `path-except`
 so a fat route table is a named `//nolint` rather than a limit tuned high
 enough to pass it; domain code is exempt on purpose. `govulncheck` runs in
-CI.
+CI. Both services carry the config.
 
 ### OpenAPI, optionally
 
@@ -215,13 +215,16 @@ The other direction is an OpenAPI document you consume: a third-party
 service publishes one, and `oapi-codegen` turns it into a typed client.
 The shape the Maybloom backend settled on:
 
-- **Vendor the document, unchanged**, under `third_party/` at the repo
-  root, named for the release it came from, so bumping the pin is
-  replacing one file and the diff is the upstream diff.
+- **Vendor the document, unchanged**, in the adapter package
+  (`internal/<provider>/<provider>-openapi-<release>.json`, next to the
+  generator config), named for the release it came from, so bumping the
+  pin is replacing one file and the diff is the upstream diff.
+  `third_party/` stays the buf module root for vendored protos.
 - **A third `//go:generate` line** in `generate.go`
   (`go tool oapi-codegen -config <config> <document>`), with
-  `oapi-codegen` in the `tool` block. A small config file beside the
-  adapter package lists the operation ids the app calls
+  `oapi-codegen` in the `tool` block (the generated client also imports
+  `github.com/oapi-codegen/runtime`, a direct `require`). A small config
+  file in the adapter package lists the operation ids the app calls
   (`include-operation-ids`), so the client and its models stay small and
   unused schemas are pruned.
 - **The output is gitignored**, like the contract and the data layer, and
@@ -268,8 +271,8 @@ func run(ctx context.Context, cfg config.Config) error {
 }
 ```
 
-The stack's mux has this shape (the Maybloom backend's omits the request
-id interceptor; the stack prescribes it, see the spine below):
+The general shape of the stack's mux (the request id interceptor is the
+stack's own prescription; see the spine below):
 
 ```go
 func NewMux(d Deps) http.Handler {
@@ -278,14 +281,14 @@ func NewMux(d Deps) http.Handler {
         RequestID(),
         Recover(d.Log),
         Logging(d.Log),
-        auth.Interceptor(d.Authenticator, servicev1connect.MaybloomServiceHealthProcedure),
+        auth.Interceptor(d.Authenticator, servicev1connect.<Name>ServiceHealthProcedure),
         validate.NewInterceptor(),
     )
-    mux.Handle(servicev1connect.NewMaybloomServiceHandler(NewService(d.Store), interceptors))
-    d.OIDC.Register(mux)                       // GET /auth/login, /auth/callback, POST /auth/logout
+    mux.Handle(servicev1connect.New<Name>ServiceHandler(NewService(d.Store), interceptors))
+    d.Auth.Register(mux)                       // GET /auth/login, /auth/callback, POST /auth/logout
     mux.HandleFunc("GET /healthz", ...)        // liveness
     mux.HandleFunc("GET /readyz", ...)         // pings the pool
-    mux.Handle("/", web.Handler())             // the built web app, SPA fallback
+    mux.Handle("/", webHandler)                // the built web app, SPA fallback
     return mux
 }
 ```
@@ -615,9 +618,10 @@ once, and the client reads the outcome later:
 
 - It **answers at once** with the run's identity; the request does not
   wait for the work.
-- It runs **detached**: the work gets `context.WithoutCancel(ctx)`, so the
-  caller going away does not abort it, while values on the context (the
-  request id) survive.
+- It runs **detached**: the work does not run under the request context, so
+  the caller going away does not abort it. It gets the server context from
+  `run()`, so a shutdown stops it. Use `context.WithoutCancel(ctx)` only
+  where request values must carry and the work is short.
 - It **claims one run per owner**: an in-memory set guarded by a mutex, or
   a row the database makes unique, and a second start while one is running
   answers an "already running" error rather than a second run.
@@ -719,8 +723,8 @@ it:
   first creates the state and a PKCE verifier, carries them in a
   short-lived HMAC-signed `HttpOnly` cookie scoped to the route, and
   redirects; the callback checks the state against the cookie, clears the
-  cookie, exchanges the code with the verifier, and stores the resulting
-  credential sealed (see "Secrets at rest").
+  cookie, exchanges the code with the verifier, uses the token to mint a
+  narrow credential, stores that sealed, and ends the token's session (see "Secrets at rest").
 - **The web export**, when the binary serves it (next section).
 
 Two mechanics on that mux: Go 1.22 method patterns (`"POST /path"`) answer
@@ -733,8 +737,9 @@ which the test suite asserts.
 ## Build and deploy
 
 Multi-stage Dockerfile, built with the **repo root as context**: the build
-stage regenerates the contract, so it needs `proto/` and the buf configs as
-well as `go/`. The Maybloom backend's:
+stage regenerates the contract, so it needs `proto/`, `third_party/` and the
+buf configs as well as `go/`. The scaffold's
+(`templates/backend-go/Dockerfile.tmpl`), trimmed:
 
 ```dockerfile
 # The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.

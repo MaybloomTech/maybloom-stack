@@ -111,11 +111,14 @@ matters more than the column.
   `../maybloom-stack-shared/references/gotchas.md`.
 
 **On Go, verify the migration against rows, not only an empty database.**
-Against a scratch database, call the scaffold's
+Create a fresh database on the test server and open it with `pgxpool.New`,
+not `postgres.Open`, which migrates to the latest version and would leave
+the backfill unexercised. Call the scaffold's
 `postgres.Migrate(ctx, pool, N)` to reach the version before yours, insert
 rows shaped like production's, call `Migrate(ctx, pool, N+1)` and check the
-backfilled values, then migrate down (goose's provider `Down`; `Migrate`
-only goes up) and confirm the `Down` section restores the old shape. A
+backfilled values, then migrate down (`Migrate` only goes up and keeps its goose provider
+inside; add a test-only `Rollback(ctx, pool, version)` beside it that builds
+the provider the same way and calls `DownTo`) and confirm the `Down` section restores the old shape. A
 migration test that does this once per backfill keeps the step from
 rotting.
 

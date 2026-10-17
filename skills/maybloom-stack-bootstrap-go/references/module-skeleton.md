@@ -82,16 +82,18 @@ nothing else. A repo with more generators adds lines; two or three
 OpenAPI client for a third-party service:
 
 ```go
-//go:generate go tool oapi-codegen -config internal/<provider>/oapi.yaml ../third_party/<provider>-openapi-<release>.json
+//go:generate go tool oapi-codegen -config internal/<provider>/oapi.yaml internal/<provider>/<provider>-openapi-<release>.json
 ```
 
-The provider's document is vendored unchanged under `third_party/`,
-`oapi-codegen` joins the `tool` block in `go.mod`, the config lists only
+The provider's document is vendored unchanged in the adapter package, next to
+`oapi.yaml` (`third_party/` stays the buf module root for protos),
+`oapi-codegen` joins the `tool` block in `go.mod` and
+`github.com/oapi-codegen/runtime` becomes a direct `require` (the generated
+client imports it), the config lists only
 the operation ids the app calls, and the output lands in a gitignored
 package inside the adapter (`internal/<provider>/<provider>api/`). Calls
 the document does not describe are a hand-written client beside it. The
-Dockerfile copies `third_party/` before `go generate .`; the Docker-context
-ignore entry for the output is in the ship reference.
+Docker-context ignore entry for the output is in the ship reference.
 
 ## Config
 

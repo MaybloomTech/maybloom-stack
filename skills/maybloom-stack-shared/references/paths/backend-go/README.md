@@ -49,7 +49,8 @@ code). Detect it by the presence of resource-named directories under
 `internal/`; the per-layer patterns below are the same, only the file
 paths move into the domain directory. In either layout, logic that is pure
 lives in its own `internal/<rules>` package, and each third party gets one
-adapter package, `internal/<provider>`, that nothing else's types leak out of.
+adapter package, `internal/<provider>`, and no other package imports the
+vendor's types.
 
 If both `packages/backend/` and `go/` exist, ask the user which service the
 resource belongs to — backend choice is per-service, never per-RPC.
