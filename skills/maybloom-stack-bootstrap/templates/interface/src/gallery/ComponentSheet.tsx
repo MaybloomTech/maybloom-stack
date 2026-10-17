@@ -55,7 +55,13 @@ const entries: Record<FeatureComponents, Entry> = {
       {
         label: "a save that fails",
         node: (
-          <Play steps={[{ fill: "Title", text: "Call the plumber" }, "Add note"]}>
+          <Play
+            steps={[
+              { fill: "Title", text: "Call the plumber" },
+              "Add note",
+              { expect: "Could not save the note." },
+            ]}
+          >
             <NoteForm onSubmit={rejected} />
           </Play>
         ),

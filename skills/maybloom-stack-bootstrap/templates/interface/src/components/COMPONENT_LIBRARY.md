@@ -46,8 +46,9 @@ The gallery renders the real primitives, feature components and pages
 through react-native-web, against a fake backend typed by the contract.
 It is a second Expo Router root (`gallery/`, the code in `src/gallery/`)
 used only with `EXPO_PUBLIC_GALLERY=1`, so the app's bundle never carries
-it. `pnpm gallery` serves it with live reload; `pnpm build:gallery`
-exports it to `dist-gallery/`.
+it. In this package, `pnpm gallery` serves it with live reload and `pnpm
+build:gallery` exports it to `dist-gallery/` (from the repo root, add
+`--filter <scope>/interface`).
 
 Every primitive, feature component and icon here has an entry on the
 board: the typecheck fails for one without, and `pnpm check:gallery`

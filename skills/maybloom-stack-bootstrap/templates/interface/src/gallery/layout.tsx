@@ -5,8 +5,21 @@ import { colors, radii, spacing, typography } from "../styles/tokens";
 /** One state of a component, with the label that says which. */
 export type Specimen = { label: string; node: ReactNode };
 
+/**
+ * The sizes a design is checked at: a phone, a tablet, a laptop. The
+ * toolbar's widths and a page frame's height both come from this list.
+ */
+export const frames = [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+  { width: 1280, height: 832 },
+] as const;
+export type Width = (typeof frames)[number]["width"];
+export const heightOf = (width: Width) =>
+  frames.find((f) => f.width === width)?.height ?? frames[0].height;
+
 /** What every sheet is given: the width the board is checked at. */
-export type SheetProps = { width: number };
+export type SheetProps = { width: Width };
 
 /** The space a specimen's box takes on each side: its padding and border. */
 export const specimenInset = spacing.sm + 1;
@@ -51,11 +64,23 @@ export function SpecimenSection({
   );
 }
 
-/** A tab's page: its sections, scrolled, at the board's width. */
-export function Sheet({ width, children }: SheetProps & { children: ReactNode }) {
+/**
+ * A tab's page: its sections at the board's width, scrolled both ways, so
+ * a frame wider than the window (1280 on a laptop) is reached by
+ * scrolling, never clipped.
+ */
+export function Sheet({
+  width,
+  children,
+}: {
+  width: number;
+  children: ReactNode;
+}) {
   return (
-    <ScrollView contentContainerStyle={styles.sheet}>
-      <View style={{ width, maxWidth: "100%", gap: spacing.xl }}>{children}</View>
+    <ScrollView>
+      <ScrollView horizontal contentContainerStyle={styles.sheet}>
+        <View style={{ width, gap: spacing.xl }}>{children}</View>
+      </ScrollView>
     </ScrollView>
   );
 }

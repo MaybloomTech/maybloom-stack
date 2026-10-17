@@ -37,6 +37,21 @@ function notFound(what: string): never {
   throw new ConnectError(`${what} not found (gallery)`, Code.NotFound);
 }
 
+/**
+ * A message's fields without its type name, to spread into create(). The
+ * fake copies whole messages rather than naming fields, so a field the
+ * contract adds round-trips on the board with no change here.
+ */
+function fieldsOf<T extends { $typeName: string }>(
+  message: T | undefined,
+): Partial<Omit<T, "$typeName" | "$unknown">> {
+  if (!message) return {};
+  const { $typeName, $unknown, ...fields } = message as T & {
+    $unknown?: unknown;
+  };
+  return fields;
+}
+
 const pageOf = <T>(items: T[], size: number, token: string) => {
   const from = Number(token || "0");
   const page = items.slice(from, from + (size > 0 ? size : 50));
@@ -64,12 +79,14 @@ function serviceOf(
     health: () => ({ ok: true, version: "gallery" }),
     createNote: (req) => {
       serial += 1;
+      // What the client sent, with the fields the server owns set here.
       const note = create(NoteSchema, {
-        title: req.note?.title ?? "",
-        body: req.note?.body ?? "",
+        ...fieldsOf(req.note),
         id: fixtureId(1000 + serial),
         createdBy: "gallery",
         createdAt: timestampNow(),
+        updatedAt: undefined,
+        archivedAt: undefined,
       });
       notes = [note, ...notes];
       return { note };
@@ -83,12 +100,17 @@ function serviceOf(
       return { notes: page, nextPageToken };
     },
     updateNote: (req) => {
+      // The client's fields over the stored note; the server-owned ones
+      // stay as they were.
       const old = find(req.note?.id ?? "");
       return replace(
         create(NoteSchema, {
-          ...old,
-          title: req.note?.title ?? old.title,
-          body: req.note?.body ?? old.body,
+          ...fieldsOf(old),
+          ...fieldsOf(req.note),
+          id: old.id,
+          createdBy: old.createdBy,
+          createdAt: old.createdAt,
+          archivedAt: old.archivedAt,
           updatedAt: timestampNow(),
         }),
       );

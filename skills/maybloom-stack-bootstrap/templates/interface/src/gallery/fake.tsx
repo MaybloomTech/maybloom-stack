@@ -6,6 +6,7 @@ import { ClientProvider } from "../data/api/client";
 import { colors } from "../styles/tokens";
 import { ViewportProvider } from "../styles/viewport";
 import { type FakeOptions, fakeClient } from "./fixtures/backend";
+import { heightOf, type Width } from "./layout";
 
 /**
  * A subtree on its own fake backend and its own query cache: every
@@ -31,17 +32,33 @@ export function Fake({
 }
 
 /**
- * A step of a Play: a control to press, by its text or accessibility
- * label, or a field to type into, by its accessibility label (a
- * TextField's placeholder unless it is given one).
+ * A step of a Play:
+ * - a string: press the enabled control with that text or accessibility
+ *   label;
+ * - `{ fill, text }`: type into the field with that accessibility label (a
+ *   TextField's placeholder unless it is given one), and see it hold;
+ * - `{ expect }`: wait for that text to show inside the specimen. End a
+ *   Play with one, so a press that did nothing is reported instead of
+ *   leaving the specimen in its idle state.
  */
-export type PlayStep = string | { fill: string; text: string };
+export type PlayStep =
+  | string
+  | { fill: string; text: string }
+  | { expect: string };
+
+const describe = (step: PlayStep) =>
+  typeof step === "string"
+    ? `press "${step}"`
+    : "fill" in step
+      ? `fill "${step.fill}"`
+      : `expect "${step.expect}"`;
 
 /**
  * Runs `steps` in order inside the specimen once their targets appear: a
  * state a component reaches only by input (a failed save) is shown by
- * typing and tapping, never by a prop of the gallery's. A step whose
- * target never appears is shown in red. Web only, like the gallery.
+ * typing and tapping, never by a prop of the gallery's. A step that does
+ * not come true within three seconds is shown in red. Web only, like the
+ * gallery.
  */
 export function Play({
   steps,
@@ -60,20 +77,30 @@ export function Play({
     let cancelled = false;
     (async () => {
       for (const step of JSON.parse(script) as PlayStep[]) {
-        const label = typeof step === "string" ? step : step.fill;
-        const target = await waitFor(() =>
-          typeof step === "string"
-            ? findControl(root, step)
-            : findField(root, step.fill),
-        );
+        let done: unknown = null;
+        if (typeof step === "string") {
+          const target = await waitFor(() => findControl(root, step));
+          target?.click();
+          done = target;
+        } else if ("fill" in step) {
+          const field = (await waitFor(() =>
+            findField(root, step.fill),
+          )) as HTMLInputElement | null;
+          if (field) fill(field, step.text);
+          done =
+            field &&
+            (await waitFor(() => (field.value === step.text ? field : null)));
+        } else {
+          done = await waitFor(() =>
+            root.textContent?.includes(step.expect) ? root : null,
+          );
+        }
         if (cancelled) return;
-        if (!target) {
-          setMissing(label);
+        if (!done) {
+          setMissing(describe(step));
           return;
         }
-        if (typeof step === "string") target.click();
-        else fill(target as HTMLInputElement, step.text);
-        // Let the input land before looking for the next target.
+        // Let the input land before the next step.
         await new Promise((r) => setTimeout(r, 50));
       }
     })();
@@ -84,7 +111,7 @@ export function Play({
   return (
     <View ref={ref} style={missing ? styles.missing : undefined}>
       {missing ? (
-        <Text style={styles.missingText}>Play step not found: {missing}</Text>
+        <Text style={styles.missingText}>Play step failed: {missing}</Text>
       ) : null}
       {children}
     </View>
@@ -117,6 +144,12 @@ function findControl(root: HTMLElement, label: string): HTMLElement | null {
     '[role="button"], [role="checkbox"], [role="switch"], [role="tab"], [tabindex="0"], button, a',
   );
   for (const el of Array.from(controls)) {
+    // A disabled control is not the target yet: wait for it to enable.
+    if (
+      el.getAttribute("aria-disabled") === "true" ||
+      el.hasAttribute("disabled")
+    )
+      continue;
     if (
       el.getAttribute("aria-label") === label ||
       el.textContent?.trim() === label
@@ -139,9 +172,6 @@ async function waitFor<T>(
   return null;
 }
 
-/** The heights a page is shown at, with each width: a phone, a tablet, a laptop. */
-const pageHeights: Record<number, number> = { 390: 844, 768: 1024, 1280: 832 };
-
 /**
  * A whole page as the app shows it: its own backend, at the board's width
  * and a screen's height, with the frame's size as the size the page lays
@@ -151,8 +181,8 @@ export function PageFrame({
   width,
   children,
   ...options
-}: FakeOptions & { width: number; children: ReactNode }) {
-  const height = pageHeights[width] ?? 832;
+}: FakeOptions & { width: Width; children: ReactNode }) {
+  const height = heightOf(width);
   return (
     <Fake {...options}>
       <ViewportProvider value={{ width, height }}>

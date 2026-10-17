@@ -27,7 +27,11 @@ const pages: { route: string; Page: () => ReactNode; states: PageState[] }[] = [
       {
         label: "adding a note fails",
         options: { scenario: "notes", failing: ["createNote"] },
-        steps: [{ fill: "Title", text: "Call the plumber" }, "Add note"],
+        steps: [
+          { fill: "Title", text: "Call the plumber" },
+          "Add note",
+          { expect: "Could not save the note." },
+        ],
       },
     ],
   },

@@ -13,8 +13,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const sentinel = "design-board-gallery";
+// The gallery's sentinel, the testID on its page (src/gallery/Gallery.tsx
+// reads the same file).
+const { testID: sentinel } = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("../src/gallery/sentinel.json", import.meta.url)),
+    "utf8",
+  ),
+);
 const dir = process.argv[2];
 if (!dir) {
   console.error("usage: node scripts/gallery-export.mjs <export dir>");

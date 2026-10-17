@@ -155,11 +155,41 @@
                 },
                 "patterns": [
                   {
-                    "group": ["**/design", "**/design/**"],
+                    "group": [
+                      "@/design",
+                      "@/design/**",
+                      "**/src/design",
+                      "**/src/design/**",
+                      "./design",
+                      "./design/**",
+                      "../design",
+                      "../design/**",
+                      "../../design",
+                      "../../design/**",
+                      "../../../design",
+                      "../../../design/**",
+                      "../../../../design",
+                      "../../../../design/**"
+                    ],
                     "message": "src/design holds variants for design passes; only the gallery imports it."
                   },
                   {
-                    "group": ["**/gallery", "**/gallery/**"],
+                    "group": [
+                      "@/gallery",
+                      "@/gallery/**",
+                      "**/src/gallery",
+                      "**/src/gallery/**",
+                      "./gallery",
+                      "./gallery/**",
+                      "../gallery",
+                      "../gallery/**",
+                      "../../gallery",
+                      "../../gallery/**",
+                      "../../../gallery",
+                      "../../../gallery/**",
+                      "../../../../gallery",
+                      "../../../../gallery/**"
+                    ],
                     "message": "The gallery is built only with EXPO_PUBLIC_GALLERY=1; the app never imports it."
                   }
                 ]
@@ -174,7 +204,10 @@
         "packages/interface/gallery/**",
         "packages/interface/src/gallery/**",
         "packages/interface/src/design/**",
-        "packages/interface/src/styles/viewport.ts"
+        "packages/interface/src/styles/viewport.ts",
+        "packages/interface/src/**/*.test.ts",
+        "packages/interface/src/**/*.test.tsx",
+        "packages/interface/src/**/__tests__/**"
       ],
       "linter": {
         "rules": {

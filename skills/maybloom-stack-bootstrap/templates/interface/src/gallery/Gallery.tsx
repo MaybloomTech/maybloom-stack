@@ -4,21 +4,17 @@ import { colors, radii, spacing, typography } from "../styles/tokens";
 import { ComponentSheet } from "./ComponentSheet";
 import { DesignSheet } from "./DesignSheet";
 import { IconSheet } from "./IconSheet";
-import { anchorId, type SheetProps } from "./layout";
+import { anchorId, frames, type SheetProps, type Width } from "./layout";
 import { PageSheet } from "./PageSheet";
 import { PrimitiveSheet } from "./PrimitiveSheet";
+import sentinel from "./sentinel.json";
 import { TokenSheet } from "./TokenSheet";
 
-/**
- * The gallery's sentinel: the testID on its page. check:no-gallery fails
- * an app export that carries it; gallery-export.mjs refuses an export that
- * does not.
- */
-const sentinel = "design-board-gallery";
+// The gallery's sentinel is the testID on its page, read from
+// sentinel.json by the scripts too: check:no-gallery fails an app export
+// that carries it, gallery-export.mjs refuses an export that does not.
 
-/** The widths a design is checked at: phone, tablet, laptop. */
-const widths = [390, 768, 1280] as const;
-type Width = (typeof widths)[number];
+const widths: Width[] = frames.map((f) => f.width);
 
 /** The tabs: the three tiers, then what they are made of, then the passes. */
 const tabs = {
@@ -65,19 +61,25 @@ function hashOf(view: BoardView): string {
 export function Gallery() {
   const [view, setView] = useState<BoardView>(readHash);
 
-  // The hash follows the view, and a link's entry is scrolled to once the
-  // sheet has rendered.
+  // The hash follows the view.
   useEffect(() => {
     if (Platform.OS !== "web") return;
     window.history.replaceState(null, "", hashOf(view));
-    if (!view.entry) return;
-    const id = anchorId(view.tab, view.entry);
+  }, [view]);
+
+  // A link's entry is scrolled to once the sheet has rendered, when the
+  // entry changes; a change of width leaves the scroll where the viewer
+  // put it.
+  const { tab, entry } = view;
+  useEffect(() => {
+    if (Platform.OS !== "web" || !entry) return;
+    const id = anchorId(tab, entry);
     const timer = setTimeout(
       () => document.getElementById(id)?.scrollIntoView(),
       100,
     );
     return () => clearTimeout(timer);
-  }, [view]);
+  }, [tab, entry]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -88,7 +90,7 @@ export function Gallery() {
 
   const { Sheet } = tabs[view.tab];
   return (
-    <View style={styles.board} testID={sentinel}>
+    <View style={styles.board} testID={sentinel.testID}>
       <View style={styles.toolbar}>
         <View style={styles.group}>
           {(Object.keys(tabs) as Tab[]).map((tab) => (

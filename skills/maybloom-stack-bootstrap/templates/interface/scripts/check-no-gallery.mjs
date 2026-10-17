@@ -1,15 +1,24 @@
 // Keeps the gallery and the design passes out of the app, in two checks:
 // - the app's web export (default `dist`) must not carry the gallery's
 //   sentinel, the testID on its page;
-// - no source file outside the gallery may require() or require.context()
-//   the gallery or src/design, which Biome's noRestrictedImports does not
-//   see (it reads import statements only). A minified bundle names modules
+// - no source file outside the gallery may require(), require.context() or
+//   import() the gallery or src/design, which Biome's noRestrictedImports
+//   does not see (it reads import statements only). Test files under src/
+//   are exempt, as in biome.json: Metro never bundles them, and a test may
+//   reuse the board's fake backend. A minified bundle names modules
 //   by number, so the export alone cannot show src/design.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const sentinel = "design-board-gallery";
+// The gallery's sentinel, the testID on its page (src/gallery/Gallery.tsx
+// reads the same file).
+const { testID: sentinel } = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("../src/gallery/sentinel.json", import.meta.url)),
+    "utf8",
+  ),
+);
 const dir = process.argv[2] ?? "dist";
 // The package root; fileURLToPath decodes a space (`%20`) in the path.
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -30,9 +39,13 @@ const leaked = filesUnder(dir).filter(
 
 // Tested against the path inside the package, so a `gallery` folder above
 // the checkout exempts nothing.
-const allowed = /^(gallery|src\/gallery|src\/design)\//;
+const allowed =
+  /^(gallery|src\/gallery|src\/design)\/|^src\/.*(\.test\.[jt]sx?$|\/__tests__\/)/;
+// A relative or `@/` specifier that names the gallery or src/design
+// (`../gallery`, `../../src/design/x`, `@/gallery`), not any path that
+// happens to end in one of those words (`../styles/design`).
 const requires =
-  /require(?:\.context)?\(\s*['"`][^'"`]*\/(?:design|gallery)(?:\/|['"`])/;
+  /(?:require(?:\.context)?|import)\(\s*['"`](?:@\/|\.\/|(?:\.\.\/)+)(?:src\/)?(?:design|gallery)(?:\/|['"`])/;
 const sources = ["app", "src"]
   .flatMap((d) => filesUnder(join(root, d)))
   .filter(

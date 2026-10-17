@@ -2,7 +2,12 @@
 // The Components sheet is keyed by the exports of the modules it lists, so
 // the typecheck catches a new component in a listed module; this catches a
 // module that is not listed at all. A platform variant (`Map.web.tsx`,
-// `.native`, `.ios`, `.android`) is the same module as its base file.
+// `.native`, `.ios`, `.android`) is the same module as its base file, and
+// `x/index.tsx` is module `x`.
+//
+// It also refuses a default or class component export under src/features:
+// the sheet's ComponentsOf sees only named function components (and
+// memos), so either would pass the typecheck with no entry.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +37,13 @@ const declared = new RegExp(
   "m",
 );
 const defaultWrapped = /^export default (?:memo|forwardRef)\(/m;
+// What ComponentsOf cannot see: a default export of a component, or a
+// component class.
+const defaultComponent = new RegExp(
+  String.raw`^export default (?:(?:async )?function ${name}|class |(?:memo|forwardRef)\(|${name}\s*;)`,
+  "m",
+);
+const classComponent = new RegExp(String.raw`^export (?:default )?class ${name}`, "m");
 // `export { Foo, bar as Baz }`, leaving out `type` names.
 const listedNames = (source) =>
   [...source.matchAll(/^export \{([^}]*)\}/gm)]
@@ -44,21 +56,40 @@ const exportsComponent = (source) =>
   defaultWrapped.test(source) ||
   listedNames(source).some((n) => new RegExp(`^${name}$`).test(n));
 
+const moduleOf = (f) =>
+  relative(features, f)
+    .split(sep)
+    .join("/")
+    .replace(/(\.(?:web|native|ios|android))?\.tsx$/, "")
+    .replace(/\/index$/, "");
+
+const unseen = files
+  .filter((f) => {
+    const source = readFileSync(f, "utf8");
+    return (
+      defaultComponent.test(source) ||
+      classComponent.test(source) ||
+      /^export \{[^}]*\b[A-Z]\w*\s+as\s+default\b/m.test(source)
+    );
+  })
+  .map((f) => relative(root, f).split(sep).join("/"));
+if (unseen.length > 0) {
+  console.error(
+    `default or class component exports under src/features, which the board's typecheck cannot see (export a named function component instead):\n  ${unseen.join("\n  ")}`,
+  );
+  process.exit(1);
+}
+
 const modules = new Set(
-  files
-    .filter((f) => exportsComponent(readFileSync(f, "utf8")))
-    .map((f) =>
-      relative(features, f)
-        .split(sep)
-        .join("/")
-        .replace(/(\.(?:web|native|ios|android))?\.tsx$/, ""),
-    ),
+  files.filter((f) => exportsComponent(readFileSync(f, "utf8"))).map(moduleOf),
 );
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// `x` is listed as `../features/x` or, for an index module, also as
+// `../features/x/index`.
 const listed = (m) =>
   new RegExp(
-    `import type \\* as \\w+ from (['"])\\.\\./features/${escape(m)}\\1;`,
+    `import type \\* as \\w+ from (['"])\\.\\./features/${escape(m)}(?:/index)?\\1;`,
   ).test(sheet);
 const missing = [...modules].filter((m) => !listed(m));
 if (missing.length > 0) {
