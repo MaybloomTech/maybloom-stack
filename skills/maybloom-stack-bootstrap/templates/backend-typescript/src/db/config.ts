@@ -1,13 +1,13 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
-import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
-import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
-import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator";
-import { Pool } from "pg";
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import * as schema from "db/schema";
+import { mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { PGlite } from '@electric-sql/pglite';
+import * as schema from 'db/schema';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
+import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
+import { Pool } from 'pg';
 
 /**
  * Drizzle query-builder type exposed to the rest of the backend.
@@ -29,15 +29,15 @@ export interface DbHandle {
 function migrationsFolder(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   // src/db/config.ts → ../../drizzle; dist/main.js → ../drizzle
-  return resolve(here, here.endsWith("dist") ? "../drizzle" : "../../drizzle");
+  return resolve(here, here.endsWith('dist') ? '../drizzle' : '../../drizzle');
 }
 
 function parsePgliteDataDir(url: string): string | undefined {
-  if (url.startsWith("pglite-memory://") || url === "pglite://:memory:") {
+  if (url.startsWith('pglite-memory://') || url === 'pglite://:memory:') {
     return undefined;
   }
-  const stripped = url.replace(/^pglite:\/\//, "");
-  return !stripped || stripped === ":memory:" ? undefined : stripped;
+  const stripped = url.replace(/^pglite:\/\//, '');
+  return !stripped || stripped === ':memory:' ? undefined : stripped;
 }
 
 function initPgliteHandle(url: string): DbHandle {
@@ -69,7 +69,7 @@ function initPgHandle(url: string): DbHandle {
 }
 
 export function initDb(url: string): DbHandle {
-  if (url.startsWith("pglite://") || url.startsWith("pglite-memory://")) {
+  if (url.startsWith('pglite://') || url.startsWith('pglite-memory://')) {
     return initPgliteHandle(url);
   }
   return initPgHandle(url);

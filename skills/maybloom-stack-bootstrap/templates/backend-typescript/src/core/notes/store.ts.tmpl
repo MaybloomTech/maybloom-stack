@@ -1,15 +1,21 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import { randomUUID } from "node:crypto";
-import { type SQL, and, desc, eq, getTableColumns, isNull, lt, or, sql } from "drizzle-orm";
-import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import { notes } from "db/schema";
-import { internalError } from "rpcerr";
-import { server } from "server";
+import { randomUUID } from 'node:crypto';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { Note } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
+import { noteRowToProto, noteToInsert, noteToUpdate } from 'core/notes/adapter';
+import { notes } from 'db/schema';
 import {
-  noteRowToProto,
-  noteToInsert,
-  noteToUpdate,
-} from "core/notes/adapter";
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  isNull,
+  lt,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
+import { internalError } from 'rpcerr';
+import { server } from 'server';
 
 // Stores hold the actual business logic for a resource. Handlers should be
 // thin wrappers around store functions: handlers extract auth context and
@@ -23,7 +29,10 @@ const MAX_PAGE = 200;
 
 // Every database call is wrapped: the driver's message is the cause, logged
 // by the error interceptor, and the client reads the public text.
-async function query<T>(publicMessage: string, run: () => Promise<T>): Promise<T> {
+async function query<T>(
+  publicMessage: string,
+  run: () => Promise<T>,
+): Promise<T> {
   try {
     return await run();
   } catch (error) {
@@ -33,8 +42,11 @@ async function query<T>(publicMessage: string, run: () => Promise<T>): Promise<T
 
 export async function createNote(createdBy: string, input: Note) {
   const id = randomUUID();
-  const [row] = await query("could not create the note", () =>
-    server.db.insert(notes).values(noteToInsert(input, id, createdBy)).returning(),
+  const [row] = await query('could not create the note', () =>
+    server.db
+      .insert(notes)
+      .values(noteToInsert(input, id, createdBy))
+      .returning(),
   );
   return noteRowToProto(row);
 }
@@ -42,7 +54,7 @@ export async function createNote(createdBy: string, input: Note) {
 // Replaces title and body; the server keeps the rest (archived_at is
 // archiveNote's).
 export async function updateNote(input: Note) {
-  const [row] = await query("could not update the note", () =>
+  const [row] = await query('could not update the note', () =>
     server.db
       .update(notes)
       .set({ ...noteToUpdate(input), updatedAt: new Date() })
@@ -50,7 +62,7 @@ export async function updateNote(input: Note) {
       .returning(),
   );
   if (!row) {
-    throw new ConnectError("Note not found", Code.NotFound);
+    throw new ConnectError('Note not found', Code.NotFound);
   }
   return noteRowToProto(row);
 }
@@ -60,23 +72,28 @@ export async function updateNote(input: Note) {
 // a note leaves the default view, one of several a resource may give. The
 // mirror, unarchiveNote (archivedAt: null), is added when a screen needs it.
 export async function archiveNote(id: string) {
-  const [row] = await query("could not archive the note", () =>
+  const [row] = await query('could not archive the note', () =>
     server.db
       .update(notes)
-      .set({ archivedAt: sql`coalesce(${notes.archivedAt}, now())`, updatedAt: new Date() })
+      .set({
+        archivedAt: sql`coalesce(${notes.archivedAt}, now())`,
+        updatedAt: new Date(),
+      })
       .where(eq(notes.id, id))
       .returning(),
   );
   if (!row) {
-    throw new ConnectError("Note not found", Code.NotFound);
+    throw new ConnectError('Note not found', Code.NotFound);
   }
   return noteRowToProto(row);
 }
 
 export async function getNote(id: string) {
-  const [row] = await query("could not read the note", () => server.db.select().from(notes).where(eq(notes.id, id)));
+  const [row] = await query('could not read the note', () =>
+    server.db.select().from(notes).where(eq(notes.id, id)),
+  );
   if (!row) {
-    throw new ConnectError("Note not found", Code.NotFound);
+    throw new ConnectError('Note not found', Code.NotFound);
   }
   return noteRowToProto(row);
 }
@@ -97,9 +114,12 @@ export interface NoteFilter {
 // rows that share one; the text form depends on the session's DateStyle and
 // TimeZone). The Go path's token has the same shape, in nanoseconds.
 export async function listNotes(filter: NoteFilter) {
-  const size = Math.min(filter.pageSize > 0 ? filter.pageSize : DEFAULT_PAGE, MAX_PAGE);
+  const size = Math.min(
+    filter.pageSize > 0 ? filter.pageSize : DEFAULT_PAGE,
+    MAX_PAGE,
+  );
   const before = decodePageToken(filter.pageToken);
-  const rows = await query("could not list the notes", () =>
+  const rows = await query('could not list the notes', () =>
     server.db
       .select({
         ...getTableColumns(notes),
@@ -112,7 +132,10 @@ export async function listNotes(filter: NoteFilter) {
           before
             ? or(
                 lt(notes.createdAt, before.createdAt),
-                and(eq(notes.createdAt, before.createdAt), lt(notes.id, before.id)),
+                and(
+                  eq(notes.createdAt, before.createdAt),
+                  lt(notes.id, before.id),
+                ),
               )
             : undefined,
         ),
@@ -124,7 +147,8 @@ export async function listNotes(filter: NoteFilter) {
   const last = page[page.length - 1];
   return {
     notes: page.map(({ cursor: _cursor, ...row }) => noteRowToProto(row)),
-    nextPageToken: rows.length > size && last ? encodePageToken(last.cursor, last.id) : "",
+    nextPageToken:
+      rows.length > size && last ? encodePageToken(last.cursor, last.id) : '',
   };
 }
 
@@ -133,19 +157,27 @@ export async function listNotes(filter: NoteFilter) {
 const PAGE_TOKEN = /^(\d{1,19}):([0-9a-fA-F-]{36})$/;
 
 function encodePageToken(micros: string, id: string): string {
-  return Buffer.from(`${micros}:${id}`).toString("base64url");
+  return Buffer.from(`${micros}:${id}`).toString('base64url');
 }
 
-function decodePageToken(token: string): { createdAt: SQL; id: string } | undefined {
+function decodePageToken(
+  token: string,
+): { createdAt: SQL; id: string } | undefined {
   if (!token) {
     return undefined;
   }
-  const match = PAGE_TOKEN.exec(Buffer.from(token, "base64url").toString());
+  const match = PAGE_TOKEN.exec(Buffer.from(token, 'base64url').toString());
   if (!match) {
-    throw new ConnectError("page_token is not one this service issued", Code.InvalidArgument);
+    throw new ConnectError(
+      'page_token is not one this service issued',
+      Code.InvalidArgument,
+    );
   }
   const [, micros, id] = match;
   // Exact: an integer number of microseconds added to the epoch, never a
   // float through to_timestamp.
-  return { createdAt: sql`'epoch'::timestamptz + ${micros}::bigint * interval '1 microsecond'`, id };
+  return {
+    createdAt: sql`'epoch'::timestamptz + ${micros}::bigint * interval '1 microsecond'`,
+    id,
+  };
 }

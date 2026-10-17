@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
-import { colors, radii, spacing } from "../../styles/tokens";
+import type { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { colors, radii, spacing } from '../../styles/tokens';
 
 /**
  * Card as a flat tinted panel: no border, the subtle primary fill, the

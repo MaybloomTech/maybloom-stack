@@ -1,10 +1,10 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ["src/**/*.ts"],
-  format: ["esm", "cjs"],
+  entry: ['src/**/*.ts'],
+  format: ['esm', 'cjs'],
   dts: false,
-  outDir: "dist",
+  outDir: 'dist',
   sourcemap: true,
   minify: true,
   splitting: false,
@@ -12,6 +12,6 @@ export default defineConfig({
   treeshake: true,
   clean: true,
   esbuildOptions(options) {
-    options.outbase = "src";
+    options.outbase = 'src';
   },
 });

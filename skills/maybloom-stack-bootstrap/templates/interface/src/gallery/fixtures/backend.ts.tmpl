@@ -1,19 +1,19 @@
-import { create } from "@bufbuild/protobuf";
-import { timestampNow } from "@bufbuild/protobuf/wkt";
+import { create } from '@bufbuild/protobuf';
+import { timestampNow } from '@bufbuild/protobuf/wkt';
 import {
   Code,
   ConnectError,
   createClient,
   createRouterTransport,
   type ServiceImpl,
-} from "@connectrpc/connect";
+} from '@connectrpc/connect';
 import {
   type Note,
   NoteSchema,
-} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
-import type { AppClient } from "../../data/api/client";
-import { fixtureId, manyNotes, sampleNotes } from "./notes";
+} from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
+import { __APP_NAME__Service } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb';
+import type { AppClient } from '../../data/api/client';
+import { fixtureId, manyNotes, sampleNotes } from './notes';
 
 /**
  * The state a page or component is shown in, as the backend makes it:
@@ -23,7 +23,7 @@ import { fixtureId, manyNotes, sampleNotes } from "./notes";
  * - `loading`: every call waits forever;
  * - `error`: every call fails.
  */
-export type Scenario = "notes" | "empty" | "long" | "loading" | "error";
+export type Scenario = 'notes' | 'empty' | 'long' | 'loading' | 'error';
 
 export type Method = keyof ServiceImpl<typeof __APP_NAME__Service>;
 
@@ -44,7 +44,7 @@ function notFound(what: string): never {
  */
 function fieldsOf<T extends { $typeName: string }>(
   message: T | undefined,
-): Partial<Omit<T, "$typeName" | "$unknown">> {
+): Partial<Omit<T, '$typeName' | '$unknown'>> {
   if (!message) return {};
   const { $typeName, $unknown, ...fields } = message as T & {
     $unknown?: unknown;
@@ -53,10 +53,10 @@ function fieldsOf<T extends { $typeName: string }>(
 }
 
 const pageOf = <T>(items: T[], size: number, token: string) => {
-  const from = Number(token || "0");
+  const from = Number(token || '0');
   const page = items.slice(from, from + (size > 0 ? size : 50));
   const next = from + page.length;
-  return { page, nextPageToken: next < items.length ? String(next) : "" };
+  return { page, nextPageToken: next < items.length ? String(next) : '' };
 };
 
 /**
@@ -64,26 +64,25 @@ const pageOf = <T>(items: T[], size: number, token: string) => {
  * whole ServiceImpl, so an RPC added to the contract fails the typecheck
  * until the gallery answers it too.
  */
-function serviceOf(
-  initial: Note[],
-): ServiceImpl<typeof __APP_NAME__Service> {
+function serviceOf(initial: Note[]): ServiceImpl<typeof __APP_NAME__Service> {
   let notes = initial;
   let serial = notes.length;
-  const find = (id: string) => notes.find((n) => n.id === id) ?? notFound("note");
+  const find = (id: string) =>
+    notes.find((n) => n.id === id) ?? notFound('note');
   const replace = (note: Note) => {
     notes = notes.map((n) => (n.id === note.id ? note : n));
     return { note };
   };
 
   return {
-    health: () => ({ ok: true, version: "gallery" }),
+    health: () => ({ ok: true, version: 'gallery' }),
     createNote: (req) => {
       serial += 1;
       // What the client sent, with the fields the server owns set here.
       const note = create(NoteSchema, {
         ...fieldsOf(req.note),
         id: fixtureId(1000 + serial),
-        createdBy: "gallery",
+        createdBy: 'gallery',
         createdAt: timestampNow(),
         updatedAt: undefined,
         archivedAt: undefined,
@@ -96,13 +95,17 @@ function serviceOf(
       const visible = req.includeArchived
         ? notes
         : notes.filter((n) => n.archivedAt === undefined);
-      const { page, nextPageToken } = pageOf(visible, req.pageSize, req.pageToken);
+      const { page, nextPageToken } = pageOf(
+        visible,
+        req.pageSize,
+        req.pageToken,
+      );
       return { notes: page, nextPageToken };
     },
     updateNote: (req) => {
       // The client's fields over the stored note; the server-owned ones
       // stay as they were.
-      const old = find(req.note?.id ?? "");
+      const old = find(req.note?.id ?? '');
       return replace(
         create(NoteSchema, {
           ...fieldsOf(old),
@@ -139,19 +142,26 @@ const forever = () => new Promise<never>(() => {});
  * fixtures, so what a specimen changes stays its own.
  */
 export function fakeClient(options: FakeOptions = {}): AppClient {
-  const { scenario = "notes", failing = [] } = options;
+  const { scenario = 'notes', failing = [] } = options;
   const notes =
-    scenario === "empty" ? [] : scenario === "long" ? manyNotes() : sampleNotes();
+    scenario === 'empty'
+      ? []
+      : scenario === 'long'
+        ? manyNotes()
+        : sampleNotes();
   const impl = serviceOf(notes);
   const gated = Object.fromEntries(
     Object.entries(impl).map(([name, handler]) => [
       name,
       async (req: never, ctx: never) => {
-        if (scenario === "loading") return forever();
-        if (scenario === "error")
-          throw new ConnectError("The backend did not answer.", Code.Unavailable);
+        if (scenario === 'loading') return forever();
+        if (scenario === 'error')
+          throw new ConnectError(
+            'The backend did not answer.',
+            Code.Unavailable,
+          );
         if ((failing as string[]).includes(name))
-          throw new ConnectError("Could not save that.", Code.Internal);
+          throw new ConnectError('Could not save that.', Code.Internal);
         return (handler as (req: never, ctx: never) => unknown)(req, ctx);
       },
     ]),

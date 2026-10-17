@@ -350,6 +350,7 @@ def main(argv: list[str]) -> int:
     print("Next steps:")
     print(f"  cd {args.out}")
     print("  pnpm install   # runs proto:gen + proto:descriptor + build via postinstall")
+    print("  pnpm lint:ts:fix   # format once: the templates are formatted for a sample name")
     if args.backend == "go":
         print("  docker compose up -d db            # the development Postgres (and <slug>_test)")
         print("  scripts/go generate . && scripts/go mod tidy   # the Go toolchain in Docker: the contract and the data layer, then go.sum")

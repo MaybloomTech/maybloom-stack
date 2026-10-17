@@ -1,9 +1,9 @@
-import { create } from "@bufbuild/protobuf";
+import { create } from '@bufbuild/protobuf';
 import {
   type Note,
   NoteSchema,
-} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import type { AppClient } from "./client";
+} from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
+import type { AppClient } from './client';
 
 // Domain API thin wrappers around the Connect client. Keep them shapeless;
 // React Query hooks above this layer are where caching/lifecycle live. Each
@@ -12,7 +12,7 @@ import type { AppClient } from "./client";
 
 // One page of notes, newest first. Pass the previous page's nextPageToken to
 // read the next one; an empty token means this was the last page.
-export async function listNotes(client: AppClient, pageToken = "") {
+export async function listNotes(client: AppClient, pageToken = '') {
   const response = await client.listNotes({ pageSize: 50, pageToken });
   return { notes: response.notes, nextPageToken: response.nextPageToken };
 }

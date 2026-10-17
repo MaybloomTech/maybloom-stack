@@ -1,5 +1,5 @@
-import { StyleSheet, TextInput } from "react-native";
-import { colors, radii, spacing, typography } from "../../styles/tokens";
+import { StyleSheet, TextInput } from 'react-native';
+import { colors, radii, spacing, typography } from '../../styles/tokens';
 
 export function TextField({
   value,
@@ -37,5 +37,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     padding: spacing.sm,
   },
-  multiline: { minHeight: 64, textAlignVertical: "top" },
+  multiline: { minHeight: 64, textAlignVertical: 'top' },
 });

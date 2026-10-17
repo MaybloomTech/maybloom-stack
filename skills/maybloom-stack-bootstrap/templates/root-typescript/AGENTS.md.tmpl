@@ -70,7 +70,7 @@ From the repo root:
 | Install (also generates the contract and builds) | `pnpm install` |
 | Regenerate the contract | `pnpm proto:gen` |
 | Typecheck | `pnpm typecheck` |
-| Lint (buf lint + biome) | `pnpm lint` |
+| Lint (buf lint + biome; formatting is checked, fix it with `pnpm lint:ts:fix`) | `pnpm lint` |
 | Backend (PGlite, `DEV_USER=dev`, `:3000`) | `pnpm dev:backend` |
 | A new Drizzle migration | `pnpm --filter __ORG_SCOPE__/backend db:generate` |
 | Interface | `pnpm dev:interface` |

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 /** One component as it is and as a pass proposes it, side by side. */
 export type Comparison = {

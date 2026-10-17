@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
-import { useWindowDimensions } from "react-native";
+import { createContext, useContext } from 'react';
+import { useWindowDimensions } from 'react-native';
 
 export type Viewport = { width: number; height: number };
 

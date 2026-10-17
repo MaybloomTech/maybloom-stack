@@ -71,11 +71,11 @@ new type, which would corrupt deserialization for old clients.
 **Bottom line.** Reserve, always. Add `buf breaking --against` the default
 branch to CI once wire-format consumers exist outside your control.
 
-## (Not a gotcha) "Always use `pnpm exec biome lint packages`"
+## (Not a gotcha) "Always use `pnpm exec biome check packages`"
 
 If you read this somewhere as a rule, it isn't one. The `pnpm lint:ts`
-package script wraps the same `biome lint packages` invocation; both
-work. Use the script. `pnpm exec biome ...` is just the direct call when
+package script wraps the same `biome check packages` invocation (lint,
+format and import order); both work. Use the script. `pnpm exec biome ...` is just the direct call when
 you want to skip the script indirection (e.g. passing extra biome flags)
 — it's a "how to" tip, not a gotcha.
 

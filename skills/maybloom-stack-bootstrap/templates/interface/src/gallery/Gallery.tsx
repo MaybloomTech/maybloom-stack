@@ -1,21 +1,21 @@
-import { type ComponentType, useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../styles/tokens";
-import { ViewportProvider } from "../styles/viewport";
-import { ComponentSheet } from "./ComponentSheet";
-import { DesignSheet } from "./DesignSheet";
-import { IconSheet } from "./IconSheet";
+import { type ComponentType, useEffect, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing, typography } from '../styles/tokens';
+import { ViewportProvider } from '../styles/viewport';
+import { ComponentSheet } from './ComponentSheet';
+import { DesignSheet } from './DesignSheet';
+import { IconSheet } from './IconSheet';
 import {
   anchorId,
   frames,
   heightOf,
   type SheetProps,
   type Width,
-} from "./layout";
-import { PageSheet } from "./PageSheet";
-import { PrimitiveSheet } from "./PrimitiveSheet";
-import sentinel from "./sentinel.json";
-import { TokenSheet } from "./TokenSheet";
+} from './layout';
+import { PageSheet } from './PageSheet';
+import { PrimitiveSheet } from './PrimitiveSheet';
+import sentinel from './sentinel.json';
+import { TokenSheet } from './TokenSheet';
 
 // The gallery's sentinel is the testID on its page, read from
 // sentinel.json by the scripts too: check:no-gallery fails an app export
@@ -25,37 +25,37 @@ const widths: Width[] = frames.map((f) => f.width);
 
 /** The tabs: the three tiers, then what they are made of, then the passes. */
 const tabs = {
-  primitives: { label: "Primitives", Sheet: PrimitiveSheet },
-  components: { label: "Components", Sheet: ComponentSheet },
-  pages: { label: "Pages", Sheet: PageSheet },
-  icons: { label: "Icons", Sheet: IconSheet },
-  tokens: { label: "Tokens", Sheet: TokenSheet },
-  design: { label: "Design passes", Sheet: DesignSheet },
+  primitives: { label: 'Primitives', Sheet: PrimitiveSheet },
+  components: { label: 'Components', Sheet: ComponentSheet },
+  pages: { label: 'Pages', Sheet: PageSheet },
+  icons: { label: 'Icons', Sheet: IconSheet },
+  tokens: { label: 'Tokens', Sheet: TokenSheet },
+  design: { label: 'Design passes', Sheet: DesignSheet },
 } satisfies Record<string, { label: string; Sheet: ComponentType<SheetProps> }>;
 type Tab = keyof typeof tabs;
 
 type BoardView = { tab: Tab; entry: string | null; width: Width };
 
-const fallback: BoardView = { tab: "primitives", entry: null, width: 390 };
+const fallback: BoardView = { tab: 'primitives', entry: null, width: 390 };
 
 /**
  * The view lives in the URL's hash so a link opens it: the tab, an entry
  * on it, and the width (`#components/NoteRow@768`, `#icons@390`).
  */
 function readHash(): BoardView {
-  if (Platform.OS !== "web" || typeof window === "undefined") return fallback;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return fallback;
   let raw = window.location.hash.slice(1);
   try {
     raw = decodeURIComponent(raw);
   } catch {
     return fallback;
   }
-  const [where, width] = raw.split("@");
-  const [tab, ...entry] = (where ?? "").split("/");
-  const known = Object.hasOwn(tabs, tab ?? "");
+  const [where, width] = raw.split('@');
+  const [tab, ...entry] = (where ?? '').split('/');
+  const known = Object.hasOwn(tabs, tab ?? '');
   return {
     tab: known ? (tab as Tab) : fallback.tab,
-    entry: known && entry.length > 0 ? entry.join("/") : null,
+    entry: known && entry.length > 0 ? entry.join('/') : null,
     width: widths.find((w) => String(w) === width) ?? fallback.width,
   };
 }
@@ -70,8 +70,8 @@ export function Gallery() {
 
   // The hash follows the view.
   useEffect(() => {
-    if (Platform.OS !== "web") return;
-    window.history.replaceState(null, "", hashOf(view));
+    if (Platform.OS !== 'web') return;
+    window.history.replaceState(null, '', hashOf(view));
   }, [view]);
 
   // A link's entry is scrolled to once the sheet has rendered, when the
@@ -79,7 +79,7 @@ export function Gallery() {
   // put it.
   const { tab, entry } = view;
   useEffect(() => {
-    if (Platform.OS !== "web" || !entry) return;
+    if (Platform.OS !== 'web' || !entry) return;
     const id = anchorId(tab, entry);
     const timer = setTimeout(
       () => document.getElementById(id)?.scrollIntoView(),
@@ -89,10 +89,10 @@ export function Gallery() {
   }, [tab, entry]);
 
   useEffect(() => {
-    if (Platform.OS !== "web") return;
+    if (Platform.OS !== 'web') return;
     const onHash = () => setView(readHash());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   const { Sheet } = tabs[view.tab];
@@ -163,15 +163,15 @@ function Choice({
 const styles = StyleSheet.create({
   board: { flex: 1, backgroundColor: colors.surface },
   toolbar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: spacing.sm,
     padding: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  group: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  group: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   choice: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,

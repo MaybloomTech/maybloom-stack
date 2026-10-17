@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useClient } from "../api/client";
-import { archiveNote, createNote, listNotes } from "../api/notes";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useClient } from '../api/client';
+import { archiveNote, createNote, listNotes } from '../api/notes';
 
-const NOTES_KEY = ["notes"] as const;
+const NOTES_KEY = ['notes'] as const;
 
 // The first page only: the example screen has no scroll-to-load. A screen that
 // pages replaces this with useInfiniteQuery over listNotes(client, pageToken).

@@ -1,9 +1,9 @@
-import { create } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { create } from '@bufbuild/protobuf';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import {
   type Note,
   NoteSchema,
-} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+} from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
 
 // The gallery's notes, built from the contract's own messages: a field the
 // proto renames or drops breaks the typecheck here, not on the board.
@@ -14,34 +14,34 @@ const day = (n: number) =>
 
 /** A fixture id, a valid uuid like the server's. */
 export const fixtureId = (n: number) =>
-  `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 const note = (n: number, title: string, body: string): Note =>
   create(NoteSchema, {
     id: fixtureId(n),
     title,
     body,
-    createdBy: "gallery",
+    createdBy: 'gallery',
     createdAt: day(n),
   });
 
 /** A few notes, newest first: short, long and without a body. */
 export function sampleNotes(): Note[] {
   return [
-    note(3, "Call the plumber", "Ask about Thursday morning."),
+    note(3, 'Call the plumber', 'Ask about Thursday morning.'),
     note(
       2,
-      "Reading list",
-      "Two essays on interface design, the protobuf style guide, and the chapter on caching that was recommended last week. Start with the shortest one.",
+      'Reading list',
+      'Two essays on interface design, the protobuf style guide, and the chapter on caching that was recommended last week. Start with the shortest one.',
     ),
-    note(1, "Untitled idea", ""),
+    note(1, 'Untitled idea', ''),
   ];
 }
 
 /** Enough notes to fill more than one page of ListNotes. */
 export function manyNotes(count = 120): Note[] {
   return Array.from({ length: count }, (_, i) =>
-    note(count - i, `Note ${count - i}`, i % 3 === 0 ? "" : "A line of body."),
+    note(count - i, `Note ${count - i}`, i % 3 === 0 ? '' : 'A line of body.'),
   );
 }
 

@@ -1,7 +1,7 @@
-import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import { StyleSheet, Text, View } from "react-native";
-import { Button } from "../../components/primitives";
-import { colors, spacing, typography } from "../../styles/tokens";
+import type { Note } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from '../../components/primitives';
+import { colors, spacing, typography } from '../../styles/tokens';
 
 export function NoteRow({
   note,
@@ -25,7 +25,7 @@ export function NoteRow({
         ) : null}
       </View>
       <Button
-        label={archiving ? "Archiving…" : "Archive"}
+        label={archiving ? 'Archiving…' : 'Archive'}
         variant="secondary"
         disabled={archiving}
         onPress={onArchive}
@@ -36,8 +36,8 @@ export function NoteRow({
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,

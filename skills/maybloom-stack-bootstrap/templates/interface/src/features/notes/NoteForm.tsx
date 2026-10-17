@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { Button, Card, TextField } from "../../components/primitives";
-import { colors, spacing, typography } from "../../styles/tokens";
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button, Card, TextField } from '../../components/primitives';
+import { colors, spacing, typography } from '../../styles/tokens';
 
 // The new-note form. It owns its fields and hands them to onSubmit, which
 // rejects when the save fails; the form keeps what was typed and says so.
@@ -10,8 +10,8 @@ export function NoteForm({
 }: {
   onSubmit: (input: { title: string; body: string }) => Promise<unknown>;
 }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -21,8 +21,8 @@ export function NoteForm({
     setFailed(false);
     try {
       await onSubmit({ title, body });
-      setTitle("");
-      setBody("");
+      setTitle('');
+      setBody('');
     } catch {
       setFailed(true);
     } finally {
@@ -46,7 +46,7 @@ export function NoteForm({
       ) : null}
       <View style={styles.actions}>
         <Button
-          label={saving ? "Adding…" : "Add note"}
+          label={saving ? 'Adding…' : 'Add note'}
           disabled={saving || !title.trim()}
           onPress={submit}
         />
@@ -56,6 +56,6 @@ export function NoteForm({
 }
 
 const styles = StyleSheet.create({
-  actions: { alignItems: "flex-start" },
+  actions: { alignItems: 'flex-start' },
   error: { color: colors.danger, marginTop: spacing.xs },
 });

@@ -1,12 +1,12 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ClientProvider } from "../data/api/client";
-import { colors } from "../styles/tokens";
-import { ViewportProvider } from "../styles/viewport";
-import { type FakeOptions, fakeClient } from "./fixtures/backend";
-import { heightOf, type Width } from "./layout";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ClientProvider } from '../data/api/client';
+import { colors } from '../styles/tokens';
+import { ViewportProvider } from '../styles/viewport';
+import { type FakeOptions, fakeClient } from './fixtures/backend';
+import { heightOf, type Width } from './layout';
 
 /**
  * A subtree on its own fake backend and its own query cache: every
@@ -21,7 +21,10 @@ export function Fake({
   const [queryClient] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
       }),
   );
   return (
@@ -47,9 +50,9 @@ export type PlayStep =
   | { expect: string };
 
 const describe = (step: PlayStep) =>
-  typeof step === "string"
+  typeof step === 'string'
     ? `press "${step}"`
-    : "fill" in step
+    : 'fill' in step
       ? `fill "${step.fill}"`
       : `expect "${step.expect}"`;
 
@@ -73,7 +76,7 @@ export function Play({
   const script = JSON.stringify(steps);
   useEffect(() => {
     const root = ref.current as unknown as HTMLElement | null;
-    if (Platform.OS !== "web" || !root?.querySelectorAll) return;
+    if (Platform.OS !== 'web' || !root?.querySelectorAll) return;
     let cancelled = false;
     // A replay starts clean: a failure from an earlier run is not this one's.
     setMissing(null);
@@ -83,12 +86,12 @@ export function Play({
         // cleaned up (StrictMode's double effect, new steps) must not press
         // or type, or the specimen submits twice.
         let done: unknown = null;
-        if (typeof step === "string") {
+        if (typeof step === 'string') {
           const target = await waitFor(() => findControl(root, step));
           if (cancelled) return;
           target?.click();
           done = target;
-        } else if ("fill" in step) {
+        } else if ('fill' in step) {
           const field = (await waitFor(() =>
             findField(root, step.fill),
           )) as HTMLInputElement | null;
@@ -128,9 +131,9 @@ export function Play({
 
 function findField(root: HTMLElement, label: string): HTMLElement | null {
   for (const el of Array.from(
-    root.querySelectorAll<HTMLElement>("input, textarea"),
+    root.querySelectorAll<HTMLElement>('input, textarea'),
   )) {
-    if (el.getAttribute("aria-label") === label) return el;
+    if (el.getAttribute('aria-label') === label) return el;
   }
   return null;
 }
@@ -142,8 +145,8 @@ function findField(root: HTMLElement, label: string): HTMLElement | null {
  */
 function fill(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
   const proto = Object.getPrototypeOf(el) as object;
-  Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, text);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
+  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, text);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function findControl(root: HTMLElement, label: string): HTMLElement | null {
@@ -154,12 +157,12 @@ function findControl(root: HTMLElement, label: string): HTMLElement | null {
   for (const el of Array.from(controls)) {
     // A disabled control is not the target yet: wait for it to enable.
     if (
-      el.getAttribute("aria-disabled") === "true" ||
-      el.hasAttribute("disabled")
+      el.getAttribute('aria-disabled') === 'true' ||
+      el.hasAttribute('disabled')
     )
       continue;
     if (
-      el.getAttribute("aria-label") === label ||
+      el.getAttribute('aria-label') === label ||
       el.textContent?.trim() === label
     )
       return el;
@@ -209,7 +212,7 @@ export function PageFrame({
 
 const styles = StyleSheet.create({
   page: {
-    overflow: "hidden",
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },

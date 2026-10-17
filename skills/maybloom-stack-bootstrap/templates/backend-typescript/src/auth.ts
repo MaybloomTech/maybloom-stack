@@ -1,6 +1,6 @@
-import type { DescMethod } from "@bufbuild/protobuf";
-import { Code, ConnectError, type Interceptor } from "@connectrpc/connect";
-import { kUserId } from "context";
+import type { DescMethod } from '@bufbuild/protobuf';
+import { Code, ConnectError, type Interceptor } from '@connectrpc/connect';
+import { kUserId } from 'context';
 
 // The gate, mirroring the Go path's auth.Interceptor: every RPC needs a
 // caller (kUserId, set in main.ts's contextValues) except the ones listed as
@@ -11,7 +11,7 @@ export function createAuthInterceptor(open: DescMethod[]): Interceptor {
   return (next) => async (req) => {
     const procedure = `${req.service.typeName}/${req.method.name}`;
     if (!openSet.has(procedure) && !req.contextValues.get(kUserId)) {
-      throw new ConnectError("sign in first", Code.Unauthenticated);
+      throw new ConnectError('sign in first', Code.Unauthenticated);
     }
     return next(req);
   };

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../styles/tokens";
+import type { ReactNode } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing, typography } from '../styles/tokens';
 
 /** One state of a component, with the label that says which. */
 export type Specimen = { label: string; node: ReactNode };
@@ -14,7 +14,7 @@ export const frames = [
   { width: 768, height: 1024 },
   { width: 1280, height: 832 },
 ] as const;
-export type Width = (typeof frames)[number]["width"];
+export type Width = (typeof frames)[number]['width'];
 export const heightOf = (width: Width) =>
   frames.find((f) => f.width === width)?.height ?? frames[0].height;
 
@@ -79,7 +79,7 @@ export function Sheet({
   children: ReactNode;
 }) {
   const content = <View style={{ width, gap: spacing.xl }}>{children}</View>;
-  if (Platform.OS === "web")
+  if (Platform.OS === 'web')
     return (
       <View style={styles.scroller}>
         <View style={[styles.sheet, styles.fit]}>{content}</View>
@@ -95,16 +95,16 @@ export function Sheet({
 }
 
 const styles = StyleSheet.create({
-  sheet: { padding: spacing.lg, alignItems: "flex-start" },
+  sheet: { padding: spacing.lg, alignItems: 'flex-start' },
   // "auto", so a scrollbar shows only on the axis that overflows (Windows
   // and Linux draw "scroll" bars always). React Native's type has no
   // "auto"; react-native-web passes it through, and this style is web-only.
-  scroller: { flex: 1, overflow: "auto" as "scroll" },
+  scroller: { flex: 1, overflow: 'auto' as 'scroll' },
   // As wide as its content, so the padding holds on the right too.
-  fit: { alignSelf: "flex-start" },
+  fit: { alignSelf: 'flex-start' },
   section: { gap: spacing.sm },
   note: { ...typography.caption, color: colors.textSecondary },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.lg },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   specimen: {
     gap: spacing.xs,
     minWidth: 260,
@@ -116,6 +116,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     backgroundColor: colors.screen,
   },
-  wide: { flexBasis: "100%" },
+  wide: { flexBasis: '100%' },
   label: { ...typography.caption, color: colors.textSecondary },
 });

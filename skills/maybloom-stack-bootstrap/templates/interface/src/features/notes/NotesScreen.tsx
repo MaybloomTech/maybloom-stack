@@ -1,13 +1,19 @@
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   useArchiveNote,
   useCreateNote,
   useNotes,
-} from "../../data/queries/useNotes";
-import { colors, spacing, typography } from "../../styles/tokens";
-import { useViewport } from "../../styles/viewport";
-import { NoteForm } from "./NoteForm";
-import { NoteRow } from "./NoteRow";
+} from '../../data/queries/useNotes';
+import { colors, spacing, typography } from '../../styles/tokens';
+import { useViewport } from '../../styles/viewport';
+import { NoteForm } from './NoteForm';
+import { NoteRow } from './NoteRow';
 
 // The notes page: the form, then the first page of notes. The route
 // (app/index.tsx) renders it, and so does the gallery's Pages tab, against
@@ -58,7 +64,7 @@ export function NotesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     backgroundColor: colors.screen,
   },
   column: { flex: 1, padding: spacing.lg, gap: spacing.lg },

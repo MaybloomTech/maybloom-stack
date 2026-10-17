@@ -162,6 +162,16 @@ start dev servers.
    the vendored rules the contract imports) from the proto files, compiles
    the descriptor set the docs site renders, and builds the packages.
 
+   Then format the TypeScript and JavaScript once:
+
+   ```bash
+   pnpm lint:ts:fix
+   ```
+
+   The templates are formatted for a sample name, and import order and line
+   wraps depend on the names that were substituted in, so a project named
+   differently fails `pnpm lint` on its first run until this has been run.
+
 3. **The backend's own generate step.**
 
    **Go** — the development database is the compose one, and the module

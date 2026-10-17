@@ -1,5 +1,5 @@
-import { Text } from "react-native";
-import { colors, typography } from "../styles/tokens";
+import { Text } from 'react-native';
+import { colors, typography } from '../styles/tokens';
 
 /**
  * A line of body text to fill cards and rows with, in the passes and on
