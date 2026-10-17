@@ -500,7 +500,7 @@ Point the user there once they're past the initial scaffold.
     │   └── Dockerfile
     ├── interface/
     │   ├── app/                 # Expo Router file-based routes
-    │   │   ├── _layout.tsx      # Stack
+    │   │   ├── _layout.tsx      # QueryClientProvider + Stack
     │   │   └── index.tsx        # renders NotesScreen
     │   ├── gallery/             # the design board's router root (EXPO_PUBLIC_GALLERY=1)
     │   ├── src/

@@ -318,7 +318,7 @@ Identical on both backends — the interface talks to the generated Connect
 client and cannot tell which language serves it. Read
 `../maybloom-stack-shared/references/paths/client-expo/README.md`. Three pieces:
 
-- `packages/interface/src/features/<resources>/use<Resources>.ts` — a
+- `packages/interface/src/features/<resources>/use<Resources>.ts` —
   React Query hooks over `useBackend()` (the Backend context in
   `src/data/client.ts`), calling the client directly: one exported key
   const, a `useQuery` for list/get, and a `useMutation` per create/update

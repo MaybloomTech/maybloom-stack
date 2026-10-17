@@ -22,10 +22,11 @@ export function Fake({
     () =>
       new QueryClient({
         defaultOptions: {
-          // gcTime Infinity: a specimen's cache dies with the specimen, and
-          // no garbage-collection timer is left to hold a test run open.
+          // gcTime Infinity, on queries and on mutations: a specimen's cache
+          // dies with the specimen, and no garbage-collection timer is left
+          // to hold a test run open.
           queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
-          mutations: { retry: false },
+          mutations: { retry: false, gcTime: Number.POSITIVE_INFINITY },
         },
       }),
   );

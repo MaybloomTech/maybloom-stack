@@ -121,8 +121,10 @@ useInfiniteQuery({
 ```
 
 The list's `onEndReached` calls `fetchNextPage` when `hasNextPage` and not
-`isFetchingNextPage`. Query de-duplicates the in-flight call and retries a
-failed page. Use a different key from the first-page hook when both exist,
+`isFetchingNextPage`, and not `isFetchNextPageError`. Query de-duplicates
+the in-flight call and retries a failed page a few times; after that
+`hasNextPage` stays true, so a failed page waits for a retry control
+instead of being called again on every scroll. Use a different key from the first-page hook when both exist,
 or the cached shapes collide.
 
 ### Optimistic updates
@@ -209,8 +211,8 @@ An app with a handful of screens that each read their own data can drop
 the library: a hand-written hook with `useState`/`useEffect` over
 `useBackend()` returning `loading`, `error`, the items and one function per
 write that calls the client and reloads. It then owns what React Query
-gives: cancelling a late answer on unmount, not calling a failing page on
-every scroll, de-duplicating pages. Choose it deliberately; it is not the
+gives: cancelling a late answer on unmount, de-duplicating pages, and
+retrying a failed one with a back-off. Choose it deliberately; it is not the
 default.
 
 ## 3. The screen and its components
@@ -360,6 +362,10 @@ export function useSession(): Session {
 }
 ```
 
+`errorMessage` starts in `features/notes/useNotes.ts`. Move it to
+`src/data/` once something outside the feature, like this session, needs
+it, so `src/data/` never imports a feature.
+
 **The route gate.** A thin route reads `useSession()` and renders, in
 order: a loading state; a signed-out card (with the error message when the
 state is `error`); then the feature screen with `session.me`. Redirects for
@@ -387,10 +393,15 @@ the only code that needs the query.
 **`signIn` and `signOut` are off-page trips on the Backend.** `signIn`
 navigates to the backend's login route (`/auth/login`) and returns a
 promise that never settles. `signOut` posts to the logout route with
-credentials, throws a readable error when the backend refuses, clears the
-query cache (`queryClient.clear()`, so the next person never sees the last
-one's data) and on the web navigates home with a promise that never
-settles. A fake backend settles both so a specimen can show what follows.
+credentials, throws a readable error when the backend refuses, drops the
+query cache (so the next person never sees the last one's data) and on the
+web navigates home with a promise that never settles. Where the page stays
+(native), call `queryClient.resetQueries()`: the data is dropped, the
+active queries refetch, and `useMe` answers `Unauthenticated`, so the
+session reads `signedOut`. `queryClient.clear()` removes queries without
+telling their mounted observers, so it is enough only before a navigation
+that reloads the page. A fake backend settles both so a specimen can show
+what follows.
 
 **Cookie sessions need `credentials: 'include'`.** connect-web v2 has no
 `credentials` option; pass a `fetch` override on the transport:

@@ -85,7 +85,7 @@ service descriptor, with keys from `createConnectQueryKey`; it fits when the
 resource count is large and the view types are the proto types. An app
 that wants no cache at all can drop the library for hand-written
 `useState`/`useEffect` hooks, and then owns what Query did: cancelling late
-answers, not retrying a failing page on every scroll, de-duplicating pages.
+answers, de-duplicating pages, retrying a failed one with a back-off.
 The reference says how, in a paragraph; it is not the default. The board's
 `Fake` gives each specimen its own `QueryClient`.
 
@@ -116,7 +116,9 @@ screen. A `Session` union (`loading`, `signedOut`, `signedIn` with the
 person, `error`) is derived from it, with `Unauthenticated` as `signedOut`,
 and feeds a route gate: loading state, then a signed-out card, then the
 screen. `signIn` and `signOut` are off-page trips on the Backend whose live
-promises never settle; sign-out clears the query cache. connect-web v2
+promises never settle; sign-out drops the query cache (`resetQueries()`
+where the page stays, as on native; `clear()` only before a reload).
+connect-web v2
 dropped the `credentials` option, so a client whose session is a cookie
 passes a `fetch` override that sets `credentials: "include"`.
 

@@ -84,8 +84,10 @@ export function Fake({ children, ...options }: FakeOptions & { children: ReactNo
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: false },
-          mutations: { retry: false },
+          // gcTime Infinity: no garbage-collection timer is left to hold
+          // a test run open (a mutation has its own).
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { retry: false, gcTime: Number.POSITIVE_INFINITY },
         },
       }),
   );
@@ -101,7 +103,11 @@ Each specimen has its own backend and its own `QueryClient`, so what one
 changes (a note added, a note archived) stays its own, and two specimens
 of one page in different states do not share a cache key. Retries are off,
 so the `error` scenario shows its error at once instead of after the
-backoff. The same `Fake` is what the interface's tests mount.
+backoff. The live `queryClient.ts` keeps React Query's default retry (three
+tries, about 7 s of spinner before a failed load shows its error, and
+non-transient codes like `InvalidArgument` or `NotFound` are retried too);
+add a `retry` predicate there that skips those codes if that matters. The
+same `Fake` is what the interface's tests mount.
 
 `fakeBackend(options)` (`src/gallery/fixtures/backend.ts`) returns a whole
 `Backend`: the real Connect client over `createRouterTransport`, answering
