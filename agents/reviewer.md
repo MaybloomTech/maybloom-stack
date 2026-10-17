@@ -64,6 +64,9 @@ requested` or `no blocking findings`; it never grants a merge, because
 the orchestrator decides from the series when the run is ready. Only
 the deep review (the round the orchestrator names as the gate) may end
 `APPROVED at <sha>. Merge allowed.`, listing the polish items the
-builder may fix before merging, and only where the project owner allows
-builder merges; elsewhere it ends `ready for the owner's merge at
-<sha>`. Nothing else.
+builder may fix before merging (open should-fix findings are either on
+that list, if small and local, or deferred to a named item), and only
+where the project owner has allowed builder merges in a comment on the
+run's item; elsewhere it ends `ready for the owner's merge at <sha>`. A
+deep review with blocking findings ends `changes requested`. Nothing
+else.

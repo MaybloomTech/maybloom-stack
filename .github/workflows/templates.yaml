@@ -51,6 +51,8 @@ jobs:
             exit 1
           fi
       - name: Agent setup
+        env:
+          VISIBILITY: ${{ matrix.visibility || 'private' }}
         run: |
           cd "$RUNNER_TEMP/orchard"
           jq empty .claude/settings.json
@@ -63,6 +65,11 @@ jobs:
           done
           grep -qx '@AGENTS.md' CLAUDE.md
           grep -q '^## Delegation' AGENTS.md
+          if [ "$VISIBILITY" = private ]; then
+            test -f docs/plans/README.md
+          else
+            test ! -e docs/plans
+          fi
           shellcheck .claude/hooks/*.sh
       - name: actionlint
         run: |

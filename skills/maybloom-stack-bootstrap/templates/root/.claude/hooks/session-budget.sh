@@ -13,8 +13,8 @@
 #     MAYBLOOM_WEEK_WARN_PCT (default 90): finish, hand off, start nothing new.
 #     Once per window (keyed by its reset time); the .ok file does not silence it.
 #
-# When context falls below the last warning (a compaction), the mark comes down
-# with it, so crossing the budget again warns again.
+# When context falls back under the budget (a compaction), the mark is cleared,
+# so crossing the budget again warns again.
 #
 # No status line, no sidecar, no jq: the hook prints nothing and exits 0. It
 # never blocks a prompt.
@@ -61,14 +61,10 @@ fi
 
 msgs=()
 dirty=""
-# Context fell below the last warning (a compaction, /clear): lower the mark to
-# the band ctx is in now, so the next crossing warns again.
-if [ -n "$ctx" ] && [ "$ctx" -lt "$ctx_level" ]; then
-  if [ "$ctx" -ge "$budget" ]; then
-    ctx_level=$(( budget + (ctx - budget) / step * step ))
-  else
-    ctx_level=0
-  fi
+# Context fell below the budget after a warning (a compaction, /clear): clear
+# the mark, so crossing the budget again warns again.
+if [ -n "$ctx" ] && [ "$ctx" -lt "$budget" ] && [ "$ctx_level" -gt 0 ]; then
+  ctx_level=0
   dirty=1
 fi
 if [ -n "$ctx" ] && [ ! -e "$ok" ] && [ "$ctx" -ge "$budget" ]; then

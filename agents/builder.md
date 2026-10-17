@@ -43,6 +43,10 @@ closes, what you ran and what you did not. In a review loop, answer every
 finding with a disposition (fixed with the commit, disputed with the
 reason, deferred to which item, or not addressed and why), list scope
 beyond the findings separately, and never rewrite pushed history.
+Merge only on the deep review's `APPROVED at <sha>. Merge allowed.`, and
+only where the project owner has allowed builder merges on the run's
+item: fix only the listed items, push them as one commit, wait for the
+required checks, and squash-merge at the approved head plus that commit.
 
 ## Budget
 

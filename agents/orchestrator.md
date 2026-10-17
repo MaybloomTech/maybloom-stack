@@ -52,21 +52,27 @@ series decides the state:
   Run one deep review, and say in the request that it is the gate; zero
   blocking from it is the merge question for the owner (or the builder
   merges on the deep review's approval, where the owner has allowed
-  that). Blocking from it is back to converging.
-
-## Starting sessions
-
-The builder and every reviewer round are sessions of their own, never
-your subagents (a reviewer must start fresh, and a builder slice over
-~500 lines does not fit a call). Until a runner starts them, post the
-launch on the run's item and ask the project owner to start it: the
-command from the skill (`claude --agent maybloom-stack:reviewer
---permission-mode default`, or `maybloom-stack:builder` with
-`acceptEdits`) and the prompt it starts with (the round, the PR and its
-head, or the brief). Then wait on the item.
+  that in a comment on the run's item). Should-fix findings still open
+  at the gate are fixed first, put on the approval's list if small and
+  local, or deferred to a named item. Blocking from it is back to
+  converging.
 
 On `HOLD` from any role, or a decision filed for the owner, stop and
 wait on that item until the owner's answer appears there.
+
+## Starting sessions
+
+A builder session (a slice over ~500 lines) and every reviewer round are
+sessions of their own, never your subagents: a reviewer must start
+fresh, and a large slice does not fit a call. Until a runner starts
+them, post the launch on the run's item and ask the project owner to
+start it: the
+command from the skill (`claude --agent maybloom-stack:reviewer
+--permission-mode default`, or `maybloom-stack:builder` with
+`acceptEdits`) and the prompt it starts with (the round, the PR and its
+head, or the brief). Then wait on the item. Where the project ships its
+own `.claude/agents/<role>.md`, launch that agent by its own name
+instead of the plugin's.
 
 ## Budget
 
@@ -74,7 +80,14 @@ You are a session, so the session budget applies: at the budget, post
 the hand-off on the run's item in the format the skill fixes and stop,
 unless the owner has said to continue this session. The prompt hook
 warns only when a prompt arrives, and you work for long stretches from
-one, so check your own context meter at every round boundary.
+one, so read your number at every round boundary:
+
+```bash
+jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
+```
+
+At or over the budget, hand off and stop as above; no file (no status
+line on this machine) means say so in the hand-off and keep rounds short.
 
 ## Report
 

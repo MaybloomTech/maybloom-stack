@@ -107,7 +107,8 @@ or Write, and it never pushes.
    test. The shipped agents refuse to edit them and report what they needed.
 4. **Review climbs a tier.** Builder PR → reviewer rounds (or architect
    `/code-review medium`) → the owner merges, or the builder merges on the
-   deep review's approval where the owner has allowed it. Architect PR → a
+   deep review's approval where the owner has allowed it in a comment on
+   the run's item. Architect PR → a
    reviewer at higher effort (`/code-review high`) → the owner. Mechanic
    PR → a skim. `high` fans out to ~20 agents; it is for foundations and
    security, not for a screen slice. Severity is realistic breakage of
@@ -170,10 +171,20 @@ owner says continue, the session runs `touch
 The same hook warns once per window when the 5-hour usage reaches
 `MAYBLOOM_5H_WARN_PCT` (80) or the weekly reaches `MAYBLOOM_WEEK_WARN_PCT`
 (90): finish and hand off, start nothing new. Without the status line
-installed the hook has no numbers and stays silent. The hook speaks only when a prompt arrives, so a session that works for
+installed the hook has no numbers and stays silent.
+
+The hook speaks only when a prompt arrives, so a session that works for
 long from one prompt (an orchestrator between rounds, a builder on a
-brief, a reviewer's round) hears nothing in between: such a session
-checks its own meter at each round or step boundary.
+brief, a reviewer's round) hears nothing in between. Such a session reads
+its own number at each round or step boundary, from the file the status
+line writes for it:
+
+```bash
+jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
+```
+
+`CLAUDE_CODE_SESSION_ID` is the session id the status line and the hook
+receive; reading the file does not use up the hook's warnings.
 
 ### The hand-off
 

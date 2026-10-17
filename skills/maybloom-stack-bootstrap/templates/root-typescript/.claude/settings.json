@@ -14,7 +14,7 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch --show-current)",
-    "Bash(git branch --list:*)",
+      "Bash(git branch --list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)"

@@ -92,7 +92,7 @@ session knew. The status line shows the number and leaves it in a
 per-session file, and a prompt hook in every scaffolded project reads
 that file and says when the budget is crossed, once per step. It speaks
 only when a prompt arrives, so a session that runs long on one prompt
-checks its own meter at each round boundary.
+reads its own number from that file at each round boundary.
 
 ## What a repo supplies
 

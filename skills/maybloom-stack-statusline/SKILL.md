@@ -35,7 +35,8 @@ and `resets_at` as epoch seconds; `null` where the payload had none), by
 a temporary file and a rename. Hooks do not receive context usage and
 the status line does, so this file is how the session-budget hook a
 scaffolded project carries (`.claude/hooks/session-budget.sh`) knows
-where the session stands. Files untouched for a week are deleted.
+where the session stands. Files untouched for a week are deleted when
+the usage cache refreshes (so only where `curl` is installed).
 
 The first two usage numbers come from the JSON Claude Code pipes into
 every status-line command. The model-scoped one does not: the status-line

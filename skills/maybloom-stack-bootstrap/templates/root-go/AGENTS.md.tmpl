@@ -157,13 +157,14 @@ HANDOFF
 points above it, and when the 5-hour or weekly usage is nearly spent. It
 reads the numbers the `maybloom-stack-statusline` status line writes;
 without that status line it stays silent. It speaks only when a prompt
-arrives, so a session that works long from one prompt checks its own
-context meter at each round or step boundary. When the owner says to go
+arrives, so a session that works long from one prompt reads its own
+number at each round or step boundary:
+`jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"`. When the owner says to go
 on, touch the `.ok` file the warning names. The thresholds are
 `MAYBLOOM_CTX_BUDGET_PCT`, `MAYBLOOM_CTX_STEP_PCT`, `MAYBLOOM_5H_WARN_PCT`
 and `MAYBLOOM_WEEK_WARN_PCT`. The `env` block of `.claude/settings.json`
-reaches the hook; the status line's `ctx:` colour follows the shell, so
-set a changed budget there too.
+reaches the hook; whether it reaches the status line is not verified, so
+set a changed budget in the shell that starts Claude Code too.
 
 ## Docs
 
