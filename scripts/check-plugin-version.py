@@ -11,6 +11,9 @@ marketplace entry equal to plugin.json's, so the two cannot drift.
 
 Run from the repo root: python3 scripts/check-plugin-version.py [BASE]
 BASE defaults to origin/main; the diff is from its merge base with HEAD.
+It reads committed HEAD only, so commit the bump before running it, and
+fetch first (on a fork, pass upstream/main) so the base is current.
+The version is MAJOR.MINOR.PATCH; pre-release suffixes are not accepted.
 """
 
 from __future__ import annotations
@@ -49,12 +52,14 @@ def main() -> int:
     base = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
     errors: list[str] = []
 
-    plugin = json.loads((ROOT / PLUGIN).read_text())
+    # Everything from committed HEAD, as CI sees it: an uncommitted bump
+    # would otherwise pass here and fail there.
+    plugin = json.loads(git("show", f"HEAD:{PLUGIN}"))
     version = plugin.get("version")
     head = parse(version, PLUGIN, errors)
 
     entries = [
-        p for p in json.loads((ROOT / MARKETPLACE).read_text()).get("plugins", [])
+        p for p in json.loads(git("show", f"HEAD:{MARKETPLACE}")).get("plugins", [])
         if p.get("name") == plugin.get("name")
     ]
     if len(entries) != 1:
@@ -68,7 +73,9 @@ def main() -> int:
     merge_base = git("merge-base", base, "HEAD").strip()
     # --no-renames lists a moved file under both names, so moving a file
     # out of a shipped directory counts as a change to it.
-    changed = git("diff", "--name-only", "--no-renames", merge_base, "HEAD").split()
+    changed = git(
+        "diff", "--name-only", "--no-renames", "-z", merge_base, "HEAD"
+    ).split("\0")
     shipped = [path for path in changed if path.startswith(SHIPPED)]
 
     if shipped and head is not None:

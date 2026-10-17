@@ -142,7 +142,7 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
     interface/               Expo Router + React Query
     <name>-site/             Astro sites, one package per site
   scripts/go, scripts/golangci-lint   the Go toolchain and linter in their pinned images
-  .github/workflows/       CI, the image build-and-push, the conventional-commit checks
+  .github/workflows/       CI, the image build-and-push, the conventional-commit check
   skills/                  the agent skills that scaffold and extend the stack
   buf.yaml, buf.gen.yaml   contract toolchain, at the root
   pnpm-workspace.yaml      workspace + version catalog

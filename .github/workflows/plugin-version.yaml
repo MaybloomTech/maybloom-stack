@@ -4,9 +4,14 @@ name: Plugin version
 # so a merge that changes the skills, the agents or the manifests without
 # a bump never reaches the people who have it installed. Runs on every
 # pull request, and passes when nothing the plugin ships changed, so it
-# always reports and can be required.
+# always reports and can be required. It also runs on main, where HEAD^1 is
+# the commit before the merge: two pull requests that both raised the
+# version to the same value merge cleanly, and this turns main red when
+# the second one shipped without a release of its own.
 
 on:
+  push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -19,9 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # HEAD is GitHub's test merge and HEAD^1 is main as the merge was
-          # built, so two commits are enough to diff exactly what the pull
-          # request changes.
+          # On a pull request HEAD is GitHub's test merge and HEAD^1 is main
+          # as the merge was built; on main, merges are squashed, so HEAD^1
+          # is main before this one. Either way two commits are enough to
+          # diff exactly what the change ships.
           fetch-depth: 2
           persist-credentials: false
       - name: Check the version against the base

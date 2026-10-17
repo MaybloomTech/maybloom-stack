@@ -56,10 +56,12 @@ These checks run on pull requests, and all of them are mechanical:
 - **Check the plugin version** — `scripts/check-plugin-version.py`,
   which fails a pull request that changes `skills/`, `agents/`,
   `templates/` or `.claude-plugin/` without raising the plugin's version
-  (see [Releasing the plugin](#releasing-the-plugin)). Run it locally
-  against the branch's base:
+  (see [Releasing the plugin](#releasing-the-plugin)). It runs on main
+  too, after each merge. Run it locally against the branch's base, after
+  committing the bump (it reads committed `HEAD`, as CI does):
 
   ```
+  git fetch origin    # on a fork, fetch upstream and pass upstream/main
   python3 scripts/check-plugin-version.py origin/main
   ```
 - **Lint the scaffolded workflows** (the Templates workflow, on pull
@@ -123,7 +125,13 @@ and auto-update does nothing.
 So a pull request that touches `skills/`, `agents/`, `templates/` or
 `.claude-plugin/` raises `version` in `.claude-plugin/plugin.json`, and
 the same value in the plugin's entry in `.claude-plugin/marketplace.json`
-(the check holds the two equal). Semver, read for a plugin:
+(the check holds the two equal). The scaffold's templates live under
+`skills/maybloom-stack-bootstrap/templates/`, so `skills/` covers them;
+`templates/` stands for a top-level one, which the repo does not have
+yet. Claude Code only needs the version to differ; requiring it to go up
+is this repository's rule, for the semver signal. The version is
+`MAJOR.MINOR.PATCH`, with no pre-release suffix. Semver, read for a
+plugin:
 
 - **patch** for fixes to a skill, an agent or a template that change no
   behaviour a user relies on;
@@ -132,10 +140,19 @@ the same value in the plugin's entry in `.claude-plugin/marketplace.json`
 - **major** for a change that breaks a project already scaffolded or a
   skill's documented interface.
 
-When two pull requests in flight bump from the same base, the second to
-merge conflicts on the version line; it takes main's version and raises
-it again. A pull request that touches
-only `docs/`, `site/` or the repository's own workflows needs no bump.
+When two pull requests in flight bump from the same base, they usually
+pick the same new version, and then the second merges cleanly over the
+first: its check ran before the first merged, and its changes would ship
+under a version users already have. So if main moved after the check
+ran, update the branch from main before merging. That push reruns the
+check, which fails until the version is raised again. The run on main
+after each merge catches a slip, but only after it has landed.
+
+A pull request that touches only `docs/`, `site/` or the repository's
+own workflows needs no bump, with one exception: the plugin installs the
+whole repository, and some skills send agents to a `docs/` page (the
+bootstrap skill reads `docs/choosing.md`). When such a page changes what
+a skill tells an agent to do, bump the version so the change ships.
 
 ## Maintainers' chores
 

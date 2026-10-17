@@ -142,7 +142,9 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 ## Update
 
-`/plugin marketplace update maybloom-stack`, then repeat step 2 (the diff
+`/plugin marketplace update maybloom-stack` and `claude plugin update
+maybloom-stack@maybloom-stack` (skip both if the marketplace auto-updates),
+then repeat step 2 (the diff
 check included) and step 4. Step 3 is already in place.
 
 ## Troubleshooting

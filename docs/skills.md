@@ -152,7 +152,9 @@ plugin marketplace (`.claude-plugin/marketplace.json`), so
 `/plugin marketplace add MaybloomTech/maybloom-stack` followed by
 `/plugin install maybloom-stack@maybloom-stack` puts the whole family —
 including the shared references the skills load by relative path — on a
-machine, and `/plugin marketplace update` pulls releases. The exact
+machine, and `/plugin marketplace update` followed by `claude plugin
+update maybloom-stack@maybloom-stack` (or the marketplace's auto-update)
+pulls releases. The exact
 commands, the team-pinning settings, and the contributor flow (a clone
 added as a local marketplace) are in `skills/README.md`.
 
