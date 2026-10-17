@@ -292,7 +292,10 @@ start dev servers.
    `maybloom-stack-statusline` status line writes, so suggest installing
    it (once per machine) if it is not; without it the hook stays silent.
    Trusting the project's `.claude/settings.json` also offers the plugin
-   marketplaces it lists; the user can decline any. Until the workspace
+   marketplaces it lists; the user can decline any. The scaffold enables
+   no tracker plugin: if the team tracks work in a tool with a Claude
+   Code plugin, suggest adding it by hand, in the user's own
+   `~/.claude/settings.json` or the project's. Until the workspace
    is trusted (an interactive session in it, once), Claude Code ignores
    its `permissions.allow`, so every check asks first.
 
