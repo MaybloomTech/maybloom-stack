@@ -1,13 +1,18 @@
-import type { NamedExoticComponent, ReactNode } from "react";
-import { Text } from "react-native";
-import type * as noteForm from "../features/notes/NoteForm";
-import { NoteForm } from "../features/notes/NoteForm";
-import type * as noteRow from "../features/notes/NoteRow";
-import { NoteRow } from "../features/notes/NoteRow";
-import type * as notesScreen from "../features/notes/NotesScreen";
-import { Play } from "./fake";
-import { oneNote } from "./fixtures/notes";
-import { Sheet, type SheetProps, type Specimen, SpecimenSection } from "./layout";
+import type { NamedExoticComponent, ReactNode } from 'react';
+import { Text } from 'react-native';
+import type * as noteForm from '../features/notes/NoteForm';
+import { NoteForm } from '../features/notes/NoteForm';
+import type * as noteRow from '../features/notes/NoteRow';
+import { NoteRow } from '../features/notes/NoteRow';
+import type * as notesScreen from '../features/notes/NotesScreen';
+import { Play } from './fake';
+import { oneNote } from './fixtures/notes';
+import {
+  Sheet,
+  type SheetProps,
+  type Specimen,
+  SpecimenSection,
+} from './layout';
 
 // ---------------------------------------------------------------------------
 // Coverage: the sheet is keyed by every component the feature modules
@@ -46,22 +51,22 @@ type Entry = {
 const noop = () => {};
 const resolved = async () => {};
 const rejected = async () => {
-  throw new Error("Could not save that.");
+  throw new Error('Could not save that.');
 };
 
 const entries: Record<FeatureComponents, Entry> = {
   NoteForm: {
-    path: "notes/NoteForm",
+    path: 'notes/NoteForm',
     specimens: [
-      { label: "empty", node: <NoteForm onSubmit={resolved} /> },
+      { label: 'empty', node: <NoteForm onSubmit={resolved} /> },
       {
-        label: "a save that fails",
+        label: 'a save that fails',
         node: (
           <Play
             steps={[
-              { fill: "Title", text: "Call the plumber" },
-              "Add note",
-              { expect: "Could not save the note." },
+              { fill: 'Title', text: 'Call the plumber' },
+              'Add note',
+              { expect: 'Could not save the note.' },
             ]}
           >
             <NoteForm onSubmit={rejected} />
@@ -71,16 +76,19 @@ const entries: Record<FeatureComponents, Entry> = {
     ],
   },
   NoteRow: {
-    path: "notes/NoteRow",
+    path: 'notes/NoteRow',
     specimens: [
-      { label: "with a body", node: <NoteRow note={oneNote()} onArchive={noop} /> },
       {
-        label: "archiving",
+        label: 'with a body',
+        node: <NoteRow note={oneNote()} onArchive={noop} />,
+      },
+      {
+        label: 'archiving',
         node: <NoteRow note={oneNote()} onArchive={noop} archiving />,
       },
     ],
   },
-  NotesScreen: { path: "notes/NotesScreen", seen: "Pages" },
+  NotesScreen: { path: 'notes/NotesScreen', seen: 'Pages' },
 };
 
 export function ComponentSheet({ width }: SheetProps) {
@@ -95,11 +103,11 @@ export function ComponentSheet({ width }: SheetProps) {
             tab="components"
             title={name}
             note={
-              "seen" in entry
+              'seen' in entry
                 ? `${entry.path}: shown on ${entry.seen}.`
-                : [entry.path, entry.note].filter(Boolean).join(". ")
+                : [entry.path, entry.note].filter(Boolean).join('. ')
             }
-            specimens={"specimens" in entry ? entry.specimens : []}
+            specimens={'specimens' in entry ? entry.specimens : []}
           />
         );
       })}

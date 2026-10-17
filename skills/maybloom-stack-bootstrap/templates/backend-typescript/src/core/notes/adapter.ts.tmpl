@@ -1,10 +1,10 @@
-import { create } from "@bufbuild/protobuf";
+import { create } from '@bufbuild/protobuf';
 import {
-  NoteSchema,
   type Note,
-} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import { notes } from "db/schema";
-import { toTimestamp } from "core/utils/timestamps";
+  NoteSchema,
+} from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
+import { toTimestamp } from 'core/utils/timestamps';
+import { notes } from 'db/schema';
 
 // Adapters bridge proto messages and DB rows. They live next to each resource
 // in core/<resource>/adapter.ts. Three rules:
@@ -18,7 +18,7 @@ export type NoteRow = typeof notes.$inferSelect;
 export type NewNoteRow = typeof notes.$inferInsert;
 
 function emptyStringToNull(value: string): string | null {
-  return value.trim() === "" ? null : value;
+  return value.trim() === '' ? null : value;
 }
 
 export function noteRowToProto(row: NoteRow): Note {
@@ -26,14 +26,18 @@ export function noteRowToProto(row: NoteRow): Note {
     id: row.id,
     title: row.title,
     body: row.body,
-    createdBy: row.createdBy ?? "",
+    createdBy: row.createdBy ?? '',
     createdAt: toTimestamp(row.createdAt),
     updatedAt: toTimestamp(row.updatedAt),
     archivedAt: toTimestamp(row.archivedAt),
   });
 }
 
-export function noteToInsert(note: Note, id: string, createdBy: string): NewNoteRow {
+export function noteToInsert(
+  note: Note,
+  id: string,
+  createdBy: string,
+): NewNoteRow {
   return {
     id,
     title: note.title,

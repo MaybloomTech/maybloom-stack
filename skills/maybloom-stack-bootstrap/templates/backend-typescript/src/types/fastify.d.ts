@@ -1,8 +1,8 @@
-import "fastify";
-import type { Config } from "config";
-import type { AppDb } from "db/config";
+import 'fastify';
+import type { Config } from 'config';
+import type { AppDb } from 'db/config';
 
-declare module "fastify" {
+declare module 'fastify' {
   interface FastifyInstance {
     config: Config;
     db: AppDb;

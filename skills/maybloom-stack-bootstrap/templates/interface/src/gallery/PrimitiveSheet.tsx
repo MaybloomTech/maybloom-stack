@@ -1,15 +1,20 @@
-import { useState } from "react";
-import { Text, View } from "react-native";
-import * as primitives from "../components/primitives";
-import { Button, Card, TextField } from "../components/primitives";
-import { sampleBody } from "../design/samples";
-import { Sheet, type SheetProps, type Specimen, SpecimenSection } from "./layout";
+import { useState } from 'react';
+import { Text, View } from 'react-native';
+import * as primitives from '../components/primitives';
+import { Button, Card, TextField } from '../components/primitives';
+import { sampleBody } from '../design/samples';
+import {
+  Sheet,
+  type SheetProps,
+  type Specimen,
+  SpecimenSection,
+} from './layout';
 
 const noop = () => {};
 
 /** A field that keeps what is typed, as a screen would. */
 function LiveField(props: { placeholder: string; multiline?: boolean }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   return <TextField {...props} value={value} onChangeText={setValue} />;
 }
 
@@ -19,21 +24,24 @@ function LiveField(props: { placeholder: string; multiline?: boolean }) {
 
 const entries: Record<keyof typeof primitives, Specimen[]> = {
   Button: [
-    { label: "primary", node: <Button label="Save" onPress={noop} /> },
+    { label: 'primary', node: <Button label="Save" onPress={noop} /> },
     {
-      label: "secondary",
+      label: 'secondary',
       node: <Button label="Cancel" variant="secondary" onPress={noop} />,
     },
-    { label: "disabled", node: <Button label="Save" disabled onPress={noop} /> },
+    {
+      label: 'disabled',
+      node: <Button label="Save" disabled onPress={noop} />,
+    },
   ],
   Card: [
-    { label: "with body text", node: <Card>{sampleBody}</Card> },
+    { label: 'with body text', node: <Card>{sampleBody}</Card> },
     {
-      label: "holding controls",
+      label: 'holding controls',
       node: (
         <Card>
           <LiveField placeholder="Title" />
-          <View style={{ alignItems: "flex-start" }}>
+          <View style={{ alignItems: 'flex-start' }}>
             <Button label="Save" onPress={noop} />
           </View>
         </Card>
@@ -41,16 +49,17 @@ const entries: Record<keyof typeof primitives, Specimen[]> = {
     },
   ],
   TextField: [
-    { label: "empty, with placeholder", node: <LiveField placeholder="Title" /> },
     {
-      label: "multiline",
+      label: 'empty, with placeholder',
+      node: <LiveField placeholder="Title" />,
+    },
+    {
+      label: 'multiline',
       node: <LiveField placeholder="Body" multiline />,
     },
     {
-      label: "filled",
-      node: (
-        <TextField value="Call the plumber" onChangeText={noop} />
-      ),
+      label: 'filled',
+      node: <TextField value="Call the plumber" onChangeText={noop} />,
     },
   ],
 };

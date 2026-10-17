@@ -1,12 +1,12 @@
-import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, radii, spacing, typography } from "../../styles/tokens";
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, radii, spacing, typography } from '../../styles/tokens';
 
-export type ButtonVariant = "primary" | "secondary";
+export type ButtonVariant = 'primary' | 'secondary';
 
 export function Button({
   label,
   onPress,
-  variant = "primary",
+  variant = 'primary',
   disabled = false,
 }: {
   label: string;
@@ -22,7 +22,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        variant === "primary" ? styles.primary : styles.secondary,
+        variant === 'primary' ? styles.primary : styles.secondary,
         pressed && !disabled ? styles.pressed : null,
         disabled ? styles.disabled : null,
       ]}
@@ -30,7 +30,10 @@ export function Button({
       <Text
         style={[
           typography.label,
-          { color: variant === "primary" ? colors.textOnPrimary : colors.primary },
+          {
+            color:
+              variant === 'primary' ? colors.textOnPrimary : colors.primary,
+          },
         ]}
       >
         {label}
@@ -41,7 +44,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    alignItems: "center",
+    alignItems: 'center',
     borderRadius: radii.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

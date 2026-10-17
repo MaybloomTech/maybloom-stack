@@ -1,5 +1,5 @@
-import { Slot } from "expo-router";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Slot } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 /**
  * The gallery's root: a router root of its own, used only when

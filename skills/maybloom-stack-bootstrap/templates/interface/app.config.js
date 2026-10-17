@@ -5,12 +5,12 @@
 // that only the gallery imports. app.json stays the config; this only
 // switches the root.
 module.exports = ({ config }) => {
-  if (process.env.EXPO_PUBLIC_GALLERY !== "1") return config;
+  if (process.env.EXPO_PUBLIC_GALLERY !== '1') return config;
   return {
     ...config,
     extra: {
       ...config.extra,
-      router: { ...config.extra?.router, root: "gallery" },
+      router: { ...config.extra?.router, root: 'gallery' },
     },
   };
 };

@@ -1,5 +1,5 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { timestampDate, timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 export function toTimestamp(value?: Date | null): Timestamp | undefined {
   if (!value) {

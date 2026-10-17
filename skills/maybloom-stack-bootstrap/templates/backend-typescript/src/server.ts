@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
-import fastifyEnv from "@fastify/env";
-import fastifyCors from "@fastify/cors";
-import { fastify } from "fastify";
-import { Environment, configSchema, corsOrigins } from "config";
-import dbPlugin from "db/plugin";
+import { randomUUID } from 'node:crypto';
+import fastifyCors from '@fastify/cors';
+import fastifyEnv from '@fastify/env';
+import { configSchema, corsOrigins, Environment } from 'config';
+import dbPlugin from 'db/plugin';
+import { sql } from 'drizzle-orm';
+import { fastify } from 'fastify';
 
 // What a caller's X-Request-Id may look like; anything else is replaced by
 // a fresh id, so a log line or a response header never carries a stranger's
@@ -17,8 +17,8 @@ export const server = fastify({
   // main.ts hands it to handlers as kRequestId.
   requestIdHeader: false,
   genReqId: (req) => {
-    const id = req.headers["x-request-id"];
-    return typeof id === "string" && REQUEST_ID.test(id) ? id : randomUUID();
+    const id = req.headers['x-request-id'];
+    return typeof id === 'string' && REQUEST_ID.test(id) ? id : randomUUID();
   },
 });
 
@@ -36,19 +36,25 @@ export async function bootstrapServer(callback: BootstrapCallback) {
   // The authenticator rule, checked before the database opens: production
   // never takes DEV_USER, and until a real identity is wired (kUserId in
   // main.ts's contextValues) nothing else can say who the caller is.
-  if (server.config.ENVIRONMENT === Environment.PRODUCTION && server.config.DEV_USER) {
-    throw new Error("DEV_USER is not allowed in production");
+  if (
+    server.config.ENVIRONMENT === Environment.PRODUCTION &&
+    server.config.DEV_USER
+  ) {
+    throw new Error('DEV_USER is not allowed in production');
   }
   if (!server.config.DEV_USER) {
     throw new Error(
-      "no authenticator: set DEV_USER in development, or set kUserId from a real credential in main.ts (contextValues) and change this rule",
+      'no authenticator: set DEV_USER in development, or set kUserId from a real credential in main.ts (contextValues) and change this rule',
     );
   }
-  server.log.warn({ user: server.config.DEV_USER }, "DEV_USER is set: every request is this user");
+  server.log.warn(
+    { user: server.config.DEV_USER },
+    'DEV_USER is set: every request is this user',
+  );
   // Echoed on every response, Connect or not. onRequest, because the Connect
   // plugin writes its own response and an onSend header would miss it.
-  server.addHook("onRequest", async (request, reply) => {
-    reply.header("x-request-id", request.id);
+  server.addHook('onRequest', async (request, reply) => {
+    reply.header('x-request-id', request.id);
   });
   // CORS only for the listed development origins; production lists none and
   // serves the web export from this origin, so no browser needs it.
@@ -56,21 +62,21 @@ export async function bootstrapServer(callback: BootstrapCallback) {
   if (origins.length > 0) {
     await server.register(fastifyCors, {
       origin: origins,
-      methods: ["GET", "POST", "OPTIONS"],
-      exposedHeaders: ["x-request-id"],
+      methods: ['GET', 'POST', 'OPTIONS'],
+      exposedHeaders: ['x-request-id'],
     });
   }
   await server.register(dbPlugin);
 
   // Liveness answers if the process is up; readiness pings the database, so
   // a deploy can wait on it.
-  server.get("/healthz", async () => ({ status: "ok" }));
-  server.get("/readyz", async (_request, reply) => {
+  server.get('/healthz', async () => ({ status: 'ok' }));
+  server.get('/readyz', async (_request, reply) => {
     try {
       await server.db.execute(sql`select 1`);
-      return { status: "ready" };
+      return { status: 'ready' };
     } catch {
-      return reply.code(503).send({ status: "database unreachable" });
+      return reply.code(503).send({ status: 'database unreachable' });
     }
   });
 
@@ -90,16 +96,16 @@ export async function bootstrapServer(callback: BootstrapCallback) {
 
 function registerShutdownSignals() {
   const handleShutdown = async (signal: string) => {
-    server.log.info({ signal }, "received shutdown signal");
+    server.log.info({ signal }, 'received shutdown signal');
     try {
       await server.close();
       process.exit(0);
     } catch (error) {
-      server.log.error({ err: error }, "shutdown failed");
+      server.log.error({ err: error }, 'shutdown failed');
       process.exit(1);
     }
   };
 
-  process.once("SIGTERM", () => void handleShutdown("SIGTERM"));
-  process.once("SIGINT", () => void handleShutdown("SIGINT"));
+  process.once('SIGTERM', () => void handleShutdown('SIGTERM'));
+  process.once('SIGINT', () => void handleShutdown('SIGINT'));
 }

@@ -1,18 +1,18 @@
-import { createContextValues, type ServiceImpl } from "@connectrpc/connect";
-import { fastifyConnectPlugin } from "@connectrpc/connect-fastify";
-import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
-import { routes } from "routes";
-import { kRequestId, kUserId } from "context";
-import { bootstrapServer } from "server";
-import { createAuthInterceptor } from "auth";
-import { errorInterceptor } from "rpcerr";
-import { validateInterceptor } from "validate";
-import { archiveNote } from "handlers/archiveNote";
-import { createNote } from "handlers/createNote";
-import { updateNote } from "handlers/updateNote";
-import { getNote } from "handlers/getNote";
-import { listNotes } from "handlers/listNotes";
-import { health } from "handlers/health";
+import { createContextValues, type ServiceImpl } from '@connectrpc/connect';
+import { fastifyConnectPlugin } from '@connectrpc/connect-fastify';
+import { __APP_NAME__Service } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb';
+import { createAuthInterceptor } from 'auth';
+import { kRequestId, kUserId } from 'context';
+import { archiveNote } from 'handlers/archiveNote';
+import { createNote } from 'handlers/createNote';
+import { getNote } from 'handlers/getNote';
+import { health } from 'handlers/health';
+import { listNotes } from 'handlers/listNotes';
+import { updateNote } from 'handlers/updateNote';
+import { routes } from 'routes';
+import { errorInterceptor } from 'rpcerr';
+import { bootstrapServer } from 'server';
+import { validateInterceptor } from 'validate';
 
 bootstrapServer(async (app) => {
   // Map every RPC declared in service.proto to a handler. Adding a new RPC is
@@ -36,7 +36,11 @@ bootstrapServer(async (app) => {
     routes: (router) => {
       router.service(__APP_NAME__Service, __APP_SLUG__Service);
     },
-    interceptors: [errorInterceptor, createAuthInterceptor([__APP_NAME__Service.method.health]), validateInterceptor],
+    interceptors: [
+      errorInterceptor,
+      createAuthInterceptor([__APP_NAME__Service.method.health]),
+      validateInterceptor,
+    ],
     // Who is calling and which request this is, for every handler. The
     // request id is Fastify's (server.ts: the caller's X-Request-Id when it
     // has the shape, a fresh one otherwise; on every log line and echoed on
@@ -46,7 +50,7 @@ bootstrapServer(async (app) => {
     contextValues: (req) => {
       const contextValues = createContextValues();
       contextValues.set(kRequestId, req.id);
-      contextValues.set(kUserId, app.config.DEV_USER ?? "");
+      contextValues.set(kUserId, app.config.DEV_USER ?? '');
       return contextValues;
     },
   });
