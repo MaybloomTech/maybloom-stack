@@ -11,6 +11,7 @@
     "build:web": "pnpm --filter __ORG_SCOPE__/interface build:web",
     "build:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site build",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter __ORG_SCOPE__/interface test",
     "lint": "pnpm lint:proto && pnpm lint:ts",
     "lint:proto": "buf lint",
     "lint:ts": "biome check packages",

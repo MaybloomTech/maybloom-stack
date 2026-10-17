@@ -97,7 +97,7 @@
   <circle cx="640" cy="285" r="12" fill="rgba(87,201,166,0.14)" stroke="#57c9a6" stroke-width="1.6"/>
   <circle cx="640" cy="285" r="4.5" fill="#74dabb" filter="url(#glow)"/>
   <text class="name" x="618" y="281" text-anchor="end">Expo</text>
-  <text class="sub" x="618" y="298" text-anchor="end">router · react query</text>
+  <text class="sub" x="618" y="298" text-anchor="end">router · feature hooks</text>
   <!-- platform dots -->
   <circle cx="584" cy="217" r="4" fill="#57c9a6" opacity="0.9"/>
   <circle cx="640" cy="201" r="4" fill="#57c9a6" opacity="0.9"/>

@@ -255,6 +255,11 @@ jobs:
       # protocol-buffers); a package without a build script is skipped.
       - run: pnpm --fail-if-no-match --filter "{./packages/${{ matrix.package }}}..." build
       - run: pnpm --fail-if-no-match --filter "{./packages/${{ matrix.package }}}" typecheck
+      # The interface's tests: the screens over the design board's fake
+      # backend, under jest-expo.
+      - if: matrix.package == 'interface'
+        name: Test the interface
+        run: pnpm --filter __ORG_SCOPE__/interface test
       - if: matrix.package == 'interface'
         name: Export the web bundle
         run: CI=1 pnpm --filter __ORG_SCOPE__/interface build:web

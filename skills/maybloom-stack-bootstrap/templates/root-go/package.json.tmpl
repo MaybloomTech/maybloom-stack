@@ -12,6 +12,7 @@
     "build:docs-site": "pnpm proto:descriptor && pnpm --filter __ORG_SCOPE__/docs-site build",
     "test:backend": "GO_DOCKER_ARGS=\"--network __APP_SLUG__-dev\" TEST_DATABASE_URL=postgres://postgres:postgres@db:5432/__APP_SLUG___test scripts/go test -p 1 ./...",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter __ORG_SCOPE__/interface test",
     "lint": "pnpm lint:proto && pnpm lint:ts",
     "lint:proto": "buf lint",
     "lint:ts": "biome check packages",

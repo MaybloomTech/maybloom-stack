@@ -1,37 +1,22 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ClientProvider } from '../data/api/client';
+import { BackendProvider } from '../data/client';
 import { colors } from '../styles/tokens';
 import { ViewportProvider } from '../styles/viewport';
-import { type FakeOptions, fakeClient } from './fixtures/backend';
+import { type FakeOptions, fakeBackend } from './fixtures/backend';
 import { heightOf, type Width } from './layout';
 
 /**
- * A subtree on its own fake backend and its own query cache: every
- * specimen gets one, so what it changes, or the state it is held in, stays
- * its own. No retries, so the `error` scenario shows its error at once.
+ * A subtree on its own fake backend: every specimen gets one, so what it
+ * changes, or the state it is held in, stays its own.
  */
 export function Fake({
   children,
   ...options
 }: FakeOptions & { children: ReactNode }) {
-  const [client] = useState(() => fakeClient(options));
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { retry: false },
-          mutations: { retry: false },
-        },
-      }),
-  );
-  return (
-    <ClientProvider value={client}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ClientProvider>
-  );
+  const [backend] = useState(() => fakeBackend(options));
+  return <BackendProvider value={backend}>{children}</BackendProvider>;
 }
 
 /**

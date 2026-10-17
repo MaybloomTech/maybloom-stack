@@ -71,32 +71,30 @@ how imports are spelled:
 
 ## How a page runs without a server
 
-Screens reach the backend only through the React Query hooks, and the
-hooks get the Connect client from `useClient()` (`src/data/api/client.ts`).
-The app never mounts `ClientProvider`, so the context's default, the
-live client, is what every screen uses. The board mounts one per
-specimen:
+Screens reach the backend only through a feature's hooks, and the hooks
+get the `Backend` from `useBackend()` (`src/data/client.ts`). The app
+never mounts `BackendProvider`, so the context's default, `liveBackend`,
+is what every screen uses. The board mounts one per specimen:
 
 ```tsx
 // src/gallery/fake.tsx
 export function Fake({ children, ...options }: FakeOptions & { children: ReactNode }) {
-  const [client] = useState(() => fakeClient(options));
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
-  return (
-    <ClientProvider value={client}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ClientProvider>
-  );
+  const [backend] = useState(() => fakeBackend(options));
+  return <BackendProvider value={backend}>{children}</BackendProvider>;
 }
 ```
 
-Each specimen has its own client and its own query cache, so what one
-changes (a note added, a note archived) stays its own, and two specimens
-of one page in different states do not share a cache key.
+Each specimen has its own backend, so what one changes (a note added, a
+note archived) stays its own, and two specimens of one page in different
+states share nothing. (A project that opts into React Query also gives
+each specimen its own `QueryClient`; see the client-expo README.) The same
+`Fake` is what the interface's tests mount.
 
-`fakeClient()` (`src/gallery/fixtures/backend.ts`) is the real Connect
-client over `createRouterTransport`, answering the service from an
-in-memory copy of the fixtures:
+`fakeBackend(options)` (`src/gallery/fixtures/backend.ts`) returns a whole
+`Backend`: the real Connect client over `createRouterTransport`, answering
+the service from an in-memory copy of the fixtures. When the app's
+`Backend` grows URL builders or off-page trips, the fake answers those
+too.
 
 - The implementation is typed as the whole `ServiceImpl<typeof
   <App>Service>`, so an RPC added to the contract fails the interface's

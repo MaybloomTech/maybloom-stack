@@ -70,7 +70,7 @@ where each layer lives and which generator runs:
 | Store | `src/core/<resources>/store.ts` | `internal/store/<resources>.go` |
 | Handlers | `src/handlers/<method>.ts`, one file per RPC | `internal/server/<resources>.go`, one method per RPC |
 | Wiring | add each handler to the ServiceImpl object in `main.ts` | nothing — the generated handler interface enforces exhaustiveness |
-| Interface | React Query hooks + screen | identical — the client is generated from the same proto |
+| Interface | feature hooks over the Backend context + screen | identical — the client is generated from the same proto |
 
 ## Codegen
 

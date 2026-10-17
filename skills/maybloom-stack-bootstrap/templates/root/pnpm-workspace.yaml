@@ -23,6 +23,7 @@ catalog:
   jose: ^5.9.2
   react: ^19.1.0
   react-dom: ^19.1.0
+  react-test-renderer: ^19.1.0
   "@types/react": ~19.1.10
   tsup: ^8.5.1
   tsx: ^4.21.0

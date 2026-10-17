@@ -11,7 +11,7 @@ the maybloom stack:
 ```
 proto      →  schema   →  adapter  →  store  →  handlers  →  wiring
                                                                 ↓
-                                                        api/queries/screen
+                                                        hook/screen
 ```
 
 Each layer has one canonical pattern, documented per path under
@@ -312,18 +312,19 @@ and the generated interface grew with the proto. Run `go build ./...` —
 the compiler lists every missing method by name, which is the same
 exhaustiveness check the ServiceImpl object gives TypeScript.
 
-### 7. Interface: api wrapper, hooks, screen
+### 7. Interface: feature hook, screen
 
 Identical on both backends — the interface talks to the generated Connect
 client and cannot tell which language serves it. Read
-`../maybloom-stack-shared/references/paths/client-expo/README.md`. Three files:
+`../maybloom-stack-shared/references/paths/client-expo/README.md`. Three pieces:
 
-- `packages/interface/src/data/api/<resources>.ts` — thin functions that
-  take the client and call `client.<method>(...)`, returning the proto
-  messages directly.
-- `packages/interface/src/data/queries/use<Resources>.ts` — React Query
-  hooks: one `useQuery` for list/get, one `useMutation` per create/update
-  and for the verb RPC with `onSuccess: invalidateQueries({ queryKey: [...] })`.
+- `packages/interface/src/features/<resources>/use<Resources>.ts` — a
+  hand-written hook over `useBackend()` (the Backend context in
+  `src/data/client.ts`): loading, error, the items, a reload, and a
+  function per create/update and for the verb RPC, each calling the client
+  and then reloading. No cache library: React Query is an opt-in the
+  project owner chooses (the reference's "React Query, opt-in" section),
+  not the default.
 - A screen and its components under `src/features/<resources>/`, and a
   route under `packages/interface/app/<resources>/` that renders the
   screen. Use the bootstrap's `src/features/notes/` (NotesScreen,

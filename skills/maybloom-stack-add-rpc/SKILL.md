@@ -172,12 +172,15 @@ method; `go build ./...` is the checklist.
 
 ### 6. Client
 
-- **api** — one thin wrapper next to the resource's existing ones.
-- **query or mutation** — a list RPC is a `useQuery` with its own key
-  under the resource's key factory. An action is a `useMutation` that
-  invalidates the keys the operation affects: the item key always, the
-  list key when the operation can change list membership or ordering.
-  Getting this wrong shows up as a screen that needs a manual refresh.
+- **feature hook** — a function on the resource's hand-written hook
+  (`src/features/<resources>/use<Resources>.ts`) that calls the client
+  from `useBackend()`. A list RPC is a loader with its own state; an
+  action calls the client and then reloads whatever the operation can
+  change (the item always, the list when it can change membership or
+  ordering). Missing the reload shows up as a screen that needs a manual
+  refresh. A project that opted into React Query uses a `useQuery` or a
+  `useMutation` that invalidates the affected keys instead (the
+  reference's "React Query, opt-in" section).
 - **screen** — the control that triggers it, plus the disabled/failed
   states the new error codes make possible.
 - **design board** (Expo) — the fake backend in
@@ -256,11 +259,10 @@ is `Unauthenticated`), call the store, wrap the note. Go: a method on
 `Service` in `internal/server/notes.go`; TypeScript: `src/handlers/archiveNote.ts`,
 added to the service object in `main.ts`.
 
-**Client**: `archiveNote(client, id)` in `src/data/api/notes.ts` calls
-`client.archiveNote({ id })`; `useArchiveNote` is a `useMutation` that
-gets the client from `useClient()` and invalidates the notes list key,
-because the operation changes list membership; the row's Archive button
-calls `mutate(item.id)`. On the Expo path the design board's fake backend
+**Client**: `archive(id)` in `src/features/notes/useNotes.ts` calls
+`client.archiveNote({ id })` on the client from `useBackend()` and then
+reloads the list, because the operation changes list membership; the
+row's Archive button calls it. On the Expo path the design board's fake backend
 (`src/gallery/fixtures/backend.ts`) answers it too, setting `archived_at`
 on its copy, or the interface's typecheck fails (after `pnpm proto:gen`
 and `pnpm --filter <ORG_SCOPE>/protocol-buffers build`); see

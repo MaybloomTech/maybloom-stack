@@ -12,7 +12,7 @@ import {
   NoteSchema,
 } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
 import { __APP_NAME__Service } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb';
-import type { AppClient } from '../../data/api/client';
+import type { Backend } from '../../data/client';
 import { fixtureId, manyNotes, sampleNotes } from './notes';
 
 /**
@@ -22,6 +22,8 @@ import { fixtureId, manyNotes, sampleNotes } from './notes';
  * - `long`: more notes than one page holds;
  * - `loading`: every call waits forever;
  * - `error`: every call fails.
+ *
+ * `failing` (an option, not a scenario) fails only the methods it names.
  */
 export type Scenario = 'notes' | 'empty' | 'long' | 'loading' | 'error';
 
@@ -137,11 +139,13 @@ function serviceOf(initial: Note[]): ServiceImpl<typeof __APP_NAME__Service> {
 const forever = () => new Promise<never>(() => {});
 
 /**
- * A fake backend for one specimen: the real Connect client over an
- * in-memory transport that answers the service from its own copy of the
- * fixtures, so what a specimen changes stays its own.
+ * A fake backend for one specimen: a whole `Backend`, whose Connect client
+ * is the real one over an in-memory transport that answers the service
+ * from its own copy of the fixtures, so what a specimen changes stays its
+ * own. A trip a live backend makes off the page (once the app adds them to
+ * `Backend`) is settled here with where it would have come back to.
  */
-export function fakeClient(options: FakeOptions = {}): AppClient {
+export function fakeBackend(options: FakeOptions = {}): Backend {
   const { scenario = 'notes', failing = [] } = options;
   const notes =
     scenario === 'empty'
@@ -170,5 +174,5 @@ export function fakeClient(options: FakeOptions = {}): AppClient {
   const transport = createRouterTransport(({ service }) => {
     service(__APP_NAME__Service, gated);
   });
-  return createClient(__APP_NAME__Service, transport);
+  return { __APP_SLUG__: createClient(__APP_NAME__Service, transport) };
 }

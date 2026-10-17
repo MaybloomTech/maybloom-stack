@@ -5,23 +5,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import {
-  useArchiveNote,
-  useCreateNote,
-  useNotes,
-} from '../../data/queries/useNotes';
 import { colors, spacing, typography } from '../../styles/tokens';
 import { useViewport } from '../../styles/viewport';
 import { NoteForm } from './NoteForm';
 import { NoteRow } from './NoteRow';
+import { useNotes } from './useNotes';
 
 // The notes page: the form, then the first page of notes. The route
 // (app/index.tsx) renders it, and so does the gallery's Pages tab, against
 // a fake backend.
 export function NotesScreen() {
-  const { data: notes, isLoading, error } = useNotes();
-  const createNote = useCreateNote();
-  const archiveNote = useArchiveNote();
+  const { notes, loading, error, create, archiving, archive } = useNotes();
   const { width } = useViewport();
   // One column, centred and capped on a wide window.
   const column = Math.min(width, 640);
@@ -29,29 +23,30 @@ export function NotesScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.column, { width: column }]}>
-        <NoteForm onSubmit={createNote.mutateAsync} />
-        {isLoading ? (
-          <ActivityIndicator />
-        ) : error ? (
+        <NoteForm onSubmit={create} />
+        {error ? (
           <Text style={[typography.body, styles.error]}>
-            Failed to load: {error.message}
+            Something went wrong: {error}
           </Text>
+        ) : null}
+        {loading ? (
+          <ActivityIndicator />
         ) : (
           <FlatList
             data={notes}
             keyExtractor={(n) => n.id}
             ListEmptyComponent={
-              <Text style={[typography.body, styles.empty]}>
-                No notes yet. Add the first one above.
-              </Text>
+              error ? null : (
+                <Text style={[typography.body, styles.empty]}>
+                  No notes yet. Add the first one above.
+                </Text>
+              )
             }
             renderItem={({ item }) => (
               <NoteRow
                 note={item}
-                archiving={
-                  archiveNote.isPending && archiveNote.variables === item.id
-                }
-                onArchive={() => archiveNote.mutate(item.id)}
+                archiving={archiving === item.id}
+                onArchive={() => archive(item.id)}
               />
             )}
           />

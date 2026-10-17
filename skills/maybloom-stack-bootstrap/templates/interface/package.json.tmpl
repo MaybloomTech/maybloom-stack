@@ -14,6 +14,7 @@
     "build:gallery": "EXPO_PUBLIC_GALLERY=1 expo export --platform web --output-dir dist-gallery && node scripts/gallery-export.mjs dist-gallery",
     "check:gallery": "node scripts/check-gallery.mjs",
     "check:no-gallery": "expo export --platform web --source-maps --output-dir dist-check && node scripts/check-no-gallery.mjs dist-check",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -21,7 +22,6 @@
     "@connectrpc/connect": "catalog:",
     "@connectrpc/connect-web": "catalog:",
     "__ORG_SCOPE__/protocol-buffers": "workspace:*",
-    "@tanstack/react-query": "^5.99.0",
     "expo": "~54.0.31",
     "expo-constants": "~18.0.13",
     "expo-router": "~6.0.21",
@@ -38,7 +38,15 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@jest/globals": "~29.7.0",
+    "@testing-library/react-native": "^13.3.3",
     "@types/react": "catalog:",
+    "jest": "~29.7.0",
+    "jest-expo": "~54.0.17",
+    "react-test-renderer": "catalog:",
     "typescript": "catalog:"
+  },
+  "jest": {
+    "preset": "jest-expo"
   }
 }
