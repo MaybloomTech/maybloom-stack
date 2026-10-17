@@ -1,0 +1,132 @@
+import { create } from "@bufbuild/protobuf";
+import { timestampNow } from "@bufbuild/protobuf/wkt";
+import {
+  Code,
+  ConnectError,
+  createClient,
+  createRouterTransport,
+  type ServiceImpl,
+} from "@connectrpc/connect";
+import {
+  type Note,
+  NoteSchema,
+} from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
+import type { AppClient } from "../../data/api/client";
+import { fixtureId, manyNotes, sampleNotes } from "./notes";
+
+/**
+ * The state a page or component is shown in, as the backend makes it:
+ * - `notes`: a few notes;
+ * - `empty`: nothing recorded yet;
+ * - `long`: more notes than one page holds;
+ * - `loading`: every call waits forever;
+ * - `error`: every call fails.
+ */
+export type Scenario = "notes" | "empty" | "long" | "loading" | "error";
+
+export type Method = keyof ServiceImpl<typeof __APP_NAME__Service>;
+
+export type FakeOptions = {
+  scenario?: Scenario;
+  /** Calls by method name that fail anyway, for an error after a tap (`createNote`). */
+  failing?: Method[];
+};
+
+function notFound(what: string): never {
+  throw new ConnectError(`${what} not found (gallery)`, Code.NotFound);
+}
+
+const pageOf = <T>(items: T[], size: number, token: string) => {
+  const from = Number(token || "0");
+  const page = items.slice(from, from + (size > 0 ? size : 50));
+  const next = from + page.length;
+  return { page, nextPageToken: next < items.length ? String(next) : "" };
+};
+
+/**
+ * The service answered from one specimen's own list of notes. Typed as the
+ * whole ServiceImpl, so an RPC added to the contract fails the typecheck
+ * until the gallery answers it too.
+ */
+function serviceOf(
+  initial: Note[],
+): ServiceImpl<typeof __APP_NAME__Service> {
+  let notes = initial;
+  let serial = notes.length;
+  const find = (id: string) => notes.find((n) => n.id === id) ?? notFound("note");
+  const replace = (note: Note) => {
+    notes = notes.map((n) => (n.id === note.id ? note : n));
+    return { note };
+  };
+
+  return {
+    health: () => ({ ok: true, version: "gallery" }),
+    createNote: (req) => {
+      serial += 1;
+      const note = create(NoteSchema, {
+        title: req.note?.title ?? "",
+        body: req.note?.body ?? "",
+        id: fixtureId(1000 + serial),
+        createdBy: "gallery",
+        createdAt: timestampNow(),
+      });
+      notes = [note, ...notes];
+      return { note };
+    },
+    getNote: (req) => ({ note: find(req.id) }),
+    listNotes: (req) => {
+      const visible = req.includeArchived
+        ? notes
+        : notes.filter((n) => n.archivedAt === undefined);
+      const { page, nextPageToken } = pageOf(visible, req.pageSize, req.pageToken);
+      return { notes: page, nextPageToken };
+    },
+    updateNote: (req) => {
+      const old = find(req.note?.id ?? "");
+      return replace(
+        create(NoteSchema, {
+          ...old,
+          title: req.note?.title ?? old.title,
+          body: req.note?.body ?? old.body,
+          updatedAt: timestampNow(),
+        }),
+      );
+    },
+    archiveNote: (req) =>
+      replace(create(NoteSchema, { ...find(req.id), archivedAt: timestampNow() })),
+  };
+}
+
+/** Never answers: a page held in its loading state. */
+const forever = () => new Promise<never>(() => {});
+
+/**
+ * A fake backend for one specimen: the real Connect client over an
+ * in-memory transport that answers the service from its own copy of the
+ * fixtures, so what a specimen changes stays its own.
+ */
+export function fakeClient(options: FakeOptions = {}): AppClient {
+  const { scenario = "notes", failing = [] } = options;
+  const notes =
+    scenario === "empty" ? [] : scenario === "long" ? manyNotes() : sampleNotes();
+  const impl = serviceOf(notes);
+  const gated = Object.fromEntries(
+    Object.entries(impl).map(([name, handler]) => [
+      name,
+      async (req: never, ctx: never) => {
+        if (scenario === "loading") return forever();
+        if (scenario === "error")
+          throw new ConnectError("The backend did not answer.", Code.Unavailable);
+        if ((failing as string[]).includes(name))
+          throw new ConnectError("Could not save that.", Code.Internal);
+        return (handler as (req: never, ctx: never) => unknown)(req, ctx);
+      },
+    ]),
+  ) as ServiceImpl<typeof __APP_NAME__Service>;
+
+  const transport = createRouterTransport(({ service }) => {
+    service(__APP_NAME__Service, gated);
+  });
+  return createClient(__APP_NAME__Service, transport);
+}

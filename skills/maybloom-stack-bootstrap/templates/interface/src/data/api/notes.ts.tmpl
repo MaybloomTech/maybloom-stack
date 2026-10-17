@@ -3,24 +3,29 @@ import {
   type Note,
   NoteSchema,
 } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
-import { client } from "./client";
+import type { AppClient } from "./client";
 
 // Domain API thin wrappers around the Connect client. Keep them shapeless;
-// React Query hooks above this layer are where caching/lifecycle live.
+// React Query hooks above this layer are where caching/lifecycle live. Each
+// takes the client its hook got from useClient(), so the gallery can hand
+// in a fake one.
 
 // One page of notes, newest first. Pass the previous page's nextPageToken to
 // read the next one; an empty token means this was the last page.
-export async function listNotes(pageToken = "") {
+export async function listNotes(client: AppClient, pageToken = "") {
   const response = await client.listNotes({ pageSize: 50, pageToken });
   return { notes: response.notes, nextPageToken: response.nextPageToken };
 }
 
-export async function getNote(id: string) {
+export async function getNote(client: AppClient, id: string) {
   const response = await client.getNote({ id });
   return response.note;
 }
 
-export async function createNote(input: { title: string; body: string }) {
+export async function createNote(
+  client: AppClient,
+  input: { title: string; body: string },
+) {
   const note = create(NoteSchema, {
     title: input.title,
     body: input.body,
@@ -29,7 +34,7 @@ export async function createNote(input: { title: string; body: string }) {
   return response.note;
 }
 
-export async function updateNote(note: Note) {
+export async function updateNote(client: AppClient, note: Note) {
   const response = await client.updateNote({ note });
   return response.note;
 }
@@ -37,7 +42,7 @@ export async function updateNote(note: Note) {
 // ArchiveNote is how a note leaves the default list in this example: the
 // row and its id stay, listNotes leaves it out unless asked. (A real
 // resource answers that question its own way; see the contract's comment.)
-export async function archiveNote(id: string) {
+export async function archiveNote(client: AppClient, id: string) {
   const response = await client.archiveNote({ id });
   return response.note;
 }

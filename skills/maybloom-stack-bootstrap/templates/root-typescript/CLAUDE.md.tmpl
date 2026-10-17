@@ -43,7 +43,8 @@ messages and pull request titles are Conventional Commits
   `packages/interface/src/data/api/client.ts`. Add auth, session and
   permission files here as they appear.
 - **Commands run from:** the repo root.
-- **Builder checks:** `pnpm typecheck`, `pnpm lint`. No test runner is
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
+  __ORG_SCOPE__/interface check:gallery`. No test runner is
   scaffolded yet; the first slice that needs one adds it with a `test`
   script and updates this line.
 - **Mechanic checks:** `pnpm lint`, or the CI job the chore touches.
@@ -51,8 +52,18 @@ messages and pull request titles are Conventional Commits
 ## Rules a change must honour
 
 - Migrations are append-only; one schema change each.
+- A new primitive, feature component, icon or page gets its design board
+  entry in the same change (`packages/interface/src/gallery/`, served by
+  `pnpm --filter __ORG_SCOPE__/interface gallery`): the typecheck fails
+  for a component of a listed module without one, `check:gallery` for a
+  module the Components sheet does not list. Screens live in
+  `src/features/` and size themselves with `useViewport()`; the app never
+  imports `src/gallery` or `src/design` (Biome refuses it).
+  `packages/interface/src/components/COMPONENT_LIBRARY.md` is the index
+  of what exists; read it before writing a component, update it with
+  one.
 - A new RPC is added to the proto first, then the handler, then the
-  interface; the generated service type refuses to compile until every
+  interface, whose design board fake backend answers it too; the generated service type refuses to compile until every
   declared RPC has a handler, so let the compiler be the checklist.
 - Lists are cursor-paged (`page_size`, `page_token`, `next_page_token`);
   how a resource leaves the default view is a per-resource decision made
