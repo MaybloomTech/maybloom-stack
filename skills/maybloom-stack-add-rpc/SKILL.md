@@ -283,7 +283,7 @@ and `pnpm --filter <ORG_SCOPE>/protocol-buffers build`); see
    check out a book that is already out and confirm the error code is the
    one you chose.
 4. From the client, confirm the affected screens update without a manual
-   refresh — that is the invalidation working.
+   refresh — that is the reload working.
 5. Generated code is absent from `git status`.
 
 ## Common pitfalls

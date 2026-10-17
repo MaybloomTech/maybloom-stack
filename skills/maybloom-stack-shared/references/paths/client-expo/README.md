@@ -61,7 +61,7 @@ export function use<Resources>() {
     void version; // reload() bumps it; the effect runs again
     let cancelled = false;
     api
-      .list<Resources>({ pageSize: 50, pageToken: "" })
+      .list<Resources>({ pageSize: 50, pageToken: '' })
       .then((res) => {
         if (cancelled) return;
         set<Resources>(res.<resources>);
@@ -79,10 +79,13 @@ export function use<Resources>() {
   }, [api, version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  const create = useCallback(async (input: { title: string; body: string }) => {
-    await api.create<Resource>({ <resource>: input });
-    reload();
-  }, [api, reload]);
+  const create = useCallback(
+    async (input: { title: string; body: string }) => {
+      await api.create<Resource>({ <resource>: input });
+      reload();
+    },
+    [api, reload],
+  );
   // archive<Resource>(id): the resource's leaving-the-view RPC, then reload.
 
   return { <resources>, loading, error, reload, create /* , archive */ };
@@ -93,8 +96,12 @@ Rules the shape keeps:
 
 - The `cancelled` flag drops an answer that arrives after the effect was
   cleaned up (unmount, a new `version`).
-- A write rejects when the call fails, so the form that called it can keep
-  what was typed and say so.
+- A form write (`create`) rejects when the call fails, so the form that
+  called it can keep what was typed and say so. A row action (`archive`)
+  has no input to keep: it reports through `error`, and clears `error`
+  when it starts so an old failure does not outlive the next try.
+- `errorMessage` prefers `rawMessage` for a `ConnectError` (the text the
+  server sent, without the `[code]` prefix `message` adds).
 - Returning the raw proto message keeps the type pipeline straight from
   server to UI. If a UI-friendly summary is narrower than the proto,
   map it inside the hook so screens never import raw generated types.
@@ -105,15 +112,21 @@ Rules the shape keeps:
 `ListNotes`-style RPCs page by cursor (`nextPageToken`, empty on the last
 page). The scaffold's hook keeps the first page and shows the paged shape
 in a comment. A hook that scrolls to load more adds `loadMore` and
-`hasMore`, and keeps three refs so a scroll handler never acts on a render
+`hasMore`, and keeps four refs so a scroll handler never acts on a render
 that has not caught up:
 
 - `next`: the next page's token (`''` before the first page);
-- `busy`: a call is in flight (or failed), so `loadMore` is a no-op;
+- `busy`: a call is in flight, so `loadMore` is a no-op;
+- `failed`: the last page failed, so `loadMore` is a no-op until `retry`
+  clears it (a list's `onEndReached` fires on every scroll; without this a
+  failing server is called again each time);
 - `run`: which run of the hook an answer belongs to. The effect's cleanup
-  bumps it, and an answer whose run is not the current one is dropped,
-  so a screen that stopped wanting the list (or asked to start over)
-  never gets a late page.
+  bumps it, resets the refs, the list and `hasMore`, and an answer whose
+  run is not the current one is dropped, so a screen that stopped wanting
+  the list (or asked to start over) never gets a late page.
+
+The hook also returns `retry`, which clears `failed` and `error` and asks
+for the page that failed again.
 
 Pages after the first append, de-duplicated by id: a row can come again
 when the list shifts under the reader, and the later copy is the current
@@ -152,11 +165,11 @@ or `src/design` (Biome refuses only the alias spellings, `@/gallery` and
 ### Screen pattern (mirroring the bootstrap's NotesScreen)
 
 ```tsx
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import { useViewport } from "../../styles/viewport";
-import { <Resource>Form } from "./<Resource>Form";
-import { <Resource>Row } from "./<Resource>Row";
-import { use<Resources> } from "./use<Resources>";
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { useViewport } from '../../styles/viewport';
+import { <Resource>Form } from './<Resource>Form';
+import { <Resource>Row } from './<Resource>Row';
+import { use<Resources> } from './use<Resources>';
 
 export function <Resources>Screen() {
   const { <resources>, loading, error, create, archiving, archive } =
@@ -164,7 +177,7 @@ export function <Resources>Screen() {
   const { width } = useViewport();
 
   return (
-    <View style={{ flex: 1, alignSelf: "center", width: Math.min(width, 640) }}>
+    <View style={{ flex: 1, alignSelf: 'center', width: Math.min(width, 640) }}>
       <<Resource>Form onSubmit={create} />
       {error ? <Text>Something went wrong: {error}</Text> : null}
       {loading ? (
@@ -210,11 +223,17 @@ contract calls the signed-in person and the RPC that returns them.
 **The `Session` union.** One shape for every screen to switch on:
 
 ```ts
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { User } from '<org_scope>/protocol-buffers/<app_slug>/resources/v1/users_pb';
+
+// Whatever the contract's GetMe returns that screens need.
+export type Me = { user: User };
+
 export type Session =
-  | { state: "loading" }
-  | { state: "signedOut" }
-  | { state: "signedIn"; me: Me }
-  | { state: "error"; message: string };
+  | { state: 'loading' }
+  | { state: 'signedOut' }
+  | { state: 'signedIn'; me: Me }
+  | { state: 'error'; message: string };
 ```
 
 **`SessionProvider`: one `GetMe` at the root.** Mounted once in
@@ -228,21 +247,21 @@ refetch). `Unauthenticated` maps to `signedOut`; any other failure maps to
 ```tsx
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { <app_slug>: api } = useBackend();
-  const [session, setSession] = useState<Session>({ state: "loading" });
+  const [session, setSession] = useState<Session>({ state: 'loading' });
 
   const refresh = useCallback(async () => {
     try {
       const res = await api.getMe({});
       setSession(
         res.user
-          ? { state: "signedIn", me: { user: res.user } }
-          : { state: "error", message: "No user in the response" },
+          ? { state: 'signedIn', me: { user: res.user } }
+          : { state: 'error', message: 'No user in the response' },
       );
     } catch (err) {
       setSession(
         err instanceof ConnectError && err.code === Code.Unauthenticated
-          ? { state: "signedOut" }
-          : { state: "error", message: errorMessage(err) },
+          ? { state: 'signedOut' }
+          : { state: 'error', message: errorMessage(err) },
       );
     }
   }, [api]);
@@ -253,8 +272,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback((patch: Partial<Me>) => {
     setSession((prev) =>
-      prev.state === "signedIn"
-        ? { state: "signedIn", me: { ...prev.me, ...patch } }
+      prev.state === 'signedIn'
+        ? { state: 'signedIn', me: { ...prev.me, ...patch } }
         : prev,
     );
   }, []);
@@ -273,11 +292,11 @@ state is `error`); then the feature screen with `session.me`. Redirects for
 export default function Protected() {
   const { session } = useSession();
 
-  if (session.state === "loading") return <LoadingState />;
-  if (session.state === "signedOut" || session.state === "error") {
+  if (session.state === 'loading') return <LoadingState />;
+  if (session.state === 'signedOut' || session.state === 'error') {
     return (
       <SignedOutCard
-        error={session.state === "error" ? session.message : undefined}
+        error={session.state === 'error' ? session.message : undefined}
       />
     );
   }
@@ -295,14 +314,14 @@ credentials, throws a readable error when the backend refuses, and on the
 web navigates home with a promise that never settles. A fake backend
 settles both so a specimen can show what follows.
 
-**Cookie sessions need `credentials: "include"`.** connect-web v2 has no
+**Cookie sessions need `credentials: 'include'`.** connect-web v2 has no
 `credentials` option; pass a `fetch` override on the transport:
 
 ```ts
 const transport = createConnectTransport({
   baseUrl: API_URL,
   fetch: (input, init) =>
-    globalThis.fetch(input, { ...init, credentials: "include" }),
+    globalThis.fetch(input, { ...init, credentials: 'include' }),
 });
 ```
 
@@ -353,9 +372,12 @@ They take the client as their first argument (the hook gets it from
 `useBackend()`); never import a client into this file.
 
 ```ts
-export async function list<Resources>(client: AppClient, pageToken = "") {
+export async function list<Resources>(client: AppClient, pageToken = '') {
   const response = await client.list<Resources>({ pageSize: 50, pageToken });
-  return { <resources>: response.<resources>, nextPageToken: response.nextPageToken };
+  return {
+    <resources>: response.<resources>,
+    nextPageToken: response.nextPageToken,
+  };
 }
 
 export async function archive<Resource>(client: AppClient, id: string) {
@@ -368,7 +390,7 @@ export async function archive<Resource>(client: AppClient, id: string) {
 `useMutation` per write, each invalidating the list key on success:
 
 ```ts
-const <RESOURCES>_KEY = ["<resources>"] as const;
+const <RESOURCES>_KEY = ['<resources>'] as const;
 
 export function use<Resources>() {
   const { <app_slug>: client } = useBackend();

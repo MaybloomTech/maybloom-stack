@@ -1,3 +1,4 @@
+import { ConnectError } from '@connectrpc/connect';
 import type { Note } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
 import { useCallback, useEffect, useState } from 'react';
 import { useBackend } from '../../data/client';
@@ -16,8 +17,14 @@ export type NotesState = {
   archive: (id: string) => Promise<void>;
 };
 
+// A ConnectError's message carries a "[code]" prefix; rawMessage is the text
+// the server sent.
 const errorMessage = (err: unknown) =>
-  err instanceof Error ? err.message : String(err);
+  err instanceof ConnectError
+    ? err.rawMessage
+    : err instanceof Error
+      ? err.message
+      : String(err);
 
 // The notes page's data, hand-written over the Backend context: no cache
 // library, one hook per feature. It reads the first page only: the example
@@ -29,36 +36,52 @@ const errorMessage = (err: unknown) =>
 //
 //   const next = useRef('');       // the next page's token ('' before the first)
 //   const busy = useRef(false);    // a call is in flight
+//   const failed = useRef(false);  // the last page failed: stop until retry
 //   const run = useRef(0);         // which run of the hook an answer belongs to
 //   const [hasMore, setHasMore] = useState(true);
 //
-//   const fetchPage = useCallback((token: string) => {
-//     if (busy.current) return;
-//     busy.current = true;
-//     const mine = run.current;
-//     api.listNotes({ pageSize: 50, pageToken: token }).then((res) => {
-//       if (run.current !== mine) return;   // the screen stopped wanting it
-//       next.current = res.nextPageToken;
-//       setHasMore(res.nextPageToken !== '');
-//       setNotes((prev) => {
-//         if (token === '') return res.notes;
-//         // De-dupe: a note can come again when the list shifts under the
-//         // reader; the later copy is the current one.
-//         const fresh = new Set(res.notes.map((n) => n.id));
-//         return [...prev.filter((n) => !fresh.has(n.id)), ...res.notes];
-//       });
-//     }).catch(...).finally(() => {
-//       if (run.current !== mine) return;
-//       busy.current = false;
-//     });
-//   }, [api]);
+//   const fetchPage = useCallback(
+//     (token: string) => {
+//       if (busy.current || failed.current) return;
+//       busy.current = true;
+//       const mine = run.current;
+//       api
+//         .listNotes({ pageSize: 50, pageToken: token })
+//         .then((res) => {
+//           if (run.current !== mine) return; // the screen stopped wanting it
+//           next.current = res.nextPageToken;
+//           setHasMore(res.nextPageToken !== '');
+//           setNotes((prev) => {
+//             if (token === '') return res.notes;
+//             // De-dupe: a note can come again when the list shifts under the
+//             // reader; the later copy is the current one.
+//             const fresh = new Set(res.notes.map((n) => n.id));
+//             return [...prev.filter((n) => !fresh.has(n.id)), ...res.notes];
+//           });
+//         })
+//         .catch((err) => {
+//           if (run.current !== mine) return;
+//           failed.current = true; // onEndReached fires on every scroll: do
+//           setError(errorMessage(err)); // not call a failing RPC again
+//         })
+//         .finally(() => {
+//           if (run.current !== mine) return;
+//           busy.current = false;
+//         });
+//     },
+//     [api],
+//   );
 //
 //   useEffect(() => {
 //     fetchPage('');
-//     return () => {           // a new run: drop what is in flight, start over
+//     return () => {
+//       // A new run: drop what is in flight and start over.
 //       run.current += 1;
 //       next.current = '';
 //       busy.current = false;
+//       failed.current = false;
+//       setNotes([]);
+//       setHasMore(true);
 //     };
 //   }, [fetchPage]);
 //
@@ -66,7 +89,15 @@ const errorMessage = (err: unknown) =>
 //     if (next.current !== '') fetchPage(next.current);
 //   }, [fetchPage]);
 //
-// and returns `loadMore` and `hasMore` for the list's onEndReached.
+//   // Clears the failure and asks for the page that failed again.
+//   const retry = useCallback(() => {
+//     failed.current = false;
+//     setError(null);
+//     fetchPage(next.current);
+//   }, [fetchPage]);
+//
+// and returns `loadMore`, `hasMore` and `retry` for the list's onEndReached
+// and an error row's button.
 export function useNotes(): NotesState {
   const { __APP_SLUG__: api } = useBackend();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -113,6 +144,7 @@ export function useNotes(): NotesState {
   const archive = useCallback(
     async (id: string) => {
       setArchiving(id);
+      setError(null);
       try {
         await api.archiveNote({ id });
         reload();
