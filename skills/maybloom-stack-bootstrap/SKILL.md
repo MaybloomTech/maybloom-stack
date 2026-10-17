@@ -64,16 +64,21 @@ monorepo anyway (the proto module and Buf codegen wiring are the part
 every path shares), keep the packages that fit, and follow the open-path
 protocol in `core.md` for the rest. The scaffolded packages remain useful
 as live exemplars of the layer seams even when the user replaces them.
-The scaffold writes a `CLAUDE.md` with a `## Delegation` section (see
-`maybloom-stack-delegate`); record their choices there so later sessions
-inherit them.
+The scaffold writes the agent setup: `AGENTS.md` (the primary guide, with
+the `## Delegation` section `maybloom-stack-delegate` reads, the branch
+and PR conventions, the session budget and the hand-off format),
+`CLAUDE.md` as a pointer that imports it, `.claude/settings.json` (the
+plugin marketplaces, a permission allowlist for the checks, the
+session-budget prompt hook in `.claude/hooks/`), and `docs/context.md` to
+fill in; a private repo also gets the plan format in `docs/plans/`.
+Record the user's choices in `AGENTS.md` so later sessions inherit them.
 
 ## Interview
 
 Before running the scaffolder, collect these from the user. The first
 four map 1:1 to placeholders the templates use; the backend and the Go
-module have defaults worth confirming in one sentence; the licence is two
-flags.
+module have defaults worth confirming in one sentence; the visibility is
+one question; the licence is two flags.
 
 | Prompt | Variable | Example | Notes |
 |---|---|---|---|
@@ -83,7 +88,8 @@ flags.
 | Where to scaffold? | `--out` | `~/workspace/foobar` | Must be empty or non-existent. |
 | Which backend? | `--backend` | `go` | `go` (default) or `typescript`. Don't ask when the user has no preference: say the scaffold is Go and move on. |
 | Go module path? | `--go-module` / `__GO_MODULE__` | `github.com/foobar-tech/foobar/go` | Defaults to `github.com/<org without @>/<slug>/go`. Confirm it when the GitHub org differs from the npm scope. Written into every proto's `go_package` on both paths, so a Go service can join a TypeScript repo later without touching the contract. |
-| Licence? | `--license` | `Apache-2.0` | An SPDX id, or `none` (the default). Ask it as a choice: none, Apache-2.0, MIT, or another id. When it is not `none`, also ask **whose copyright** (`--copyright`, e.g. `Foobar Tech`); suggest the org name and confirm. The scaffold stamps `// SPDX-License-Identifier: <id>` on every source file (config and `.d.ts` files excepted), sets the `license` field of each `package.json`, writes the rule into `CLAUDE.md`, and for Apache-2.0 and MIT writes `LICENSE` (and `NOTICE`) too. Any other id gets the headers only; say so, and that `LICENSE` is theirs to add. |
+| Public or private repo? | `--visibility` | `private` | `private` (default) or `public`. A private repo gets `docs/plans/` with the plan format (Date, Status, Card(s), Supersedes; Why; Decisions); a public one gets no plans and the rule that rationale lives in its docs and procedures in `CONTRIBUTING.md`, with no file naming people, work items or other projects. Ask when the user has not said; it is one line of `AGENTS.md` and one directory to change later. |
+| Licence? | `--license` | `Apache-2.0` | An SPDX id, or `none` (the default). Ask it as a choice: none, Apache-2.0, MIT, or another id. When it is not `none`, also ask **whose copyright** (`--copyright`, e.g. `Foobar Tech`); suggest the org name and confirm. The scaffold stamps `// SPDX-License-Identifier: <id>` on every source file (config and `.d.ts` files excepted), sets the `license` field of each `package.json`, writes the rule into `AGENTS.md`, and for Apache-2.0 and MIT writes `LICENSE` (and `NOTICE`) too. Any other id gets the headers only; say so, and that `LICENSE` is theirs to add. |
 
 If the user mentions the resources they want up-front (e.g. "an app for
 tracking books, with `Book` and `Loan` resources"), keep that list — you'll
@@ -104,6 +110,7 @@ python3 <this-skill-dir>/scripts/scaffold.py \
   --out '<OUT_DIR>' \
   --backend go \                                        # or typescript
   --go-module '<GO_MODULE>' \                           # omit for the default
+  --visibility private \                                # or public
   --license '<SPDX_ID or none>' --copyright '<HOLDER>'  # omit both for none
 ```
 
@@ -279,6 +286,14 @@ start dev servers.
    Don't do any of this for them: it is account-level configuration, and
    the stack carries the shape of the deploy, never the site.
 
+9. **The agent setup.** Ask the user to fill in `docs/context.md`; until
+   it says what the project is for, every session guesses. The
+   session-budget hook in `.claude/settings.json` reads the numbers the
+   `maybloom-stack-statusline` status line writes, so suggest installing
+   it (once per machine) if it is not; without it the hook stays silent.
+   Trusting the project's `.claude/settings.json` also offers the plugin
+   marketplaces it lists; the user can decline any.
+
 ## Reference: framework concepts the user is now responsible for
 
 These are the patterns embedded in the templates. When the user asks
@@ -414,7 +429,12 @@ Point the user there once they're past the initial scaffold.
 ├── buf.yaml                     # two modules: proto/ and the vendored protovalidate
 ├── buf.gen.yaml                 # the TypeScript target, include_imports on
 ├── docker-compose.yaml          # local Postgres (the Go path's dev database)
-├── CLAUDE.md                    # agent guidance, with the Delegation section
+├── AGENTS.md                    # agent guidance: Delegation, branches and PRs, session budget, rules
+├── CLAUDE.md                    # a pointer: imports AGENTS.md
+├── .claude/settings.json        # marketplaces, permission allowlist, the prompt hook
+├── .claude/hooks/session-budget.sh   # warns at the context budget and near the usage limits
+├── docs/context.md              # purpose, principles, systems of record, who acts, scope
+├── docs/plans/README.md         # --visibility private: the plan format
 ├── go.work, scripts/go, scripts/golangci-lint   # Go path: workspace file, Docker wrappers
 ├── third_party/protovalidate/buf/validate/validate.proto   # vendored, lint-ignored
 ├── proto/<slug>/

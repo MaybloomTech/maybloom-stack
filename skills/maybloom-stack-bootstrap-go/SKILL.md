@@ -54,7 +54,7 @@ this skill runs:
   backends, and the reason it has two is the thing future readers will
   want. A second backend that exists "to compare" is a cost with no
   return — the contract already proves the two are interchangeable.
-  Record the reason in the project's `CLAUDE.md`.
+  Record the reason in the project's `AGENTS.md`.
 
 If the answer is thin, say so once and let the user decide. They may have
 context you don't.
@@ -214,7 +214,8 @@ Then the root pieces from `templates/root-go/`: the Go scripts from its
 (`dev:<SERVICE>`, `test:<SERVICE>`, `docker:<SERVICE>:*`, with
 `cmd/<SERVICE>` and `<PORT>` in them; the `test:` script's
 `TEST_DATABASE_URL` points at `<APP_SLUG>_test`, which the compose
-database creates), and the lines from its `CLAUDE.md` the repo's lacks.
+database creates), and the lines from its `AGENTS.md` the repo's lacks (a repo that
+keeps its guidance in `CLAUDE.md` takes them there).
 The compose file already has the database; add `docker/postgres/` from
 `templates/root/` if the repo predates it.
 
@@ -352,4 +353,4 @@ Say these out loud rather than leaving them to be discovered.
   wrong on this service should come back as changes to
   `../maybloom-stack-shared/references/paths/backend-go/README.md` and the
   docs, not as local workarounds. Recording a deliberate deviation in the
-  project's `CLAUDE.md` is how the next session inherits it.
+  project's `AGENTS.md` is how the next session inherits it.

@@ -18,11 +18,14 @@ substituting these placeholders in any file whose name ends in `.tmpl`:
                         TypeScript; the interface's default API URL follows it
   __LICENSE_FIELD__  — the package.json "license" value: the SPDX id, or
                         UNLICENSED when no licence was chosen
-  __LICENSE_RULE__   — the licence-header rule written into CLAUDE.md
+  __LICENSE_RULE__   — the licence-header rule written into AGENTS.md
+  __VISIBILITY_RULE__ — the docs rule written into AGENTS.md: a private repo
+                        keeps dated plans in docs/plans/, a public one keeps
+                        rationale in its docs and procedures in CONTRIBUTING.md
 
 A licence is optional (`--license`, default `none`). When one is chosen,
 every hand-written source file (.ts, .tsx, .js, .mjs, .go; config files and
-.d.ts declarations excepted, as the CLAUDE.md rule says) gets a first line
+.d.ts declarations excepted, as the AGENTS.md rule says) gets a first line
 `// SPDX-License-Identifier: <id>`, and for Apache-2.0 and MIT a LICENSE
 file (and NOTICE, for Apache) is written from templates/licenses/ with the
 `--copyright` holder and the current year. Any other SPDX id gets the
@@ -32,12 +35,18 @@ The backend is Go by default (`--backend go`, the stack's default since
 September 2026) or TypeScript on request (`--backend typescript`, the
 documented alternative path). Both serve the same contract.
 
+The repository is private by default (`--visibility private`), which adds
+docs/plans/README.md, the plan format; `--visibility public` leaves it out
+and writes the public docs rule into AGENTS.md instead.
+
 Layout mapping (templates → output):
 
   templates/root/*                       → <out>/                (shared)
-  templates/root-<backend>/*             → <out>/                (package.json, CLAUDE.md,
-                                           .github/workflows/ci.yml and image.yml, and for Go:
-                                           go.work, scripts/go, scripts/golangci-lint)
+  templates/root-<backend>/*             → <out>/                (package.json, AGENTS.md,
+                                           .claude/settings.json, .github/workflows/ci.yml and
+                                           image.yml, and for Go: go.work, scripts/go,
+                                           scripts/golangci-lint)
+  templates/private/*                    → <out>/                (--visibility private: docs/plans/)
   templates/third_party/*                → <out>/third_party/    (vendored buf/validate/validate.proto)
   templates/proto/package.json.tmpl      → <out>/packages/protocol-buffers/...
   templates/proto/tsconfig.json          → <out>/packages/protocol-buffers/...
@@ -73,9 +82,26 @@ PLACEHOLDER_KEYS = (
     "__BACKEND_PORT__",
     "__LICENSE_FIELD__",
     "__LICENSE_RULE__",
+    "__VISIBILITY_RULE__",
 )
 
 BACKENDS = {"go": "8080", "typescript": "3000"}
+VISIBILITIES = ("private", "public")
+VISIBILITY_RULES = {
+    "private": (
+        "This repository is private. A piece of work that needs a plan gets one in\n"
+        "`docs/plans/YYYY-MM-DD-<slug>.md`, in the format `docs/plans/README.md`\n"
+        "fixes (Date, Status, Card(s), Supersedes; Why; Decisions). `docs/context.md`\n"
+        "is the project's context; a plan that changes it updates it."
+    ),
+    "public": (
+        "This repository is public. Rationale lives in the documents it explains\n"
+        "(`docs/context.md` and the ones beside it) and procedures in\n"
+        "`CONTRIBUTING.md` (added with the first one). No file here names people,\n"
+        "work items or other projects, and there is no `docs/plans/`: a plan that\n"
+        "needs those is kept wherever the project keeps private notes, never here."
+    ),
+}
 
 # A proto package segment and a TypeScript identifier at once, so no dashes:
 # `package my-app.resources.v1` does not parse and `my-app_pb` is not a name.
@@ -102,7 +128,13 @@ def default_go_module(slug: str, org: str) -> str:
 
 
 def derive_substitutions(
-    name: str, slug: str, org: str, license_id: str, backend: str, go_module: str | None
+    name: str,
+    slug: str,
+    org: str,
+    license_id: str,
+    backend: str,
+    go_module: str | None,
+    visibility: str = "private",
 ) -> dict[str, str]:
     if not SLUG_RE.match(slug):
         sys.exit(
@@ -113,6 +145,8 @@ def derive_substitutions(
         sys.exit(f"--org must start with '@': {org!r}")
     if backend not in BACKENDS:
         sys.exit(f"--backend must be one of {', '.join(BACKENDS)}: {backend!r}")
+    if visibility not in VISIBILITIES:
+        sys.exit(f"--visibility must be one of {', '.join(VISIBILITIES)}: {visibility!r}")
     go_module = go_module or default_go_module(slug, org)
     if not GO_MODULE_RE.match(go_module):
         sys.exit(f"--go-module must be an import path like github.com/acme/orchard/go: {go_module!r}")
@@ -139,6 +173,7 @@ def derive_substitutions(
         "__BACKEND_PORT__": BACKENDS[backend],
         "__LICENSE_FIELD__": license_field,
         "__LICENSE_RULE__": license_rule,
+        "__VISIBILITY_RULE__": VISIBILITY_RULES[visibility],
     }
 
 
@@ -169,15 +204,21 @@ def copy_tree(src_root: Path, dst_root: Path, subs: dict[str, str]) -> None:
         copy_file(src, dst_root / rel, subs)
 
 
-def scaffold(templates: Path, out: Path, subs: dict[str, str], backend: str) -> None:
+def scaffold(
+    templates: Path, out: Path, subs: dict[str, str], backend: str, visibility: str = "private"
+) -> None:
     if out.exists() and any(out.iterdir()):
         sys.exit(f"Refusing to scaffold into non-empty directory: {out}")
     out.mkdir(parents=True, exist_ok=True)
 
-    # Root configs: the shared ones, then the backend's own (package.json,
-    # CLAUDE.md, and the Go toolchain wrappers on the Go path).
+    # Root configs: the shared ones (CLAUDE.md, the pointer; docs/context.md;
+    # the session-budget hook), then the backend's own (package.json,
+    # AGENTS.md, .claude/settings.json, and the Go toolchain wrappers on the
+    # Go path), then the private repo's plan format.
     copy_tree(templates / "root", out, subs)
     copy_tree(templates / f"root-{backend}", out, subs)
+    if visibility == "private":
+        copy_tree(templates / "private", out, subs)
 
     # The vendored protovalidate module: the contract's field rules resolve
     # against it with no registry dependency.
@@ -261,6 +302,13 @@ def main(argv: list[str]) -> int:
         "(default: github.com/<org without @>/<slug>/go)",
     )
     parser.add_argument(
+        "--visibility",
+        default="private",
+        choices=VISIBILITIES,
+        help="private (default; adds docs/plans/ and its format) or public (no plans; "
+        "rationale in docs, procedures in CONTRIBUTING.md)",
+    )
+    parser.add_argument(
         "--license",
         default="none",
         help="SPDX licence id (e.g. 'Apache-2.0', 'MIT') or 'none' (default). "
@@ -280,10 +328,15 @@ def main(argv: list[str]) -> int:
 
     if args.license != "none" and not args.copyright:
         parser.error("--copyright is required when --license is not 'none'")
-    subs = derive_substitutions(args.name, args.slug, args.org, args.license, args.backend, args.go_module)
+    subs = derive_substitutions(
+        args.name, args.slug, args.org, args.license, args.backend, args.go_module, args.visibility
+    )
     templates, out = Path(args.templates), Path(args.out).resolve()
-    scaffold(templates, out, subs, args.backend)
-    print(f"Scaffolded {args.name} ({args.slug}) into {args.out} with the {args.backend} backend")
+    scaffold(templates, out, subs, args.backend, args.visibility)
+    print(
+        f"Scaffolded {args.name} ({args.slug}) into {args.out} with the {args.backend} backend, "
+        f"as a {args.visibility} repository"
+    )
     if args.backend == "go":
         print(f"Go module: {subs['__GO_MODULE__']}")
     if args.license != "none":

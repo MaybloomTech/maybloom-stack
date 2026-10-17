@@ -131,7 +131,7 @@ web framework), don't refuse and don't force the defaults. Proceed:
    path's answer as a suggestion when they have no preference, never as
    a correction when they do.
 5. **Record the preferences.** When the user states or demonstrates a
-   choice, suggest writing it into the project's `CLAUDE.md` (a short
+   choice, suggest writing it into the project's `AGENTS.md` (a short
    "stack choices" section: languages, frameworks, naming, exemplar
    repos) so future sessions inherit the decision instead of re-asking.
 6. **Graduate the path.** Once a few resources exist and the patterns
@@ -156,7 +156,7 @@ suggestion, never as law. When the project or its user has a settled
 different answer — an existing convention, a discovered constraint, a
 stated preference — the different answer wins, on validated paths exactly
 as on open ones. Suggest recording the deviation in the project's
-`CLAUDE.md` the same way open-path choices are recorded, so it reads as a
+`AGENTS.md` the same way open-path choices are recorded, so it reads as a
 decision rather than drift.
 
 When in doubt, ask: does breaking this rule change what crosses the wire,

@@ -120,7 +120,7 @@ contract.
 
 Preferences are meant to accumulate. When a user states or demonstrates a
 choice — a client framework, a server language, code sources they want to
-keep using — the skills suggest recording it in the project's `CLAUDE.md`
+keep using — the skills suggest recording it in the project's `AGENTS.md`
 so future sessions inherit the decision instead of re-asking. And when an
 open path has been walked far enough, its patterns graduate: first into a
 reference file in the project, eventually into these docs and skills.
