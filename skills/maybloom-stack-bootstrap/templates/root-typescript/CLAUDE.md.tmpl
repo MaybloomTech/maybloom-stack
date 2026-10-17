@@ -58,7 +58,8 @@ messages and pull request titles are Conventional Commits
   for a component of a listed module without one, `check:gallery` for a
   module the Components sheet does not list. Screens live in
   `src/features/` and size themselves with `useViewport()`; the app never
-  imports `src/gallery` or `src/design` (Biome refuses it).
+  imports `src/gallery` or `src/design` (`check:no-gallery` fails a bundle
+  that contains them). Feature modules have no default exports (Biome).
   `packages/interface/src/components/COMPONENT_LIBRARY.md` is the index
   of what exists; read it before writing a component, update it with
   one.

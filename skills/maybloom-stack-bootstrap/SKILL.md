@@ -331,7 +331,8 @@ These are the patterns embedded in the templates. When the user asks
 - **The design board is a second router root.** `app.config.js` switches
   Expo Router to `gallery/` when `EXPO_PUBLIC_GALLERY=1`; the app's
   bundle never contains it (Biome's restricted imports and
-  `check:no-gallery` hold that line). Screens live in `src/features/`,
+  `check:no-gallery`, which reads the app bundle's source maps, hold that
+  line). Screens live in `src/features/`,
   size themselves with `useViewport()`, and every component has an
   entry on the board; see
   `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.

@@ -34,28 +34,35 @@ scripts named below are the interface package's: from the repo root they
 take `--filter <scope>/interface`, from `packages/interface` they run as
 they are. Every
 other run and build keeps `app/` as the root, so Metro never reaches the
-board's files. Three things hold that line:
+board's files. What holds that line is checked on what was built, not on
+how imports are spelled:
 
+- **`check:no-gallery`** (`scripts/check-no-gallery.mjs`) is the
+  guarantee. It exports the app again with source maps, to `dist-check/`
+  (the shipped `dist/` from `build:web` has no maps and is left alone),
+  and fails if any source under `gallery/`, `src/gallery/` or
+  `src/design/` is in the bundle's maps, or if the bundle carries the
+  board's sentinel (the testID on its page, kept in
+  `src/gallery/sentinel.json`, which `Gallery.tsx` and both scripts
+  read). Whatever the spelling (any relative depth, the `@/` alias, a
+  `baseUrl` path, a re-export through a helper, `require()` or
+  `import()`), a file that reaches the app's bundle is in its maps. Metro
+  names sources from the workspace root (`/packages/interface/src/...`);
+  the script finds that root by its `pnpm-workspace.yaml`. It costs one
+  more web export in CI.
 - **Biome `noRestrictedImports`** (root `biome.json`, an override on
-  `packages/interface/**`): nothing imports the gallery or `src/design`,
-  and `useWindowDimensions` is refused in favour of `useViewport`. Biome
-  matches the import's text, not the file it resolves to, so the patterns
-  name the specifiers that reach those folders: `@/gallery`,
-  `**/src/gallery`, and `./gallery` up to `../../../../gallery`, each with
-  `/**` (the same for `design`). `../styles/design` does not match. A
-  second override turns the rule off inside `gallery/`, `src/gallery/`,
+  `packages/interface/**`) is the fast hint in the editor, not the
+  guarantee. It refuses `useWindowDimensions` in favour of `useViewport`,
+  and the unambiguous specifiers of the board's folders: `@/gallery`,
+  `@/design` and `**/src/gallery`, `**/src/design` (with `/**`). Relative
+  imports such as `../../gallery/fake` are not refused there, because the
+  text alone cannot tell the board's `src/gallery` from a product feature
+  called `gallery`; `check:no-gallery` catches them if they reach the
+  bundle. The rule is off inside `gallery/`, `src/gallery/`,
   `src/design/`, `src/styles/viewport.ts` (the one file allowed to read
-  the window) and test files under `src/` (`*.test.ts(x)`,
-  `__tests__/`), which Metro never bundles and which may reuse the fake
-  backend.
-- **`check:no-gallery`** (`scripts/check-no-gallery.mjs`): the app's web
-  export (`dist/`, after `build:web`) must not contain the board's
-  sentinel (the testID on its page, kept in `src/gallery/sentinel.json`,
-  which `Gallery.tsx` and both scripts read, so it cannot drift), and no
-  file under `app/` or `src/` outside the board and the test files may
-  `require()`, `require.context()` or `import()` the gallery or
-  `src/design`, which Biome does not see. A minified bundle names modules by number, so the
-  export alone cannot show `src/design`; the source scan does.
+  the window) and test files under `src/` (`*.test.ts(x)`, `__tests__/`),
+  which may reuse the fake backend; a test helper that the app imports
+  is in the bundle, and the bundle check fails it.
 - **`scripts/gallery-export.mjs`** runs after the gallery export and
   refuses an export without the sentinel, so the app's bundle is never
   published as the board by mistake.
@@ -167,11 +174,15 @@ drawn in red. Play is web-only, like the board.
   for modules that export a component (a platform variant such as
   `.web.tsx` counts as its base module, `x/index.tsx` is module `x`) and
   fails for any the sheet does not import that way.
-- **Default and class components** would slip past `ComponentsOf`, so
-  `check:gallery` refuses them under `src/features/`: a feature component
-  is a named function export (`export function NoteRow`), or a `memo` of
-  one. Only a class that extends `Component` or `PureComponent` counts;
-  `export class HttpError extends Error` is not refused.
+- **Default and class components** would slip past `ComponentsOf`. Biome's
+  `style/noDefaultExport` is on for `src/features/**` (tests exempt), so a
+  default export of any shape fails lint; `check:gallery` refuses a class
+  that extends `Component` or `PureComponent` (`export class HttpError
+  extends Error` is not one). A feature component is a named function
+  export (`export function NoteRow`), or a `memo` of one.
+- **Test files** (`*.test.tsx`, `__tests__/`) are skipped by
+  `check:gallery`: a render wrapper in a test helper is not a component of
+  the app.
 - **Screens** are feature components too; their entry on the Components
   sheet is `{ path, seen: "Pages" }`, and the page itself goes on the
   Pages sheet with its scenarios.
@@ -213,8 +224,9 @@ gallery`.
 
 ## In CI
 
-The interface job, after the web export, runs `check:no-gallery` (the
-export just built), `check:gallery`, and `build:gallery`, which also runs
+The interface job, after the web export, runs `check:no-gallery` (its own
+export with source maps, to `dist-check/`), `check:gallery`, and
+`build:gallery`, which also runs
 `gallery-export.mjs`. The typecheck before them is where the entry
 coverage fails.
 

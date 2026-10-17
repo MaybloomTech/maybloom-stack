@@ -189,14 +189,16 @@ The board is a rule as much as a tool, and the rules are mechanical:
 - a new primitive, feature component or icon fails the typecheck until it
   has an entry (the sheets are keyed by the modules' exports);
 - a feature module the Components sheet does not list fails
-  `check:gallery`, which also refuses a default or class component
-  export under `src/features/` (the typecheck sees named function
-  components only);
-- Biome refuses an import of the gallery or `src/design` outside them
-  (test files under `src/` excepted, so a test can reuse the fake
-  backend), and `useWindowDimensions` outside `viewport.ts`;
-- `check:no-gallery` fails an app export that carries the board, or
-  app code that `require()`s it;
+  `check:gallery`, which also refuses a component class under
+  `src/features/`; Biome refuses a default export there (the typecheck
+  sees named function components only);
+- `check:no-gallery` exports the app with source maps and fails if any
+  file of the board or of `src/design` is in the bundle, however it was
+  imported: that is the guarantee. Biome's restricted imports (the
+  board's folders by their unambiguous specifiers, and
+  `useWindowDimensions` outside `viewport.ts`) are the hint in the
+  editor, with test files under `src/` exempt so a test can reuse the
+  fake backend;
 - CI exports both bundles and runs both checks.
 
 Design passes (`src/design/<pass>/`) put a proposed variant beside the

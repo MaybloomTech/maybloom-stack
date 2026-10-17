@@ -5,9 +5,10 @@
 // `.native`, `.ios`, `.android`) is the same module as its base file, and
 // `x/index.tsx` is module `x`.
 //
-// It also refuses a default or class component export under src/features:
-// the sheet's ComponentsOf sees only named function components (and
-// memos), so either would pass the typecheck with no entry.
+// It also refuses a component class under src/features: the sheet's
+// ComponentsOf sees only function components (and memos). Default exports
+// there are refused by Biome (style/noDefaultExport), not here. Test files
+// (`*.test.tsx`, `__tests__/`) are not modules of the app and are skipped.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,7 @@ const files = existsSync(features)
   ? readdirSync(features, { recursive: true })
       .map((f) => join(features, f))
       .filter((f) => statSync(f).isFile() && f.endsWith(".tsx"))
+      .filter((f) => !/\.test\.tsx$|[\\/]__tests__[\\/]/.test(f))
   : [];
 
 // A component here is an export with a component's name: capitalised with
@@ -38,15 +40,10 @@ const declared = new RegExp(
 );
 const defaultWrapped = /^export default (?:memo|forwardRef)\(/m;
 const componentBase = String.raw`(?:React\.)?(?:Pure)?Component\b`;
-// What ComponentsOf cannot see: a default export of a component, or a
-// component class.
-const defaultComponent = new RegExp(
-  String.raw`^export default (?:(?:async )?function ${name}|class (?:\w+ )?extends ${componentBase}|(?:memo|forwardRef)\(|${name}\s*;)`,
-  "m",
-);
+// What ComponentsOf cannot see: a component class, named or default.
 // Only a component class: `export class HttpError extends Error` is not one.
 const classComponent = new RegExp(
-  String.raw`^export (?:default )?class ${name}\s+extends ${componentBase}`,
+  String.raw`^export (?:default )?class (?:${name}\s+)?extends ${componentBase}`,
   "m",
 );
 // `export { Foo, bar as Baz }`, leaving out `type` names.
@@ -71,16 +68,12 @@ const moduleOf = (f) =>
 const unseen = files
   .filter((f) => {
     const source = readFileSync(f, "utf8");
-    return (
-      defaultComponent.test(source) ||
-      classComponent.test(source) ||
-      /^export \{[^}]*\b[A-Z]\w*\s+as\s+default\b/m.test(source)
-    );
+    return classComponent.test(source);
   })
   .map((f) => relative(root, f).split(sep).join("/"));
 if (unseen.length > 0) {
   console.error(
-    `default or class component exports under src/features, which the board's typecheck cannot see (export a named function component instead):\n  ${unseen.join("\n  ")}`,
+    `component classes under src/features, which the board's typecheck cannot see (write a function component instead):\n  ${unseen.join("\n  ")}`,
   );
   process.exit(1);
 }

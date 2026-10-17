@@ -159,42 +159,32 @@
                       "@/design",
                       "@/design/**",
                       "**/src/design",
-                      "**/src/design/**",
-                      "./design",
-                      "./design/**",
-                      "../design",
-                      "../design/**",
-                      "../../design",
-                      "../../design/**",
-                      "../../../design",
-                      "../../../design/**",
-                      "../../../../design",
-                      "../../../../design/**"
+                      "**/src/design/**"
                     ],
-                    "message": "src/design holds variants for design passes; only the gallery imports it."
+                    "message": "src/design holds variants for design passes; only the gallery imports it. (An editor hint: check:no-gallery is the guarantee.)"
                   },
                   {
                     "group": [
                       "@/gallery",
                       "@/gallery/**",
                       "**/src/gallery",
-                      "**/src/gallery/**",
-                      "./gallery",
-                      "./gallery/**",
-                      "../gallery",
-                      "../gallery/**",
-                      "../../gallery",
-                      "../../gallery/**",
-                      "../../../gallery",
-                      "../../../gallery/**",
-                      "../../../../gallery",
-                      "../../../../gallery/**"
+                      "**/src/gallery/**"
                     ],
-                    "message": "The gallery is built only with EXPO_PUBLIC_GALLERY=1; the app never imports it."
+                    "message": "The gallery is built only with EXPO_PUBLIC_GALLERY=1; the app never imports it. (An editor hint: check:no-gallery is the guarantee.)"
                   }
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/interface/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "error"
           }
         }
       }
@@ -212,7 +202,8 @@
       "linter": {
         "rules": {
           "style": {
-            "noRestrictedImports": "off"
+            "noRestrictedImports": "off",
+            "noDefaultExport": "off"
           }
         }
       }

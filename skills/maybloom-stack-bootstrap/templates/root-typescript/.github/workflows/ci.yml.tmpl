@@ -254,14 +254,16 @@ jobs:
       - if: matrix.package == 'interface'
         name: Export the web bundle
         run: CI=1 pnpm --filter __ORG_SCOPE__/interface build:web
-      # The gallery (the design board) never reaches the app's bundle nor
-      # is required by its code, and still builds on its own. Its coverage
-      # check (every primitive, feature component and icon has an entry) is
-      # part of the typecheck above; check:gallery catches a feature module
-      # the Components sheet does not list at all.
+      # The gallery (the design board) never reaches the app's bundle, and
+      # still builds on its own. check:no-gallery exports the app again with
+      # source maps (to dist-check, not the shipped dist) and fails if any
+      # source under gallery/, src/gallery or src/design is in it. The
+      # coverage check (every primitive, feature component and icon has an
+      # entry) is part of the typecheck above; check:gallery catches a
+      # feature module the Components sheet does not list at all.
       - if: matrix.package == 'interface'
-        name: Check the web bundle has no gallery
-        run: pnpm --filter __ORG_SCOPE__/interface check:no-gallery
+        name: Check the app's bundle has no gallery
+        run: CI=1 pnpm --filter __ORG_SCOPE__/interface check:no-gallery
       - if: matrix.package == 'interface'
         name: Check every feature module is on the design board
         run: pnpm --filter __ORG_SCOPE__/interface check:gallery
