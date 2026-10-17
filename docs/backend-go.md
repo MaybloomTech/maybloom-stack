@@ -227,8 +227,9 @@ The shape the Maybloom backend settled on:
   file in the adapter package lists the operation ids the app calls
   (`include-operation-ids`), so the client and its models stay small and
   unused schemas are pruned.
-- **The output is gitignored**, like the contract and the data layer, and
-  the build stage regenerates it through the same one command. The
+- **The output is gitignored**: add `internal/<provider>/<provider>api/` to
+  `go/.gitignore`, which lists only `gen/` and `internal/store/storedb/`.
+  The build stage regenerates it through the same one command. The
   Docker-context ignore entries belong to the ship reference.
 - **A hand-written client for what the document leaves out.** Specs omit
   endpoints (a streamed download, an unlisted route); those calls live in
@@ -285,7 +286,7 @@ func NewMux(d Deps) http.Handler {
         validate.NewInterceptor(),
     )
     mux.Handle(servicev1connect.New<Name>ServiceHandler(NewService(d.Store), interceptors))
-    d.Auth.Register(mux)                       // GET /auth/login, /auth/callback, POST /auth/logout
+    d.Auth.Register(mux) // GET /auth/login, /auth/callback, POST /auth/logout
     mux.HandleFunc("GET /healthz", ...)        // liveness
     mux.HandleFunc("GET /readyz", ...)         // pings the pool
     mux.Handle("/", webHandler)                // the built web app, SPA fallback
@@ -592,8 +593,8 @@ dispatches on `os.Args` before it starts the server and exits with the
 task's status:
 
 ```go
-if len(os.Args) > 1 && os.Args[1] == "backfill" {
-    os.Exit(backfill(context.Background(), os.Args[2:]))
+if len(os.Args) > 1 && os.Args[1] == "export" {
+    os.Exit(export(context.Background(), os.Args[2:]))
 }
 ```
 
@@ -622,13 +623,14 @@ once, and the client reads the outcome later:
   the caller going away does not abort it. It gets the server context from
   `run()`, so a shutdown stops it. Use `context.WithoutCancel(ctx)` only
   where request values must carry and the work is short.
-- It **claims one run per owner**: an in-memory set guarded by a mutex, or
-  a row the database makes unique, and a second start while one is running
-  answers an "already running" error rather than a second run.
+- It **claims one run per owner**: an in-memory set guarded by a mutex,
+  and a second start while one is running answers an "already running"
+  error rather than a second run.
 - It **reports through a later read**: the run writes its progress and its
   result, the error text included, to a row, and an ordinary read RPC
   returns it. The finishing write also uses the non-cancelled context, or a
-  shutdown loses the result.
+  shutdown loses the result. It is still best effort, unless `run()` waits
+  for running jobs before it closes the pool.
 
 ## The dev database and tests
 
@@ -724,7 +726,8 @@ it:
   short-lived HMAC-signed `HttpOnly` cookie scoped to the route, and
   redirects; the callback checks the state against the cookie, clears the
   cookie, exchanges the code with the verifier, uses the token to mint a
-  narrow credential, stores that sealed, and ends the token's session (see "Secrets at rest").
+  narrow credential, stores that sealed, and ends the token's session (see
+  "Secrets at rest").
 - **The web export**, when the binary serves it (next section).
 
 Two mechanics on that mux: Go 1.22 method patterns (`"POST /path"`) answer
@@ -739,7 +742,8 @@ which the test suite asserts.
 Multi-stage Dockerfile, built with the **repo root as context**: the build
 stage regenerates the contract, so it needs `proto/`, `third_party/` and the
 buf configs as well as `go/`. The scaffold's
-(`skills/maybloom-stack-bootstrap/templates/backend-go/Dockerfile.tmpl`), trimmed:
+(`skills/maybloom-stack-bootstrap/templates/backend-go/Dockerfile.tmpl`),
+trimmed:
 
 ```dockerfile
 # The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.

@@ -38,8 +38,8 @@ go/
   generate.go             `go generate .` runs buf then sqlc
 ```
 
-The bootstrap skill scaffolds exactly this (`skills/maybloom-stack-bootstrap/templates/backend-go/`), with
-`Note` as the specimen in every layer; read its files as the live
+The bootstrap skill scaffolds exactly this (`skills/maybloom-stack-bootstrap/templates/backend-go/`),
+with `Note` as the specimen in every layer; read its files as the live
 exemplar before writing a new resource.
 
 A larger service may package by domain instead (`internal/<domain>/`

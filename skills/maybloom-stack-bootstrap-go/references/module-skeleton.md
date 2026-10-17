@@ -90,9 +90,10 @@ The provider's document is vendored unchanged in the adapter package, next to
 `oapi-codegen` joins the `tool` block in `go.mod` and
 `github.com/oapi-codegen/runtime` becomes a direct `require` (the generated
 client imports it), the config lists only
-the operation ids the app calls, and the output lands in a gitignored
-package inside the adapter (`internal/<provider>/<provider>api/`). Calls
-the document does not describe are a hand-written client beside it. The
+the operation ids the app calls, and the output lands in a package inside
+the adapter (`internal/<provider>/<provider>api/`) that you add to
+`go/.gitignore`, which lists only `gen/` and `internal/store/storedb/`.
+Calls the document does not describe are a hand-written client beside it. The
 Docker-context ignore entry for the output is in the ship reference.
 
 ## Config
