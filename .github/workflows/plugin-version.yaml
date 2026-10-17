@@ -1,0 +1,28 @@
+name: Plugin version
+
+# Claude Code updates an installed plugin only when its version changes,
+# so a merge that changes the skills, the agents or the manifests without
+# a bump never reaches the people who have it installed. Runs on every
+# pull request, and passes when nothing the plugin ships changed, so it
+# always reports and can be required.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Check the plugin version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # HEAD is GitHub's test merge and HEAD^1 is main as the merge was
+          # built, so two commits are enough to diff exactly what the pull
+          # request changes.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Check the version against the base
+        run: python3 scripts/check-plugin-version.py 'HEAD^1'

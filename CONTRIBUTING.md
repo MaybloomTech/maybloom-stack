@@ -53,6 +53,15 @@ These checks run on pull requests, and all of them are mechanical:
   ```
   python3 scripts/check-skill-tree.py
   ```
+- **Check the plugin version** — `scripts/check-plugin-version.py`,
+  which fails a pull request that changes `skills/`, `agents/`,
+  `templates/` or `.claude-plugin/` without raising the plugin's version
+  (see [Releasing the plugin](#releasing-the-plugin)). Run it locally
+  against the branch's base:
+
+  ```
+  python3 scripts/check-plugin-version.py origin/main
+  ```
 - **Lint the scaffolded workflows** (the Templates workflow, on pull
   requests that touch the bootstrap skill) — scaffolds both backends,
   fails if a placeholder survives in `.github/`, and runs actionlint
@@ -102,6 +111,31 @@ Skills are read by an agent, not by a person, and the difference matters:
   is worse than one that says nothing.
 - A skill that has never been run against a test prompt is unproven.
   Prefer changes you have exercised.
+
+## Releasing the plugin
+
+Every merge that changes what the plugin ships is a release. Claude Code
+updates an installed plugin only when its version changes, so a merge
+that leaves the version alone never reaches the people who already have
+the plugin: `claude plugin update` reports the old version as the latest,
+and auto-update does nothing.
+
+So a pull request that touches `skills/`, `agents/`, `templates/` or
+`.claude-plugin/` raises `version` in `.claude-plugin/plugin.json`, and
+the same value in the plugin's entry in `.claude-plugin/marketplace.json`
+(the check holds the two equal). Semver, read for a plugin:
+
+- **patch** for fixes to a skill, an agent or a template that change no
+  behaviour a user relies on;
+- **minor** for anything new or changed in behaviour: a skill, an agent,
+  a reference, a scaffolded file;
+- **major** for a change that breaks a project already scaffolded or a
+  skill's documented interface.
+
+When two pull requests in flight bump from the same base, the second to
+merge conflicts on the version line; it takes main's version and raises
+it again. A pull request that touches
+only `docs/`, `site/` or the repository's own workflows needs no bump.
 
 ## Maintainers' chores
 
