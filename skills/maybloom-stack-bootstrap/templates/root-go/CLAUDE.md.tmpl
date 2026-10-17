@@ -55,7 +55,10 @@ messages and pull request titles are Conventional Commits
   `packages/interface/src/data/api/client.ts`. Add session and permission
   files here as they appear.
 - **Commands run from:** the repo root for pnpm, `go/` for Go.
-- **Builder checks:** `pnpm typecheck`, `pnpm lint`; in `go/`: `go generate
+- **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
+  __ORG_SCOPE__/interface check:gallery` (after a proto change, first `pnpm
+  proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`: the
+  interface typechecks against the built contract)`; in `go/`: `go generate
   .`, `go vet ./...`, `go test ./...`, `scripts/golangci-lint run`.
 - **Mechanic checks:** `pnpm lint`, `go vet ./...`, or the CI job the chore
   touches.
@@ -64,8 +67,19 @@ messages and pull request titles are Conventional Commits
 
 - Migrations are append-only; one schema change each; sqlc reads the
   schema from them, so the migration comes before the query.
+- A new primitive, feature component, icon or page gets its design board
+  entry in the same change (`packages/interface/src/gallery/`, served by
+  `pnpm --filter __ORG_SCOPE__/interface gallery`): the typecheck fails
+  for a component of a listed module without one, `check:gallery` for a
+  module the Components sheet does not list. Screens live in
+  `src/features/` and size themselves with `useViewport()`; the app never
+  imports `src/gallery` or `src/design` (`check:no-gallery` fails a bundle
+  that contains them). Feature modules have no default exports (Biome).
+  `packages/interface/src/components/COMPONENT_LIBRARY.md` is the index
+  of what exists; read it before writing a component, update it with
+  one.
 - A new RPC is added to the proto first, then the handler, then the
-  interface; the generated handler interface refuses to compile until
+  interface, whose design board fake backend answers it too; the generated handler interface refuses to compile until
   every declared RPC has a method, so let the compiler be the checklist.
 - Input rules are `buf.validate` options in the contract, enforced by the
   validate interceptor. Handlers do not check presence or ranges by hand.

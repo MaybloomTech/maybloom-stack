@@ -180,6 +180,13 @@ method; `go build ./...` is the checklist.
   Getting this wrong shows up as a screen that needs a manual refresh.
 - **screen** — the control that triggers it, plus the disabled/failed
   states the new error codes make possible.
+- **design board** (Expo) — the fake backend in
+  `src/gallery/fixtures/backend.ts` answers the RPC the way the server's
+  rule does (the interface's typecheck fails until it exists, once the
+  contract is rebuilt: after `pnpm proto:gen`, rebuild the contract (`pnpm --filter <ORG_SCOPE>/protocol-buffers build`): the interface reads its built `dist/*.d.ts`), and the
+  new states get specimens: a `failing: ["<method>"]` page state for the
+  error, a `Play` that taps the control. See
+  `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
 
 ## Worked example: `ArchiveNote`
 
@@ -249,10 +256,15 @@ is `Unauthenticated`), call the store, wrap the note. Go: a method on
 `Service` in `internal/server/notes.go`; TypeScript: `src/handlers/archiveNote.ts`,
 added to the service object in `main.ts`.
 
-**Client**: `archiveNote(id)` in `src/data/api/notes.ts` calls
+**Client**: `archiveNote(client, id)` in `src/data/api/notes.ts` calls
 `client.archiveNote({ id })`; `useArchiveNote` is a `useMutation` that
-invalidates the notes list key, because the operation changes list
-membership; the screen's Archive button calls `mutate(item.id)`.
+gets the client from `useClient()` and invalidates the notes list key,
+because the operation changes list membership; the row's Archive button
+calls `mutate(item.id)`. On the Expo path the design board's fake backend
+(`src/gallery/fixtures/backend.ts`) answers it too, setting `archived_at`
+on its copy, or the interface's typecheck fails (after `pnpm proto:gen`
+and `pnpm --filter <ORG_SCOPE>/protocol-buffers build`); see
+`../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
 
 **Verify**: archive, then list (the note is gone), then list with
 `include_archived: true` (it is back, first); archive it again and compare

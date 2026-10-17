@@ -1,0 +1,47 @@
+import type { Note } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb";
+import { StyleSheet, Text, View } from "react-native";
+import { Button } from "../../components/primitives";
+import { colors, spacing, typography } from "../../styles/tokens";
+
+export function NoteRow({
+  note,
+  onArchive,
+  archiving = false,
+}: {
+  note: Note;
+  onArchive: () => void;
+  archiving?: boolean;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.text}>
+        <Text style={[typography.label, { color: colors.text }]}>
+          {note.title}
+        </Text>
+        {note.body ? (
+          <Text style={[typography.body, { color: colors.textSecondary }]}>
+            {note.body}
+          </Text>
+        ) : null}
+      </View>
+      <Button
+        label={archiving ? "Archiving…" : "Archive"}
+        variant="secondary"
+        disabled={archiving}
+        onPress={onArchive}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  text: { flex: 1, gap: spacing.xs },
+});

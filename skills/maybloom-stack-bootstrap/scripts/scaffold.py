@@ -306,6 +306,7 @@ def main(argv: list[str]) -> int:
         print(f"  pnpm --filter {args.org}/backend db:generate   # the first Drizzle migration")
         print("  pnpm dev:backend                   # PGlite, listens on :3000")
     print("  pnpm dev:interface   # in another terminal")
+    print(f"  pnpm --filter {args.org}/interface gallery   # the design board, on a fake backend, port 8082")
     print("  pnpm dev:docs-site   # the contract, rendered from the protos")
     return 0
 

@@ -1,17 +1,32 @@
-import { createClient } from "@connectrpc/connect";
+import { type Client, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { __APP_NAME__Service } from "__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/service/v1/service_pb";
+import { createContext, useContext } from "react";
 
 // EXPO_PUBLIC_ vars are inlined at build time and visible to the bundle.
 // Override per-environment via .env or EAS build profiles.
 export const API_URL =
   process.env.EXPO_PUBLIC___APP_SLUG_UPPER___API_URL ?? "http://localhost:__BACKEND_PORT__";
 
+export type AppClient = Client<typeof __APP_NAME__Service>;
+
 const transport = createConnectTransport({
   baseUrl: API_URL,
 });
 
-// One typed Connect client for the whole app. Import this anywhere you need
-// to call the backend; React Query hooks under data/queries wrap it for
-// caching and lifecycle.
-export const client = createClient(__APP_NAME__Service, transport);
+// One typed Connect client for the whole app, over the network.
+export const liveClient: AppClient = createClient(__APP_NAME__Service, transport);
+
+const ClientContext = createContext<AppClient>(liveClient);
+
+// The app never mounts this provider, so every screen talks to liveClient.
+// The gallery mounts one per specimen with a client over an in-memory
+// transport (src/gallery/fixtures/backend.ts), which is how a page is
+// shown against fixtures instead of a server.
+export const ClientProvider = ClientContext.Provider;
+
+// The client to call, for the React Query hooks under data/queries. Screens
+// and components reach the backend only through those hooks.
+export function useClient(): AppClient {
+  return useContext(ClientContext);
+}

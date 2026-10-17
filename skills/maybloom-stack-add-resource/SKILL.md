@@ -319,16 +319,28 @@ client and cannot tell which language serves it. Read
 `../maybloom-stack-shared/references/paths/client-expo/README.md`. Three files:
 
 - `packages/interface/src/data/api/<resources>.ts` — thin functions that
-  call `client.<method>(...)` and return the proto messages directly.
+  take the client and call `client.<method>(...)`, returning the proto
+  messages directly.
 - `packages/interface/src/data/queries/use<Resources>.ts` — React Query
   hooks: one `useQuery` for list/get, one `useMutation` per create/update
   and for the verb RPC with `onSuccess: invalidateQueries({ queryKey: [...] })`.
-- A new screen under `packages/interface/app/<resources>/` (Expo Router
-  file-based) or a component under `src/components/`. Use the bootstrap's
-  `app/index.tsx` (the Note screen) as a reference for the minimum shape.
+- A screen and its components under `src/features/<resources>/`, and a
+  route under `packages/interface/app/<resources>/` that renders the
+  screen. Use the bootstrap's `src/features/notes/` (NotesScreen,
+  NoteForm, NoteRow) as the reference for the minimum shape.
+- Their design board entries, in the same change: the module on the
+  Components sheet, the screen on the Pages sheet with its scenarios.
+  `../maybloom-stack-shared/references/paths/client-expo/gallery.md`
+  has the steps.
 
-If the user is just adding a resource and not yet a UI for it, stop after
-the data layer — the user will request the UI separately.
+Even with no UI yet, the board's fake backend has to answer the new
+RPCs: it is typed as the whole service, so the interface's typecheck
+fails until `src/gallery/fixtures/backend.ts` implements them (and
+fixtures for the new message sit beside it). That holds only once the
+interface sees the new contract: after `pnpm proto:gen`, rebuild the contract (`pnpm --filter <ORG_SCOPE>/protocol-buffers build`): the interface reads its built `dist/*.d.ts`, so without it local checks
+pass and CI, which rebuilds on install, fails. If the user is just adding a
+resource and not yet a UI for it, stop after that and the data layer —
+the user will request the UI separately.
 
 ## Verification before claiming done
 

@@ -81,6 +81,9 @@ carry the standing rules, the tool set and the budget. In this order:
 
 ## Design refs
 - <screen, state, token or component names; the design doc section>
+- Board: <the design board entries the slice adds or changes, with the
+  states each shows (scenarios, Play steps); "none" only for a slice
+  with no component>
 
 ## Files to touch
 - <path> — <what changes>

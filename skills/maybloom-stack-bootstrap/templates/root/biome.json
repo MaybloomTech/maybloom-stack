@@ -140,6 +140,75 @@
   },
   "overrides": [
     {
+      "includes": ["packages/interface/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react-native": {
+                    "importNames": ["useWindowDimensions"],
+                    "message": "Use useViewport (src/styles/viewport.ts): the gallery gives a page its frame's size through it."
+                  }
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "@/design",
+                      "@/design/**",
+                      "**/src/design",
+                      "**/src/design/**"
+                    ],
+                    "message": "src/design holds variants for design passes; only the gallery imports it. (An editor hint: check:no-gallery is the guarantee.)"
+                  },
+                  {
+                    "group": [
+                      "@/gallery",
+                      "@/gallery/**",
+                      "**/src/gallery",
+                      "**/src/gallery/**"
+                    ],
+                    "message": "The gallery is built only with EXPO_PUBLIC_GALLERY=1; the app never imports it. (An editor hint: check:no-gallery is the guarantee.)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/interface/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/interface/gallery/**",
+        "packages/interface/src/gallery/**",
+        "packages/interface/src/design/**",
+        "packages/interface/src/styles/viewport.ts",
+        "packages/interface/src/**/*.test.ts",
+        "packages/interface/src/**/*.test.tsx",
+        "packages/interface/src/**/__tests__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off",
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["*.ts", "*.tsx", "*.mts", "*.cts"],
       "linter": {
         "rules": {

@@ -189,6 +189,14 @@ skill.
 - **screens** — this is where the real work is. A new field shows up in
   forms and detail views, and a new child collection usually means a small
   list plus an editor.
+- **design board** (Expo) — the fixtures in `src/gallery/fixtures/` give
+  the new field a value on at least one item, including the longest one
+  the UI must hold, and the components that show it get a specimen per
+  new state (empty, set, too long). The fake backend copies whole
+  messages, so a new scalar field round-trips with no change there; a
+  field the server computes, a new child collection or a new filter on
+  the list does need its behaviour in `fixtures/backend.ts`. See
+  `../maybloom-stack-shared/references/paths/client-expo/gallery.md`.
 
 ## Verification before claiming done
 
