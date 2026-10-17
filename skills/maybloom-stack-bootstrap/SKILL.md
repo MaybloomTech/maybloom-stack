@@ -421,7 +421,7 @@ Point the user there once they're past the initial scaffold.
 ├── .github/
 │   ├── workflows/ci.yml         # per-area checks; calls image.yml once they pass
 │   ├── workflows/image.yml      # build, smoke-test and (from main) push the images
-│   ├── workflows/conventional-commits.yml   # every commit and the PR title
+│   ├── workflows/conventional-commits.yml   # the PR title (squash merges)
 │   └── dependabot.yml           # moves the actions' SHA pins weekly
 ├── commitlint.config.mjs        # Conventional Commits, Dependabot's long headers exempt
 ├── package.json                 # workspace scripts (build, dev, lint, proto:gen)

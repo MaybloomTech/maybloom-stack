@@ -303,7 +303,7 @@ its script is never touched.
   copy rather than write a Go job from scratch.
   1. From `../maybloom-stack-bootstrap/templates/root/`:
      `.github/workflows/conventional-commits.yml`, `.github/dependabot.yml`
-     and `commitlint.config.mjs`. The commit check runs
+     and `commitlint.config.mjs`. The title check runs
      `pnpm exec commitlint`, so also add `@commitlint/cli` and
      `@commitlint/config-conventional` to the root `package.json`'s
      devDependencies as `catalog:`, with their catalog entries from that

@@ -42,10 +42,10 @@ to their published routes at build time.
 
 These checks run on pull requests, and all of them are mechanical:
 
-- **Validate commit messages** and **Validate PR title** — both
-  [Conventional Commits](https://www.conventionalcommits.org). The PR
-  title matters because merges are squashed and the title becomes the
-  commit subject on `main`.
+- **Validate PR title** —
+  [Conventional Commits](https://www.conventionalcommits.org). Merges are
+  squashed and the title becomes the commit subject on `main`, so it is
+  the only message checked; the branch's own commits are not.
 - **Validate skill tree coverage** — `scripts/check-skill-tree.py`, which
   holds `docs/assets/skill-tree.json`, the drawn SVG, and the skills'
   reference directories to each other. Run it locally before pushing:

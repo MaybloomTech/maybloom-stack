@@ -120,9 +120,10 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
   prints it, no `#`), cut from an up-to-date `main`.
 - The PR body names every item the PR closes, what was run and what was
   not.
-- Commit messages and PR titles are Conventional Commits
-  (`commitlint.config.mjs`), checked on every PR. Merges are squashed, so
-  the PR title becomes the commit on `main`.
+- PR titles are Conventional Commits (`commitlint.config.mjs`), checked
+  on every PR. Merges are squashed, so the PR title becomes the commit on
+  `main`; write commit messages the same way, though CI does not check
+  them.
 - During review, never rewrite pushed history.
 
 ## Session budget

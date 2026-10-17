@@ -6,27 +6,12 @@ on:
 
 permissions:
   contents: read
-  # The action lists the PR's commits through the API; without this the
-  # token gets "Resource not accessible by integration".
-  pull-requests: read
 
 jobs:
-  commitlint:
-    name: Validate commit messages
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # commitlint needs the full history of the PR range to lint
-          # every commit, not just the merge ref.
-          fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: commitlint.config.mjs
-
   # The repo squash-merges with the PR title as the commit subject, so the
-  # title is what actually lands on main — lint it with the same commitlint
-  # config the commits job uses.
+  # title is the only commit that lands on main, and the only one linted.
+  # The branch's own commits are not checked: a slip in one of them would
+  # otherwise need a history rewrite during review to clear.
   pr-title:
     name: Validate PR title
     runs-on: ubuntu-latest

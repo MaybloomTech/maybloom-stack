@@ -204,10 +204,10 @@ merges its first weeks unchecked. Three workflows:
   hosted one is: the tag check asks it only as the pusher, over HTTPS.
   Where the images run is not the repository's concern: a deploy pulls a
   tag.
-- **Conventional commits** lints the pull request title and every commit
-  on the branch with commitlint (pinned by the lockfile, through the
-  workspace catalog), in one job. The title is the one that lands on
-  main when the repository squash-merges.
+- **Conventional commits** lints the pull request title with commitlint
+  (pinned by the lockfile, through the workspace catalog). The title is
+  the one commit that lands on main when the repository squash-merges, so
+  the branch's own commits are not checked.
 
 Every action is pinned to a commit SHA with its release in a comment,
 because a tag can be moved to other code and a SHA cannot; Dependabot

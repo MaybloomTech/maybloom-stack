@@ -1,7 +1,8 @@
 // Conventional Commits (https://www.conventionalcommits.org), enforced by
-// .github/workflows/conventional-commits.yml on every commit of a pull
-// request and on its title. The title is the one that lands on main when
-// the repository squash-merges, so it is held to the same rules.
+// .github/workflows/conventional-commits.yml on each pull request's title.
+// The title is the one commit that lands on main when the repository
+// squash-merges, so it is the only one checked; a local
+// `pnpm exec commitlint` still lints any message against these rules.
 export default {
   extends: ['@commitlint/config-conventional'],
 

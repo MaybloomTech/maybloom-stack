@@ -5,7 +5,7 @@ updates:
   # comment beside it. A pin nobody moves stops receiving fixes, so
   # Dependabot proposes the new SHA (and rewrites the comment) once a week,
   # all actions in one pull request. The `ci` prefix keeps its titles
-  # conventional: the commit checks would refuse them otherwise.
+  # conventional: the title check would refuse them otherwise.
   #
   # npm and Go modules are left out on purpose: Expo fixes the React and
   # React Native versions for a whole SDK, so an unconstrained npm bump
