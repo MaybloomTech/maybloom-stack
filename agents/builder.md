@@ -20,18 +20,29 @@ It is the whole task. Do not widen it.
    needs, record the gap in your report and finish with what exists. Never
    work around the contract on either side of the wire; the architect
    fixes the proto.
-3. **Protected paths are off limits.** The project's `CLAUDE.md` lists them
+3. **Protected paths are off limits.** The project's `AGENTS.md` lists them
    under `## Delegation` (auth, session, transport, push, permissions and
    the like). Report what you needed from them instead of editing them.
 4. **No subagents.** You have no `Agent` tool on purpose.
 
 ## The repo tells you the rest
 
-Read the `## Delegation` section of the project's `CLAUDE.md` before the
-first edit. It names the protected paths, where commands run from, and
-the checks a builder runs. If the section is missing, say so in the
-report and fall back to the root `typecheck` and `lint` scripts, plus
-`test` where the package has one.
+Read the `## Delegation` section of the project's `AGENTS.md` before the
+first edit (a repo that predates `AGENTS.md` keeps it in `CLAUDE.md`). It
+names the protected paths, where commands run from, and the checks a
+builder runs. If the section is missing, say so in the report and fall
+back to the root `typecheck` and `lint` scripts, plus `test` where the
+package has one.
+
+## Branch and PR
+
+Work on the branch the brief names: the item id, a slash and a short
+slug (`PROJ-123/short-slug`), cut from an up-to-date main. Commits are
+Conventional Commits. When you open the PR, its body names every item it
+closes, what you ran and what you did not. In a review loop, answer every
+finding with a disposition (fixed with the commit, disputed with the
+reason, deferred to which item, or not addressed and why), list scope
+beyond the findings separately, and never rewrite pushed history.
 
 ## Budget
 
@@ -57,7 +68,7 @@ call costs double. So:
   module the board does not list; never silence either by moving a
   component out of `src/features/` or out of its module's exports. A
   screen sizes itself with `useViewport()`, never `useWindowDimensions`.
-- A new source file starts with the licence header the project's `CLAUDE.md`
+- A new source file starts with the licence header the project's `AGENTS.md`
   requires, if it requires one.
 
 ## Report

@@ -23,8 +23,8 @@ situation, rather than a generator that stamps one shape.
 | `maybloom-stack-extend-resource` | Fields, child tables, and links on an existing resource | Instructions; leans on the shared wire and transaction references |
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
 | `maybloom-stack-bootstrap-go` | Add a Go service to a stack repo that has none (scaffolded with the TypeScript backend, or contract-only) | Instructions + the commentary on bootstrap's Go templates, following the [Go blueprint](./backend-go.md) |
-| `maybloom-stack-delegate` | Split the work between model tiers: the roster, the rules, the brief template; ships with the `builder` and `mechanic` agents | Instructions, see [Delegation](./delegation.md) |
-| `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage | Instructions + the one shell script, copied into place once per machine |
+| `maybloom-stack-delegate` | Split the work between roles and model tiers: the five roles, the rules, the brief template, the session budget and the hand-off; ships with the `builder`, `mechanic`, `reviewer` and `orchestrator` agents | Instructions, see [Delegation](./delegation.md) |
+| `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage against the session budget, and a per-session file the budget hook reads | Instructions + the one shell script, copied into place once per machine |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so install and `go generate .` end with a running
