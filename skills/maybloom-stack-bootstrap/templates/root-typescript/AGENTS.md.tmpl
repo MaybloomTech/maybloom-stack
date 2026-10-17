@@ -110,7 +110,8 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
   `pnpm proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`:
   the interface typechecks against the built contract). The backend has
   no test runner scaffolded yet; the first slice that needs one adds it
-  with a `test` script and updates this line. A new component, icon or
+  with a `test` script, chains it into the root `test` and updates this
+  line. A new component, icon or
   page has its design board entry.
 - **Mechanic checks:** `pnpm lint`, or the CI job the chore touches.
 
@@ -191,11 +192,11 @@ code they describe.
   of what exists; read it before writing a component, update it with
   one.
 - The interface reaches the backend through `useBackend()`
-  (`src/data/client.ts`), in a hand-written hook inside the feature that
+  (`src/data/client.ts`), in a React Query hook inside the feature that
   uses it (`src/features/<feature>/use<Things>.ts`); screens and
-  components never call the client themselves. The design board and the
-  tests mount `Fake` (`fakeBackend`) in its place. React Query is an
-  opt-in the project owner decides, not a default.
+  components never call the client themselves. A write invalidates the
+  key it changes. The design board and the tests mount `Fake`
+  (`fakeBackend`, with its own query cache) in its place.
 - A new RPC is added to the proto first, then the handler, then the
   interface, whose design board fake backend answers it too; the
   generated service type refuses to compile until every declared RPC has

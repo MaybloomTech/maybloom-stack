@@ -82,8 +82,9 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
   to the contract (protovalidate) where the path supports it.
 - **wiring** — the service implementation object registered with Connect. The
   compiler refuses to build until every RPC in the proto has a handler.
-- **backend context / feature hook / screen** — the interface mirror: the
-  typed client in a context, a hand-written hook per feature, and screens. See [Interface](./interface.md).
+- **backend context / feature hooks / screen** — the interface mirror: the
+  typed client in a context, React Query hooks in each feature, and
+  screens. See [Interface](./interface.md).
 
 ## Principles
 
@@ -139,7 +140,7 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
   packages/                TypeScript workspace packages
     protocol-buffers/        generated TS (gitignored src/, built on install)
     backend/                 Fastify + Connect-RPC + Drizzle, when the TypeScript backend was chosen instead
-    interface/               Expo Router + feature hooks over a Backend context
+    interface/               Expo Router + React Query
     <name>-site/             Astro sites, one package per site
   scripts/go, scripts/golangci-lint   the Go toolchain and linter in their pinned images
   .github/workflows/       CI, the image build-and-push, the conventional-commit check

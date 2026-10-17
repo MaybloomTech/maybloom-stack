@@ -1,161 +1,50 @@
 import { ConnectError } from '@connectrpc/connect';
-import type { Note } from '__ORG_SCOPE__/protocol-buffers/__APP_SLUG__/resources/v1/notes_pb';
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBackend } from '../../data/client';
 
-export type NotesState = {
-  notes: Note[];
-  /** True until the first answer. */
-  loading: boolean;
-  error: string | null;
-  /** Ask again; the list on screen stays until the answer comes. */
-  reload: () => void;
-  /** Rejects when the save fails, so the form can say so. */
-  create: (input: { title: string; body: string }) => Promise<void>;
-  /** The id being archived, if any. */
-  archiving: string | null;
-  archive: (id: string) => Promise<void>;
-};
+// The notes' cache key. Every hook below reads or invalidates it; a screen
+// that needs one note adds a key under it: [...NOTES_KEY, id].
+export const NOTES_KEY = ['notes'] as const;
 
 // A ConnectError's message carries a "[code]" prefix; rawMessage is the text
 // the server sent.
-const errorMessage = (err: unknown) =>
+export const errorMessage = (err: unknown) =>
   err instanceof ConnectError
     ? err.rawMessage
     : err instanceof Error
       ? err.message
       : String(err);
 
-// The notes page's data, hand-written over the Backend context: no cache
-// library, one hook per feature. It reads the first page only: the example
-// screen has no scroll-to-load. A mutation calls the client and then reloads
-// the list, so what is on screen is what the server answered.
-//
-// A screen that pages the list reads like this instead (the shape of a
-// scroll-to-load hook, over the same ListNotes):
-//
-//   const next = useRef('');       // the next page's token ('' before the first)
-//   const busy = useRef(false);    // a call is in flight
-//   const failed = useRef(false);  // the last page failed: stop until retry
-//   const run = useRef(0);         // which run of the hook an answer belongs to
-//   const [hasMore, setHasMore] = useState(true);
-//
-//   const fetchPage = useCallback(
-//     (token: string) => {
-//       if (busy.current || failed.current) return;
-//       busy.current = true;
-//       const mine = run.current;
-//       api
-//         .listNotes({ pageSize: 50, pageToken: token })
-//         .then((res) => {
-//           if (run.current !== mine) return; // the screen stopped wanting it
-//           next.current = res.nextPageToken;
-//           setHasMore(res.nextPageToken !== '');
-//           setNotes((prev) => {
-//             if (token === '') return res.notes;
-//             // De-dupe: a note can come again when the list shifts under the
-//             // reader; the later copy is the current one.
-//             const fresh = new Set(res.notes.map((n) => n.id));
-//             return [...prev.filter((n) => !fresh.has(n.id)), ...res.notes];
-//           });
-//         })
-//         .catch((err) => {
-//           if (run.current !== mine) return;
-//           failed.current = true; // onEndReached fires on every scroll: do
-//           setError(errorMessage(err)); // not call a failing RPC again
-//         })
-//         .finally(() => {
-//           if (run.current !== mine) return;
-//           busy.current = false;
-//         });
-//     },
-//     [api],
-//   );
-//
-//   useEffect(() => {
-//     fetchPage('');
-//     return () => {
-//       // A new run: drop what is in flight and start over.
-//       run.current += 1;
-//       next.current = '';
-//       busy.current = false;
-//       failed.current = false;
-//       setNotes([]);
-//       setHasMore(true);
-//     };
-//   }, [fetchPage]);
-//
-//   const loadMore = useCallback(() => {
-//     if (next.current !== '') fetchPage(next.current);
-//   }, [fetchPage]);
-//
-//   // Clears the failure and asks for the page that failed again.
-//   const retry = useCallback(() => {
-//     failed.current = false;
-//     setError(null);
-//     fetchPage(next.current);
-//   }, [fetchPage]);
-//
-// and returns `loadMore`, `hasMore` and `retry` for the list's onEndReached
-// and an error row's button.
-export function useNotes(): NotesState {
+// The first page only: the example screen has no scroll-to-load. A screen
+// that pages uses useInfiniteQuery over the page_token instead:
+// initialPageParam '', getNextPageParam: (page) => page.nextPageToken || undefined.
+export function useNotes() {
   const { __APP_SLUG__: api } = useBackend();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [archiving, setArchiving] = useState<string | null>(null);
-  // Bumped by reload(); the effect below runs again for each value.
-  const [version, setVersion] = useState(0);
+  return useQuery({
+    queryKey: NOTES_KEY,
+    queryFn: () => api.listNotes({ pageSize: 50, pageToken: '' }),
+    select: (page) => page.notes,
+  });
+}
 
-  useEffect(() => {
-    // `version` is the effect's trigger: reload() bumps it.
-    void version;
-    let cancelled = false;
-    api
-      .listNotes({ pageSize: 50, pageToken: '' })
-      .then((res) => {
-        if (cancelled) return;
-        setNotes(res.notes);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(errorMessage(err));
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, version]);
+export function useCreateNote() {
+  const { __APP_SLUG__: api } = useBackend();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { title: string; body: string }) =>
+      api.createNote({ note: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+  });
+}
 
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
-
-  const create = useCallback(
-    async (input: { title: string; body: string }) => {
-      await api.createNote({ note: input });
-      reload();
-    },
-    [api, reload],
-  );
-
-  const archive = useCallback(
-    async (id: string) => {
-      setArchiving(id);
-      setError(null);
-      try {
-        await api.archiveNote({ id });
-        reload();
-      } catch (err) {
-        setError(errorMessage(err));
-      } finally {
-        setArchiving(null);
-      }
-    },
-    [api, reload],
-  );
-
-  return { notes, loading, error, reload, create, archiving, archive };
+// ArchiveNote is how a note leaves the default list in this example: the
+// row and its id stay, ListNotes leaves it out unless asked. (A real
+// resource answers that question its own way; see the contract's comment.)
+export function useArchiveNote() {
+  const { __APP_SLUG__: api } = useBackend();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.archiveNote({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+  });
 }

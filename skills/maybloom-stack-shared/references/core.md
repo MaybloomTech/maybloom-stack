@@ -96,12 +96,11 @@ whatever framework the project uses, but keep the seams.
 - **backend context** — one place that bundles the generated client
   (and whatever else a screen reaches the backend through), provided to
   the tree and replaceable per test or specimen.
-- **feature hooks** — each feature owns its data: a hand-written hook
-  over the backend context returns loading, error, the items, a reload
-  and one function per write. A server-state cache (React Query in the
-  validated path, as an opt-in; whatever the framework's equivalent is)
-  is for projects that need cross-screen invalidation or optimistic
-  updates.
+- **feature hooks** — each feature owns its data, in the feature: hooks
+  over the backend context on a server-state cache (React Query in the
+  validated path; whatever the framework's equivalent is), keyed
+  per-resource, with list keys and item keys distinct so invalidation
+  can be precise. A write invalidates the keys it changes.
 - **screens** — UI on top. Never talks to the wire directly.
 
 "Interface" is the stack's word for the client package; a project may
@@ -147,7 +146,7 @@ web framework), don't refuse and don't force the defaults. Proceed:
 |---|---|---|
 | Contract | proto + Buf + Connect-RPC, conventions in `proto-conventions.md` | — |
 | Server | handler/store/adapter seams, generated edges, unary by default | connect-go + sqlc + goose (the default; Postgres or MariaDB), or Fastify + Drizzle + PGlite |
-| Client | generated client + backend context/feature hooks/screens | Expo Router + hand-written feature hooks (React Query opt-in) |
+| Client | generated client + backend context/feature hooks/screens | Expo Router + React Query hooks in the feature |
 | Monorepo | contract at the root, consumed by every package | pnpm workspace, biome, the catalog |
 | Naming | one service per backend; resources PascalCase singular in proto | "interface", file layout, camelCase plural tables |
 

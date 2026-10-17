@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,15 +9,31 @@ import { type FakeOptions, fakeBackend } from './fixtures/backend';
 import { heightOf, type Width } from './layout';
 
 /**
- * A subtree on its own fake backend: every specimen gets one, so what it
- * changes, or the state it is held in, stays its own.
+ * A subtree on its own fake backend and its own query cache: every
+ * specimen gets one, so what it changes, or the state it is held in, stays
+ * its own. No retries, so the `error` scenario shows its error at once.
  */
 export function Fake({
   children,
   ...options
 }: FakeOptions & { children: ReactNode }) {
   const [backend] = useState(() => fakeBackend(options));
-  return <BackendProvider value={backend}>{children}</BackendProvider>;
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          // gcTime Infinity: a specimen's cache dies with the specimen, and
+          // no garbage-collection timer is left to hold a test run open.
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { retry: false },
+        },
+      }),
+  );
+  return (
+    <BackendProvider value={backend}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </BackendProvider>
+  );
 }
 
 /**

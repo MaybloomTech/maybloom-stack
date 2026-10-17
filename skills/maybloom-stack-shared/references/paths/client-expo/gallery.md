@@ -80,15 +80,28 @@ is what every screen uses. The board mounts one per specimen:
 // src/gallery/fake.tsx
 export function Fake({ children, ...options }: FakeOptions & { children: ReactNode }) {
   const [backend] = useState(() => fakeBackend(options));
-  return <BackendProvider value={backend}>{children}</BackendProvider>;
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
+      }),
+  );
+  return (
+    <BackendProvider value={backend}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </BackendProvider>
+  );
 }
 ```
 
-Each specimen has its own backend, so what one changes (a note added, a
-note archived) stays its own, and two specimens of one page in different
-states share nothing. (A project that opts into React Query also gives
-each specimen its own `QueryClient`; see the client-expo README.) The same
-`Fake` is what the interface's tests mount.
+Each specimen has its own backend and its own `QueryClient`, so what one
+changes (a note added, a note archived) stays its own, and two specimens
+of one page in different states do not share a cache key. Retries are off,
+so the `error` scenario shows its error at once instead of after the
+backoff. The same `Fake` is what the interface's tests mount.
 
 `fakeBackend(options)` (`src/gallery/fixtures/backend.ts`) returns a whole
 `Backend`: the real Connect client over `createRouterTransport`, answering

@@ -1,9 +1,15 @@
-# Interface: Backend context → feature hook → screen
+# Interface: Backend context → feature hooks (React Query) → screen
 
-Three pieces, added in this order. The default path has no cache library:
-a feature's data is a hand-written hook over the `Backend` context.
-React Query is an opt-in for projects that need it (the last section
-before the sharp edges), not the default.
+Three pieces, added in this order. Server state lives in React Query: a
+feature's hooks are `useQuery` and `useMutation` over the `Backend`
+context, in the feature. That is what makes the app feel quick: one shared
+cache, requests de-duplicated, writes that invalidate what they change,
+retries, and paging done for you.
+
+An interface scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
+`useClient()`) uses the same library in an older layout: an agent working
+there follows that project's existing layout and does not migrate it unless
+the owner asks.
 
 ## 1. The Backend context: `packages/interface/src/data/client.ts`
 
@@ -41,96 +47,121 @@ never settles; a fake backend settles it with where the trip would have
 come back to. Because the context holds them, a screen that triggers a
 trip is shown on the board like any other.
 
-## 2. The feature's hook: `src/features/<resources>/use<Resources>.ts`
+The `QueryClient` is `src/data/queryClient.ts`, mounted once by the
+`QueryClientProvider` in `app/_layout.tsx`.
 
-Each feature owns its data. The hook reads `useBackend()`, calls the
-client, and returns what its screen needs: `loading`, `error`, the items,
-a `reload`, and one function per write. A write calls the client and then
-reloads, so what is on screen is what the server answered. The bootstrap's
-`src/features/notes/useNotes.ts` is the working reference; for a resource:
+## 2. The feature's hooks: `src/features/<resources>/use<Resources>.ts`
+
+Each feature owns its data, in the feature: there is no wrapper tier
+between the hooks and the client, and a `queryFn` calls the client
+directly. The hooks read `useBackend()`. The bootstrap's `src/features/notes/useNotes.ts` is
+the working reference; for a resource:
 
 ```ts
+export const <RESOURCES>_KEY = ['<resources>'] as const;
+
 export function use<Resources>() {
   const { <app_slug>: api } = useBackend();
-  const [<resources>, set<Resources>] = useState<<Resource>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    void version; // reload() bumps it; the effect runs again
-    let cancelled = false;
-    api
-      .list<Resources>({ pageSize: 50, pageToken: '' })
-      .then((res) => {
-        if (cancelled) return;
-        set<Resources>(res.<resources>);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(errorMessage(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, version]);
-
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
-  const create = useCallback(
-    async (input: { title: string; body: string }) => {
-      await api.create<Resource>({ <resource>: input });
-      reload();
-    },
-    [api, reload],
-  );
-  // archive<Resource>(id): the resource's leaving-the-view RPC, then reload.
-
-  return { <resources>, loading, error, reload, create /* , archive */ };
+  return useQuery({
+    queryKey: <RESOURCES>_KEY,
+    queryFn: () => api.list<Resources>({ pageSize: 50, pageToken: '' }),
+    select: (page) => page.<resources>,
+  });
 }
+
+export function useCreate<Resource>() {
+  const { <app_slug>: api } = useBackend();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { title: string; body: string }) =>
+      api.create<Resource>({ <resource>: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: <RESOURCES>_KEY }),
+  });
+}
+
+// useArchive<Resource>: the resource's leaving-the-view RPC, the same way.
 ```
 
 Rules the shape keeps:
 
-- The `cancelled` flag drops an answer that arrives after the effect was
-  cleaned up (unmount, a new `version`).
-- A form write (`create`) rejects when the call fails, so the form that
-  called it can keep what was typed and say so. A row action (`archive`)
-  has no input to keep: it reports through `error`, and clears `error`
-  when it starts so an old failure does not outlive the next try.
-- `errorMessage` prefers `rawMessage` for a `ConnectError` (the text the
-  server sent, without the `[code]` prefix `message` adds).
+- **Keys.** One key const exported from the hook file. Lists:
+  `['<resources>']` (or `['<resources>', filters]`). Single items:
+  `['<resources>', id]`, under the list key, so invalidating the list key
+  also invalidates the items.
+- **Invalidate after a write.** A mutation invalidates the keys it changes
+  in `onSuccess`: the item key always, the list key when the write can
+  change membership or ordering. Missing one shows up as a screen that
+  needs a manual refresh.
+- **Form writes reject.** `mutateAsync` rejects when the call fails, so a
+  form can keep what was typed and say so. A row action uses `mutate` and
+  reports through the mutation's `error`.
+- **`errorMessage`** prefers `rawMessage` for a `ConnectError` (the text
+  the server sent, without the `[code]` prefix `message` adds).
 - Returning the raw proto message keeps the type pipeline straight from
-  server to UI. If a UI-friendly summary is narrower than the proto,
-  map it inside the hook so screens never import raw generated types.
+  server to UI. If a UI-friendly summary is narrower than the proto, map
+  it in `select` so screens never import raw generated types.
 - Components never call the client; only a hook does.
 
 ### A paged list
 
-`ListNotes`-style RPCs page by cursor (`nextPageToken`, empty on the last
-page). The scaffold's hook keeps the first page and shows the paged shape
-in a comment. A hook that scrolls to load more adds `loadMore` and
-`hasMore`, and keeps four refs so a scroll handler never acts on a render
-that has not caught up:
+`List`-style RPCs page by cursor (`nextPageToken`, empty on the last
+page). The scaffold's `use<Resources>` reads the first page, as the
+example screen has no scroll-to-load. A screen that pages uses
+`useInfiniteQuery`:
 
-- `next`: the next page's token (`''` before the first page);
-- `busy`: a call is in flight, so `loadMore` is a no-op;
-- `failed`: the last page failed, so `loadMore` is a no-op until `retry`
-  clears it (a list's `onEndReached` fires on every scroll; without this a
-  failing server is called again each time);
-- `run`: which run of the hook an answer belongs to. The effect's cleanup
-  bumps it, resets the refs, the list and `hasMore`, and an answer whose
-  run is not the current one is dropped, so a screen that stopped wanting
-  the list (or asked to start over) never gets a late page.
+```ts
+useInfiniteQuery({
+  queryKey: <RESOURCES>_KEY,
+  queryFn: ({ pageParam }) =>
+    api.list<Resources>({ pageSize: 50, pageToken: pageParam }),
+  initialPageParam: '',
+  getNextPageParam: (page) => page.nextPageToken || undefined,
+  select: (data) => data.pages.flatMap((page) => page.<resources>),
+});
+```
 
-The hook also returns `retry`, which clears `failed` and `error` and asks
-for the page that failed again.
+The list's `onEndReached` calls `fetchNextPage` when `hasNextPage` and not
+`isFetchingNextPage`. Query de-duplicates the in-flight call and retries a
+failed page. Use a different key from the first-page hook when both exist,
+or the cached shapes collide.
 
-Pages after the first append, de-duplicated by id: a row can come again
-when the list shifts under the reader, and the later copy is the current
-one.
+### Optimistic updates
+
+For latency-sensitive interactions (toggling a checkbox, reacting to a
+post), use `useMutation`'s `onMutate` to cancel in-flight queries, write
+the expected value into the cache and return the previous one; `onError`
+puts it back and `onSettled` invalidates. Keep it in the resource's hook
+file rather than in the screen. For first-pass CRUD, plain `onSuccess:
+invalidate` is fine.
+
+### connect-query as a variant
+
+`@connectrpc/connect-query` derives typed hooks from the service
+descriptor (`useQuery(list<Resources>)`, keys via
+`createConnectQueryKey`), which removes the hand-written `queryFn`s. Use
+it when the project already does, or when the resource count is large and
+screens are happy with the proto types. It reads its transport from its
+own provider, so wire it to the `Backend` (and the fake) rather than a
+second client. Do not mix the two per resource.
+
+### A persisted cache
+
+A persisted query cache (so the app opens on last session's data) is an
+option, not the default, and it cannot hold proto messages as-is: `int64`
+fields (every `Timestamp.seconds`) are `bigint` and `JSON.stringify`
+throws; `bytes` is a `Uint8Array` that serializes as an object of
+indexes. Tag both in the persister and reverse on restore. Clear it on
+sign-out.
+
+### An app that wants no cache
+
+An app with a handful of screens that each read their own data can drop
+the library: a hand-written hook with `useState`/`useEffect` over
+`useBackend()` returning `loading`, `error`, the items and one function per
+write that calls the client and reloads. It then owns what React Query
+gives: cancelling a late answer on unmount, not calling a failing page on
+every scroll, de-duplicating pages. Choose it deliberately; it is not the
+default.
 
 ## 3. The screen and its components
 
@@ -169,18 +200,25 @@ import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { useViewport } from '../../styles/viewport';
 import { <Resource>Form } from './<Resource>Form';
 import { <Resource>Row } from './<Resource>Row';
-import { use<Resources> } from './use<Resources>';
+import {
+  errorMessage,
+  useArchive<Resource>,
+  useCreate<Resource>,
+  use<Resources>,
+} from './use<Resources>';
 
 export function <Resources>Screen() {
-  const { <resources>, loading, error, create, archiving, archive } =
-    use<Resources>();
+  const { data: <resources>, isLoading, error: loadError } = use<Resources>();
+  const create = useCreate<Resource>();
+  const archive = useArchive<Resource>();
+  const error = loadError ?? archive.error;
   const { width } = useViewport();
 
   return (
     <View style={{ flex: 1, alignSelf: 'center', width: Math.min(width, 640) }}>
-      <<Resource>Form onSubmit={create} />
-      {error ? <Text>Something went wrong: {error}</Text> : null}
-      {loading ? (
+      <<Resource>Form onSubmit={create.mutateAsync} />
+      {error ? <Text>Something went wrong: {errorMessage(error)}</Text> : null}
+      {isLoading ? (
         <ActivityIndicator />
       ) : (
         <FlatList
@@ -189,8 +227,8 @@ export function <Resources>Screen() {
           renderItem={({ item }) => (
             <<Resource>Row
               <resource>={item}
-              archiving={archiving === item.id}
-              onArchive={() => archive(item.id)}
+              archiving={archive.isPending && archive.variables === item.id}
+              onArchive={() => archive.mutate(item.id)}
             />
           )}
         />
@@ -216,11 +254,38 @@ answer in the fake backend, or the typecheck fails there.
 
 The scaffold has no auth and no `GetMe` RPC, so it ships the Backend
 context without a session. An app that adds auth writes the pieces below
-(the Maybloom app is the prior art); they are a documented pattern, not
+(an app in production runs this shape); they are a documented pattern, not
 scaffold code. `Me` and `GetMe` here are generic names for whatever the
-contract calls the signed-in person and the RPC that returns them.
+contract calls the signed-in person and the RPC that returns them. The
+session is a query like any other.
 
-**The `Session` union.** One shape for every screen to switch on:
+**`useMe`: one `GetMe`, fetched once and shared.** `staleTime: Infinity`
+means the first screen to ask pays the round trip and every other reads
+the cache. `retry: false` so a signed-out answer is not retried. A screen
+that changes the person's data patches the cache with `setQueryData`
+instead of refetching.
+
+```ts
+export const ME_KEY = ['me'] as const;
+
+export function useMe() {
+  const { <app_slug>: api } = useBackend();
+  return useQuery({
+    queryKey: ME_KEY,
+    queryFn: async () => {
+      const res = await api.getMe({});
+      if (!res.user) throw new Error('No user in the response');
+      return { user: res.user };
+    },
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+```
+
+**The `Session` union.** One shape for every screen to switch on, derived
+from the query. `Unauthenticated` maps to `signedOut`; any other failure
+maps to `error` with the message:
 
 ```ts
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -234,52 +299,14 @@ export type Session =
   | { state: 'signedOut' }
   | { state: 'signedIn'; me: Me }
   | { state: 'error'; message: string };
-```
 
-**`SessionProvider`: one `GetMe` at the root.** Mounted once in
-`app/_layout.tsx`, it calls `GetMe` once and shares the answer. Without it
-every screen fetches its own copy, and a first visit pays one round trip
-per screen. It exposes `refresh()` (ask again) and `update(patch)` (a
-screen that changes the person's data patches the shared shape without a
-refetch). `Unauthenticated` maps to `signedOut`; any other failure maps to
-`error` with the message.
-
-```tsx
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const { <app_slug>: api } = useBackend();
-  const [session, setSession] = useState<Session>({ state: 'loading' });
-
-  const refresh = useCallback(async () => {
-    try {
-      const res = await api.getMe({});
-      setSession(
-        res.user
-          ? { state: 'signedIn', me: { user: res.user } }
-          : { state: 'error', message: 'No user in the response' },
-      );
-    } catch (err) {
-      setSession(
-        err instanceof ConnectError && err.code === Code.Unauthenticated
-          ? { state: 'signedOut' }
-          : { state: 'error', message: errorMessage(err) },
-      );
-    }
-  }, [api]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const update = useCallback((patch: Partial<Me>) => {
-    setSession((prev) =>
-      prev.state === 'signedIn'
-        ? { state: 'signedIn', me: { ...prev.me, ...patch } }
-        : prev,
-    );
-  }, []);
-
-  // Provide { session, refresh, update } through a context; useSession()
-  // reads it and throws when no SessionProvider is above it.
+export function useSession(): Session {
+  const { data, error, isPending } = useMe();
+  if (data) return { state: 'signedIn', me: data };
+  if (isPending) return { state: 'loading' };
+  return error instanceof ConnectError && error.code === Code.Unauthenticated
+    ? { state: 'signedOut' }
+    : { state: 'error', message: errorMessage(error) };
 }
 ```
 
@@ -290,7 +317,7 @@ state is `error`); then the feature screen with `session.me`. Redirects for
 
 ```tsx
 export default function Protected() {
-  const { session } = useSession();
+  const session = useSession();
 
   if (session.state === 'loading') return <LoadingState />;
   if (session.state === 'signedOut' || session.state === 'error') {
@@ -305,14 +332,15 @@ export default function Protected() {
 ```
 
 The board shows the screen by passing it a `Me` fixture, so the gate is
-the only code that needs a `SessionProvider`.
+the only code that needs the query.
 
 **`signIn` and `signOut` are off-page trips on the Backend.** `signIn`
 navigates to the backend's login route (`/auth/login`) and returns a
 promise that never settles. `signOut` posts to the logout route with
-credentials, throws a readable error when the backend refuses, and on the
-web navigates home with a promise that never settles. A fake backend
-settles both so a specimen can show what follows.
+credentials, throws a readable error when the backend refuses, clears the
+query cache (`queryClient.clear()`, so the next person never sees the last
+one's data) and on the web navigates home with a promise that never
+settles. A fake backend settles both so a specimen can show what follows.
 
 **Cookie sessions need `credentials: 'include'`.** connect-web v2 has no
 `credentials` option; pass a `fetch` override on the transport:
@@ -333,116 +361,20 @@ CORS with credentials).
 
 The scaffold ships the harness and one test: `jest-expo`, React Native
 Testing Library, and `src/features/notes/NotesScreen.test.tsx`, which
-renders the screen inside `Fake` (the board's `fakeBackend`) and asserts
-what a user sees in the `notes`, `empty` and `error` scenarios. Run it
-with `pnpm test` from the repo root. A test file under `src/`
-(`*.test.tsx`, `__tests__/`) is exempt from the board's import rule, so
-it can import `Fake` the way the board does.
+renders the screen inside `Fake` (the board's `fakeBackend` and a fresh
+`QueryClient`) and asserts what a user sees in the `notes`, `empty` and
+`error` scenarios. Run it with `pnpm test` from the repo root. A test file
+under `src/` (`*.test.tsx`, `__tests__/`) is exempt from the board's import
+rule, so it can import `Fake` the way the board does.
 
 The fake is a real Connect client over `createRouterTransport`, an
 in-process scripted service; there are no mocks, and a hook is tested
 through the screen that uses it. Use RNTL's async queries (`findByText`),
-since the hook answers after a render. A new RPC is answered in
+since the query answers after a render. A new RPC is answered in
 `fakeBackend` first (the typecheck fails until it is), then a test can use
 it. React Native Testing Library 14 is async end to end: `await
 render(...)` and `await fireEvent.*(...)`; the scaffold pins 13, where
 `render` is sync.
-
-## React Query, opt-in
-
-Choose React Query when the project needs what the hand-written hook
-does not give: a cache shared across many screens that must stay
-consistent after a write (invalidation), or optimistic updates. A project
-with a handful of screens that each read their own data does not; the
-hook above is less code and has no cache to reason about. It is the
-project owner's call: it adds a dependency.
-
-Add `@tanstack/react-query`, one `QueryClient` and a `QueryClientProvider`
-in `app/_layout.tsx`, and keep `useBackend()` as the one way to reach the
-client. The board's `Fake` then also needs its own `QueryClient`
-(`retry: false`) per specimen so a specimen's cache stays its own.
-
-### The api and queries tiers
-
-Two tiers sit between the context and the screen, and the feature's hook
-becomes the queries tier.
-
-`src/data/api/<resources>.ts` — thin functions around the Connect client.
-They take the client as their first argument (the hook gets it from
-`useBackend()`); never import a client into this file.
-
-```ts
-export async function list<Resources>(client: AppClient, pageToken = '') {
-  const response = await client.list<Resources>({ pageSize: 50, pageToken });
-  return {
-    <resources>: response.<resources>,
-    nextPageToken: response.nextPageToken,
-  };
-}
-
-export async function archive<Resource>(client: AppClient, id: string) {
-  const response = await client.archive<Resource>({ id });
-  return response.<resource>;
-}
-```
-
-`src/data/queries/use<Resources>.ts` — one `useQuery` for the list, one
-`useMutation` per write, each invalidating the list key on success:
-
-```ts
-const <RESOURCES>_KEY = ['<resources>'] as const;
-
-export function use<Resources>() {
-  const { <app_slug>: client } = useBackend();
-  return useQuery({
-    queryKey: <RESOURCES>_KEY,
-    queryFn: () => list<Resources>(client),
-    select: (page) => page.<resources>,
-  });
-}
-
-export function useArchive<Resource>() {
-  const { <app_slug>: client } = useBackend();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => archive<Resource>(client, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: <RESOURCES>_KEY }),
-  });
-}
-```
-
-Cache-key conventions:
-
-- Lists: `["<resources>"]` (or `["<resources>", filters]` if filters).
-- Single items: `["<resource>", id]`.
-- After a mutation that changes one item, invalidate both keys.
-
-A screen that scrolls to load more uses `useInfiniteQuery` over
-`list<Resources>(client, pageToken)` with `getNextPageParam` reading
-`nextPageToken`.
-
-### Optimistic updates
-
-For latency-sensitive interactions (toggling a checkbox, reacting to a
-post), use `useMutation`'s `onMutate` to update the cache optimistically
-and `onError` to roll back, keeping it in the resource's
-`use<Resources>.ts` hook rather than in the screen. For first-pass CRUD,
-plain `onSuccess: invalidate` is fine.
-
-### connect-query instead of hand-written api + queries
-
-`@connectrpc/connect-query` derives typed hooks from the service
-descriptor (`useQuery(list<Resources>)`, keys via
-`createConnectQueryKey`), which removes the two tiers. Use it when the
-project already does, or when the resource count is large and screens are
-happy with the proto types; keep the api tier when screens want narrower
-view models. Do not mix the two per resource.
-
-### A persisted query cache cannot hold proto messages as-is
-
-`int64` fields (every `Timestamp.seconds`) are `bigint` and
-`JSON.stringify` throws; `bytes` is a `Uint8Array` that serializes as an
-object of indexes. Tag both in the persister and reverse on restore.
 
 ## Sharp edges
 

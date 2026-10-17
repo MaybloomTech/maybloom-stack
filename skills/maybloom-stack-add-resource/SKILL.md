@@ -319,16 +319,20 @@ client and cannot tell which language serves it. Read
 `../maybloom-stack-shared/references/paths/client-expo/README.md`. Three pieces:
 
 - `packages/interface/src/features/<resources>/use<Resources>.ts` — a
-  hand-written hook over `useBackend()` (the Backend context in
-  `src/data/client.ts`): loading, error, the items, a reload, and a
-  function per create/update and for the verb RPC, each calling the client
-  and then reloading. No cache library: React Query is an opt-in the
-  project owner chooses (the reference's "React Query, opt-in" section),
-  not the default.
+  React Query hooks over `useBackend()` (the Backend context in
+  `src/data/client.ts`), calling the client directly: one exported key
+  const, a `useQuery` for list/get, and a `useMutation` per create/update
+  and for the verb RPC, each with `onSuccess: invalidateQueries({ queryKey:
+  KEY })`. Use `src/features/notes/useNotes.ts` as the shape. An interface
+  scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
+  `useClient()`) uses the same library in an older layout: follow that
+  project's layout, and do not migrate it unless the owner asks.
 - A screen and its components under `src/features/<resources>/`, and a
   route under `packages/interface/app/<resources>/` that renders the
   screen. Use the bootstrap's `src/features/notes/` (NotesScreen,
-  NoteForm, NoteRow) as the reference for the minimum shape.
+  NoteForm, NoteRow) as the reference for the minimum shape, and a screen
+  test beside the screen (`<Screen>.test.tsx`, over `Fake` and a scenario
+  of the board's fake backend, as `NotesScreen.test.tsx` does).
 - Their design board entries, in the same change: the module on the
   Components sheet, the screen on the Pages sheet with its scenarios.
   `../maybloom-stack-shared/references/paths/client-expo/gallery.md`

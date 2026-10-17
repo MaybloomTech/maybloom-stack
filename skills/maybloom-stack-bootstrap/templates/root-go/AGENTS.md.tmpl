@@ -207,11 +207,11 @@ describe.
   of what exists; read it before writing a component, update it with
   one.
 - The interface reaches the backend through `useBackend()`
-  (`src/data/client.ts`), in a hand-written hook inside the feature that
+  (`src/data/client.ts`), in a React Query hook inside the feature that
   uses it (`src/features/<feature>/use<Things>.ts`); screens and
-  components never call the client themselves. The design board and the
-  tests mount `Fake` (`fakeBackend`) in its place. React Query is an
-  opt-in the project owner decides, not a default.
+  components never call the client themselves. A write invalidates the
+  key it changes. The design board and the tests mount `Fake`
+  (`fakeBackend`, with its own query cache) in its place.
 - A new RPC is added to the proto first, then the handler, then the
   interface, whose design board fake backend answers it too; the
   generated handler interface refuses to compile until every declared RPC
