@@ -36,7 +36,7 @@ Where neither went, the section says so.
 | Data layer | sqlc-generated queries; pgx/v5 on Postgres, `database/sql` on MariaDB | both | Drizzle ORM |
 | Schema truth | `db/migrations/*.sql` (goose format), read by sqlc | both | `src/db/schema.ts` |
 | Migrations | goose, embedded, applied on boot | both | drizzle-kit, manual in prod |
-| Validation | protovalidate constraints in the contract, enforced by an interceptor | OCF IMS | hand-written presence checks |
+| Validation | protovalidate constraints in the contract, enforced by an interceptor | both | hand-written presence checks |
 | Config | struct + env tags (`caarlos0/env`) + `Validate()` | Maybloom | TypeBox + `@fastify/env` |
 | Logging | `log/slog`; JSON in production, text in development | both | Fastify pino logger |
 | Codegen | buf and every plugin pinned as `go tool` binaries in go.mod, run from `go/` | both | pnpm catalog |
@@ -189,8 +189,8 @@ CI and the Dockerfile all run it. For buf and sqlc that is two
 module root; OCF IMS, with four generators and the repo-root/module-root
 split to manage, drives them from a `bin/build/build.go` with a
 `-generate-only` flag that the Dockerfile and CI both call. The Maybloom
-backend runs the two commands by hand in three places, which is the
-version of this rule that a new service should not copy.
+backend has three `go:generate` lines (buf, sqlc, oapi-codegen), and its
+README, CI and Dockerfile run `go generate .` and nothing else.
 
 ### Lint and vulnerabilities
 
@@ -739,7 +739,7 @@ which the test suite asserts.
 Multi-stage Dockerfile, built with the **repo root as context**: the build
 stage regenerates the contract, so it needs `proto/`, `third_party/` and the
 buf configs as well as `go/`. The scaffold's
-(`templates/backend-go/Dockerfile.tmpl`), trimmed:
+(`skills/maybloom-stack-bootstrap/templates/backend-go/Dockerfile.tmpl`), trimmed:
 
 ```dockerfile
 # The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.
