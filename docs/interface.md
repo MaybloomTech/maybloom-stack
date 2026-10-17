@@ -8,9 +8,9 @@ order: 5
 
 The interface is one Expo app that ships to Android, iOS, and the web from a
 single codebase. Expo Router owns navigation, React Query owns server state
-(each feature's hooks read it), and the generated Connect client owns the wire. The package is called the
-interface everywhere, because it is the human side of the system rather than
-a "front" to the backend.
+(each feature's hooks read it), and the generated Connect client owns the
+wire. The package is called the interface everywhere, because it is the
+human side of the system rather than a "front" to the backend.
 
 Neither the word nor the framework is the load-bearing part. What the
 stack's core guarantees is that any client, in any language Connect or
@@ -22,8 +22,8 @@ per feature, screens on top — transfers to other frameworks, and
 the skills carry a language-neutral version of it for projects that
 choose differently.
 
-The bootstrap skill scaffolds this blueprint, on either backend, with a working example screen
-wired to the example resource.
+The bootstrap skill scaffolds this blueprint, on either backend, with a
+working example screen wired to the example resource.
 
 ## Structure
 
@@ -118,9 +118,8 @@ and feeds a route gate: loading state, then a signed-out card, then the
 screen. `signIn` and `signOut` are off-page trips on the Backend whose live
 promises never settle; sign-out drops the query cache (`resetQueries()`
 where the page stays, as on native; `clear()` only before a reload).
-connect-web v2
-dropped the `credentials` option, so a client whose session is a cookie
-passes a `fetch` override that sets `credentials: "include"`.
+connect-web v2 dropped the `credentials` option, so a client whose session
+is a cookie passes a `fetch` override that sets `credentials: "include"`.
 
 Two session shapes have been walked, and they are the client halves of the
 two auth shapes in the [Go document](./backend-go.md#auth).

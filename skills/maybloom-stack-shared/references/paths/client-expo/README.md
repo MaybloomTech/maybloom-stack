@@ -9,7 +9,9 @@ retries, and paging done for you.
 An interface scaffolded before 0.9 (`src/data/api/`, `src/data/queries/`,
 `useClient()`) uses the same library in an older layout: an agent working
 there follows that project's existing layout and does not migrate it unless
-the owner asks.
+the owner asks. Such an interface has no jest harness (no `test` script):
+write the screen test only where the interface has one. Adding the harness
+(the 0.9 one, with Fake's mutation `gcTime`) is the owner's call.
 
 ## 1. The Backend context: `packages/interface/src/data/client.ts`
 
@@ -54,8 +56,8 @@ The `QueryClient` is `src/data/queryClient.ts`, mounted once by the
 
 Each feature owns its data, in the feature: there is no wrapper tier
 between the hooks and the client, and a `queryFn` calls the client
-directly. The hooks read `useBackend()`. The bootstrap's `src/features/notes/useNotes.ts` is
-the working reference; for a resource:
+directly. The hooks read `useBackend()`. The bootstrap's
+`src/features/notes/useNotes.ts` is the working reference; for a resource:
 
 ```ts
 export const <RESOURCES>_KEY = ['<resources>'] as const;
@@ -124,8 +126,8 @@ The list's `onEndReached` calls `fetchNextPage` when `hasNextPage` and not
 `isFetchingNextPage`, and not `isFetchNextPageError`. Query de-duplicates
 the in-flight call and retries a failed page a few times; after that
 `hasNextPage` stays true, so a failed page waits for a retry control
-instead of being called again on every scroll. Use a different key from the first-page hook when both exist,
-or the cached shapes collide.
+instead of being called again on every scroll. Use a different key from the
+first-page hook when both exist, or the cached shapes collide.
 
 ### Optimistic updates
 
@@ -177,6 +179,8 @@ feature that owns the screen, shaped like the hooks above:
 - **A fetch that is not an RPC** (a file, an image proxy, a health ping)
   becomes a new member of `Backend`, so the design board and the tests can
   fake it. The hook calls `useBackend().<member>`, never `fetch` directly.
+  A new member is an edit to `src/data/client.ts`, a protected path:
+  architect work.
 
 The limit: stitching many RPCs, filtering a large list on the client, or
 making N calls to build one screen means the contract lacks an RPC. Add it
@@ -396,7 +400,9 @@ promise that never settles. `signOut` posts to the logout route with
 credentials, throws a readable error when the backend refuses, drops the
 query cache (so the next person never sees the last one's data) and on the
 web navigates home with a promise that never settles. Where the page stays
-(native), call `queryClient.resetQueries()`: the data is dropped, the
+(native), drop the stored token or cookie first, then call
+`queryClient.resetQueries()` (with a token still cached, `useMe` would
+succeed again and the session would stay `signedIn`): the data is dropped, the
 active queries refetch, and `useMe` answers `Unauthenticated`, so the
 session reads `signedOut`. `queryClient.clear()` removes queries without
 telling their mounted observers, so it is enough only before a navigation

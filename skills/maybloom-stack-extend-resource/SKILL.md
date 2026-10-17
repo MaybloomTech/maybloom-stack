@@ -202,8 +202,9 @@ skill.
 ### 6. Client
 
 - **feature hook** (`src/features/<resources>/use<Resources>.ts`) —
-  usually unchanged, unless a new list query appeared. If the resource now carries children, check that the item and
-  list cache keys still invalidate together after a mutation.
+  usually unchanged, unless a new list query appeared. If the resource now
+  carries children, check that the item and list cache keys still
+  invalidate together after a mutation.
 - **screens** — this is where the real work is. A new field shows up in
   forms and detail views, and a new child collection usually means a small
   list plus an editor.

@@ -120,13 +120,13 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 - **Commands run from:** the repo root (pnpm, `scripts/go`,
   `scripts/golangci-lint`); `go/` for a native Go toolchain.
 - **Builder checks:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter
-  __ORG_SCOPE__/interface check:gallery`, `pnpm test` (after a proto change, first
-  `pnpm proto:gen && pnpm --filter __ORG_SCOPE__/protocol-buffers build`:
-  the interface typechecks against the built contract); then
-  `scripts/go generate .`, `scripts/go vet ./...`, `pnpm test:backend`
-  (`scripts/go test -p 1 ./...` against the test database) and
-  `scripts/golangci-lint run`. A new component, icon or page has its
-  design board entry.
+  __ORG_SCOPE__/interface check:gallery`, `pnpm test` (after a proto
+  change, first `pnpm proto:gen && pnpm --filter
+  __ORG_SCOPE__/protocol-buffers build`: the interface typechecks against
+  the built contract); then `scripts/go generate .`, `scripts/go vet
+  ./...`, `pnpm test:backend` (`scripts/go test -p 1 ./...` against the
+  test database) and `scripts/golangci-lint run`. A new component, icon or
+  page has its design board entry.
 - **Mechanic checks:** `pnpm lint`, `scripts/go vet ./...`, or the CI job
   the chore touches.
 

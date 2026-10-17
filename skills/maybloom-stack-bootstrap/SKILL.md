@@ -7,10 +7,10 @@ description: Use whenever the user wants to start a new project that uses the "m
 
 Bootstrap a fresh monorepo on the maybloom stack: a pnpm workspace with
 the contract at the root (Buf, the vendored protovalidate rules, Connect-ES
-generated TypeScript), a backend, an interface (Expo Router + React Query hooks
-in each feature, over a Backend context on the Connect Web client), a docs
-site (Astro, static) that renders the contract itself, and the CI that checks all of it: GitHub Actions
-workflows for the per-area checks, the image build-and-push, and
+generated TypeScript), a backend, an interface (Expo Router + React Query
+hooks in each feature, over a Backend context on the Connect Web client), a
+docs site (Astro, static) that renders the contract itself, and the CI that
+checks all of it: GitHub Actions workflows for the per-area checks, the image build-and-push, and
 Conventional Commits.
 
 The backend is **Go by default**: connect-go on the stdlib mux, sqlc + pgx

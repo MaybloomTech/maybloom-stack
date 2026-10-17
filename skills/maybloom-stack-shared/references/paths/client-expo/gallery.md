@@ -107,7 +107,9 @@ backoff. The live `queryClient.ts` keeps React Query's default retry (three
 tries, about 7 s of spinner before a failed load shows its error, and
 non-transient codes like `InvalidArgument` or `NotFound` are retried too);
 add a `retry` predicate there that skips those codes if that matters. The
-same `Fake` is what the interface's tests mount.
+same `Fake` is what the interface's tests mount. The `Infinity` `gcTime` in
+`Fake` is for the board and tests only; the live `queryClient.ts` keeps the
+default `gcTime`, or the cache never evicts.
 
 `fakeBackend(options)` (`src/gallery/fixtures/backend.ts`) returns a whole
 `Backend`: the real Connect client over `createRouterTransport`, answering

@@ -332,7 +332,11 @@ client and cannot tell which language serves it. Read
   screen. Use the bootstrap's `src/features/notes/` (NotesScreen,
   NoteForm, NoteRow) as the reference for the minimum shape, and a screen
   test beside the screen (`<Screen>.test.tsx`, over `Fake` and a scenario
-  of the board's fake backend, as `NotesScreen.test.tsx` does).
+  of the board's fake backend, as `NotesScreen.test.tsx` does) where the
+  interface has the jest harness (a `test` script). A pre-0.9 interface has
+  none, and adding it is the owner's call. A helper a second feature needs
+  (such as `errorMessage`) moves to `src/data/`, not imported across
+  features. After writing files, run `pnpm lint:ts:fix`.
 - Their design board entries, in the same change: the module on the
   Components sheet, the screen on the Pages sheet with its scenarios.
   `../maybloom-stack-shared/references/paths/client-expo/gallery.md`
