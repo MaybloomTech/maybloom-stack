@@ -108,5 +108,6 @@ with `[researcher]`, with the report path on the first line.
 
 End with a summary under 400 words, in this order: the answer to the
 question in one or two sentences; the three to five findings that
-change a decision; the report path; what you could not verify. Nothing
-else.
+change a decision; what deserves a card, one line each, or "none";
+the report path; what you could not verify. Nothing else, except after
+a denied write, when the whole report follows the summary.

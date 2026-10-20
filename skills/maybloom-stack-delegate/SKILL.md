@@ -148,7 +148,7 @@ decision.
    the report path as the prompt, never the architect's own context.
    The report path is outside the repo (the session's scratchpad, or
    `~/.cache/maybloom-research/`), never a tracked file; being outside
-   the working directory, the write asks once.
+   the working directory, the write may ask once.
    Parallel builders only where the plan marks slices independent; a
    multi-agent `Workflow` only when the owner opts in.
 6. **Every subagent has a budget** and stops at it: the builder at 120
