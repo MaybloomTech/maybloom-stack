@@ -50,7 +50,7 @@ advisory rather than an issue — see [SECURITY.md](./SECURITY.md).
 | `docs/` | The canonical definition. Source of truth for everything else. |
 | `site/` | The Astro site that renders `docs/` unchanged. |
 | `skills/` | Agent skills that apply the conventions to a real codebase. |
-| `agents/` | The builder and mechanic subagents the delegation model runs on. |
+| `agents/` | The builder, mechanic, reviewer, orchestrator and researcher agents the delegation model runs on. |
 | `.claude-plugin/` | Marketplace + plugin manifests that make the skills installable via `/plugin`. |
 
 ## Using the skills

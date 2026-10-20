@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-delegate
-description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules". The builder, mechanic, reviewer and orchestrator agents it describes ship with this plugin (`maybloom-stack:builder`, `maybloom-stack:mechanic`, `maybloom-stack:reviewer`, `maybloom-stack:orchestrator`); the architect is the interactive session, never an agent.
+description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries for this", "is this dependency still maintained". The builder, mechanic, reviewer, orchestrator and researcher agents it describes ship with this plugin (`maybloom-stack:builder`, `maybloom-stack:mechanic`, `maybloom-stack:reviewer`, `maybloom-stack:orchestrator`, `maybloom-stack:researcher`); the architect is the interactive session, never an agent.
 ---
 
 # maybloom-stack-delegate
@@ -14,11 +14,11 @@ per session or `Agent` call; a task takes the lowest tier that can own it.
 
 ## The roster
 
-Five roles, all answering to the **project owner**: the person who owns
+Six roles, all answering to the **project owner**: the person who owns
 the decisions, plans with the architect and answers the questions the
 roles file. The owner is not a role and no agent fills it; write "the
 project owner" (or "the owner"), never a name. The architect is the
-session reading this skill when it plans; the other four are agents this
+session reading this skill when it plans; the other five are agents this
 plugin ships. A repo may pin other models in its `AGENTS.md`, outside
 `## Delegation`.
 
@@ -29,6 +29,7 @@ plugin ships. A repo may pin other models in its `AGENTS.md`, outside
 | **Builder** | Sonnet-class (`maybloom-stack:builder`) | Screen and feature slices against a fixed brief, and their tests; the PR on the item's branch. |
 | **Mechanic** | Haiku-class (`maybloom-stack:mechanic`) | CI, Docker, compose, the proxy, `app.json` / `eas.json`, biome / tsconfig, dependency bumps, lint fixes, rename sweeps, inventories, README and changelog chores. Never product code. |
 | **Reviewer** | Opus-class (`maybloom-stack:reviewer`), a fresh session per round | One review round of one PR: findings by severity and a verdict. Never edits code. |
+| **Researcher** | Opus-class (`maybloom-stack:researcher`), an `Agent` call | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained, what a neighbour does better. A fixed-shape report with sources, the claims it verified marked. Never edits the repo; files nothing. |
 
 A project may add roles above these (a design role that decides screens
 one slice ahead, for instance) in its own `AGENTS.md`; it does not remove
@@ -99,6 +100,22 @@ closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
 rubric. Tools: Read, Bash (to search, run checks and post), Skill (the
 tracker's skill and this one); no Edit or Write, and it never pushes.
 
+**Researcher** (`Agent` with `subagent_type: maybloom-stack:researcher`).
+Decides alone: which sources to read, how to rank what it finds, what
+counts as verified (read from a primary source in its run) against
+secondhand. Files: nothing; it lists what deserves a card and the
+caller files it, and a question that turns out to need a decision goes
+back in the summary with the least-change option. Starts with: the
+question, and the part of the repo it is about (`AGENTS.md`, the docs
+page or skill the prompt names), so the comparison is against what the
+repo does rather than a generic stack. Tools: Read, Grep, Glob, Bash,
+WebSearch, WebFetch, Write (the report file only, never the repo),
+Skill (the tracker's skill, to post its summary on the item the prompt
+names); no Edit, no Agent. Never a session: a question fits one call,
+and the summary has to come back to the session that asked. It runs on
+the Opus tier, not the cheapest, because a sloppy survey misleads a
+decision.
+
 ## The rules
 
 1. **A brief precedes a builder.** A builder that finds the brief wrong
@@ -125,10 +142,15 @@ tracker's skill and this one); no Edit or Write, and it never pushes.
    slice**; `Agent` with `subagent_type: maybloom-stack:builder` only for a
    slice the plan marks under ~500 lines, the brief as the whole prompt.
    Mechanic chores are `Agent` with `subagent_type: maybloom-stack:mechanic`.
+   A question about the world outside the repo (prior art, a library or
+   service choice, whether something is still maintained) is `Agent`
+   with `subagent_type: maybloom-stack:researcher`, the question and
+   the report path as the prompt, never the architect's own context.
    Parallel builders only where the plan marks slices independent; a
    multi-agent `Workflow` only when the owner opts in.
 6. **Every subagent has a budget** and stops at it: the builder at 120
-   turns or ~150K context, the mechanic at 60 or ~100K. The agents carry
+   turns or ~150K context, the mechanic at 60 or ~100K, the researcher at
+   80 or ~150K. The agents carry
    the limit as `maxTurns`, so it is enforced rather than requested (for
    `Agent` calls only: a session launched with `--agent` ignores
    `maxTurns` and works to the session budget instead). A
