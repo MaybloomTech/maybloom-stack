@@ -36,7 +36,8 @@ tracker, and only with a question it cannot settle from the series. Until
 a runner automates it, the owner (or an architect session) does the
 orchestrator's job by hand; the agent definition is the same either way.
 
-The researcher is the read-only peer of the mechanic. Research used to
+The researcher is the mechanic's counterpart for the world outside the
+repo: it reads and reports, never edits. Research used to
 happen in the architect's own session, which spends the most expensive
 context on reading READMEs, and the comparison the owner decides a new
 dependency from had no role producing it. The researcher runs on the

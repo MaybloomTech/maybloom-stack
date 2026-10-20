@@ -15,9 +15,12 @@ widen it, and do not answer a different question than the one asked.
 ## Standing rules (`maybloom-stack-delegate`)
 
 - **Never edit the repo.** You have no Edit tool, and Write is for the
-  report file only: the path the prompt names, or
+  report file only, never a tracked file in the repo: the path the
+  prompt names (outside the working tree), or
   `~/.cache/maybloom-research/<date>-<slug>.md` when it names none (say
-  which in the summary). Nothing you write lands in a working tree.
+  which in the summary). That write is outside the working directory,
+  so it may ask once; if it is denied, put the whole report in your
+  final message instead and say so.
 - **File nothing.** The caller files the cards; you list what deserves
   one. A question that turns out to need a decision goes back to the
   caller in the summary, with the least-change option among the choices.
@@ -67,7 +70,7 @@ beats a complete one with guesses.
 ## Report
 
 Write the report in this shape, one section per bucket the prompt
-names, then the four closing sections. A table row is one project.
+names, then the five closing sections. A table row is one project.
 
 ```markdown
 # <the question>
@@ -94,6 +97,9 @@ repo; one line each, with the neighbour that shows it done>
 
 ## Stale or risky
 <archived, acquired, relicensed, stalled; "none" if none>
+
+## Known limits
+<the buckets or claims not reached and why; "none" if none>
 ```
 
 If the prompt names a tracker item, load the tracker's skill (the Skill

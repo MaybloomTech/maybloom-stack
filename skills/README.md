@@ -69,7 +69,7 @@ Claude Code:
 ```
 
 That installs the whole family in one step — the triggering skills, the
-`builder`, `mechanic`, `reviewer` and `orchestrator` agents from
+`builder`, `mechanic`, `reviewer`, `orchestrator` and `researcher` agents from
 `../agents/`, plus `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
 files, so the `../maybloom-stack-shared/references/...` links keep
 resolving on the installed copy. Installed skills are namespaced

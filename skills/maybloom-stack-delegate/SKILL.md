@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-delegate
-description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries for this", "is this dependency still maintained". The builder, mechanic, reviewer, orchestrator and researcher agents it describes ship with this plugin (`maybloom-stack:builder`, `maybloom-stack:mechanic`, `maybloom-stack:reviewer`, `maybloom-stack:orchestrator`, `maybloom-stack:researcher`); the architect is the interactive session, never an agent.
+description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries", "is this still maintained". The builder, mechanic, reviewer, orchestrator and researcher agents it describes ship with this plugin (namespaced `maybloom-stack:<role>`); the architect is the interactive session, never an agent.
 ---
 
 # maybloom-stack-delegate
@@ -146,6 +146,9 @@ decision.
    service choice, whether something is still maintained) is `Agent`
    with `subagent_type: maybloom-stack:researcher`, the question and
    the report path as the prompt, never the architect's own context.
+   The report path is outside the repo (the session's scratchpad, or
+   `~/.cache/maybloom-research/`), never a tracked file; being outside
+   the working directory, the write asks once.
    Parallel builders only where the plan marks slices independent; a
    multi-agent `Workflow` only when the owner opts in.
 6. **Every subagent has a budget** and stops at it: the builder at 120
@@ -305,8 +308,8 @@ a repo that predates it adds one by hand, and the agents fall back to a
 - **Mechanic checks:** <the lint command, or "the CI job the chore touches">
 ```
 
-A repo that needs a different builder, mechanic, reviewer or
-orchestrator ships its own `.claude/agents/<name>.md` and launches it by
+A repo that needs a different builder, mechanic, reviewer,
+orchestrator or researcher ships its own `.claude/agents/<name>.md` and launches it by
 that name (`claude --agent reviewer`, `subagent_type: builder`): the
 plugin's agents are namespaced (`maybloom-stack:reviewer`), so a project
 agent never replaces them under the launches this skill documents. Keep
