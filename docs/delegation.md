@@ -17,7 +17,7 @@ be spending its context on a dependency bump.
 
 ## The roles
 
-Five roles do the work, and all of them answer to one party that is not
+Six roles do the work, and all of them answer to one party that is not
 a role: the **project owner**, the person who owns the decisions, plans
 with the architect and answers the questions the roles file. No agent
 fills that part, and the skills never name a person for it.
@@ -29,11 +29,23 @@ fills that part, and the skills never name a person for it.
 | **Builder** | One slice against a fixed brief, with its tests; opens the PR on the item's branch | `maybloom-stack:builder`, a session or an `Agent` call |
 | **Mechanic** | One chore: CI, Docker, config, dependencies, renames; never product code | `maybloom-stack:mechanic`, an `Agent` call |
 | **Reviewer** | A fresh session per round: reads the PR body, the items it closes, the repo's guidance and the rubric, posts findings and a verdict; never edits code | `maybloom-stack:reviewer`, a session |
+| **Researcher** | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained; returns a fixed-shape report with sources, the claims it verified marked; never edits the repo, files nothing | `maybloom-stack:researcher`, an `Agent` call |
 
 The orchestrator is the only role that reaches the owner outside the
 tracker, and only with a question it cannot settle from the series. Until
 a runner automates it, the owner (or an architect session) does the
 orchestrator's job by hand; the agent definition is the same either way.
+
+The researcher is the mechanic's counterpart for the world outside the
+repo: it reads and reports, never edits. Research used to
+happen in the architect's own session, which spends the most expensive
+context on reading READMEs, and the comparison the owner decides a new
+dependency from had no role producing it. The researcher runs on the
+Opus tier rather than the cheapest one because a sloppy survey misleads
+a decision, and only as an `Agent` call because a question fits one
+call and the summary has to come back to whoever asked. Claude Code's
+own search agents cover the inside of the repo; the researcher owns the
+outside.
 
 The architect is deliberately not an agent. The paths where a mistake is
 silent are the ones no subagent edits, and the brief is written by
