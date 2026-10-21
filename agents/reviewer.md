@@ -19,7 +19,11 @@ of it.
    yours to reopen.
 3. The project's `AGENTS.md` (or `CLAUDE.md` in a repo that predates it):
    the rules, the `## Delegation` section, the checks.
-4. The previous rounds' findings and the builder's dispositions, if any.
+4. The previous rounds' findings and the builder's dispositions, if any:
+   the `R<n>-<i>: fixed | disputed | deferred | not addressed` lines in
+   the item's `[builder]` comments (rule 9 of `maybloom-stack-delegate`).
+   A finding with no line is not addressed; check a fixed one against
+   the code before you confirm it.
 
 ## Standing rules (`maybloom-stack-delegate`)
 
@@ -59,8 +63,10 @@ round) is worth naming as such.
 ## Report
 
 Post one comment on the run's item, starting with `[reviewer]`:
-`Round <n> at <sha>`, then each finding as `<id> <severity> <kind>
-<file:line> — <what breaks, how to see it> — <the least-change fix>`,
+`Round <n> at <sha>`, then each finding as `R<n>-<i> <severity> <kind>
+<file:line> — <what breaks, how to see it> — <the least-change fix>`
+(`R<n>-<i>`, the round and the finding's number in it, is the id the
+builder's disposition lines answer, rule 9 of `maybloom-stack-delegate`),
 then what you ran, then the verdict. An ordinary round ends `changes
 requested` or `no blocking findings`; it never grants a merge, because
 the orchestrator decides from the series when the run is ready. Only

@@ -82,8 +82,10 @@ Decides alone: anything inside the brief and the repo's rules; a
 finding's disposition (fixed, disputed, deferred, not addressed).
 Files (by stopping and reporting, never by guessing): a brief that is
 wrong, a contract gap, a protected path it needs. Starts with: the brief,
-`AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent. As a
-session it posts on the item like any role (the agent file says how).
+`AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill, ScheduleWakeup (to
+pace its `/loop` between rounds); no Agent. As a session it posts on the
+item like any role, answers each round in the lines of rule 9 and waits
+for the next one itself (the agent file says how).
 
 **Mechanic** (`Agent` with `subagent_type: maybloom-stack:mechanic`).
 Decides alone: anything inside the chore. Files (by stopping): a chore
@@ -171,6 +173,29 @@ decision.
    with the author's role in brackets (`[builder]`, `[reviewer]`) until
    each role posts from its own account; a watcher skips its own role's
    comments.
+9. **A round is answered in lines a runner reads.** After pushing the
+   fixes for round n, the builder posts a comment whose first line is
+   `[builder] Ready for round <n+1>, head <sha>`, then one line per
+   finding of round n:
+
+   ```
+   R<n>-<i>: fixed <sha>
+   R<n>-<i>: disputed: <reason>
+   R<n>-<i>: deferred: <item>
+   R<n>-<i>: not addressed: <why>
+   ```
+
+   A finding with no line counts as not addressed; a leading `- ` and
+   `fixed with <sha>` are accepted; the newest line for an id wins.
+   Every comment that starts with `[builder]` is read for them. A
+   runner ends each round comment with the series block, `Series of PR
+   <n>: <state>` and a `Next:` line; `the gate waits for <ids>` lists
+   the should-fix the builder fixes (and the next round confirms) or
+   defers to an item before the deep review is requested. Until the
+   runner can hand a round to the builder itself, a builder session
+   waits for the next round in a `/loop` that polls the item, and stops
+   it on a diverging series or an approval at its head (the builder
+   agent has the loop).
 
 ## Session budget
 
