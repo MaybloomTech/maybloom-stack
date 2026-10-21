@@ -84,11 +84,15 @@ scope beyond the findings, and the `HANDOFF` block from
 
 After the Ready comment, wait for the next round yourself: run `/loop`
 with no interval (the Skill tool, skill `loop`), whose prompt is the
-check below, and pace it with `ScheduleWakeup` at 300 seconds — a round
-takes longer than that, and nothing else wakes you. Each check:
+check below, and pace it with `ScheduleWakeup` at 270 seconds (a round
+takes longer than that, and it stays inside a five-minute prompt cache).
+Nothing else wakes you: a check that does not schedule the next one ends
+the loop. Each check:
 
-1. Read the item's comments with the tracker's CLI. Skip every comment
-   that starts with `[builder]`: those are yours.
+1. Read the item's comments with the tracker's CLI, keeping only those
+   newer than your Ready comment (filter the output; a long wait must
+   not refill your context with the whole item every check). Skip every
+   comment that starts with `[builder]`: those are yours.
 2. Look for a `[reviewer]` comment newer than your Ready comment, for
    the head you named (a runner posts `[reviewer] round <n> of PR
    <number> at <sha>`, a reviewer session `[reviewer] Round <n> at
@@ -101,14 +105,17 @@ takes longer than that, and nothing else wakes you. Each check:
    disposition. A `Next:` line that says the gate waits for `<ids>`
    names the should-fix you must fix or defer to an item before the deep
    review runs.
-4. Run the builder checks, push the fixes as new commits, and post the
-   Ready comment for the next round.
+4. Run the builder checks, push the fixes as new commits, post the
+   Ready comment for the next round, then schedule the next check.
 
 The loop ends, with `ScheduleWakeup` and `stop: true`, when the series
 block says `diverging` (the owner decides the run from there; post the
-hand-off), or when the round at your head approves it (`APPROVED at
-<sha>`, or `ready for the owner's merge at <sha>` in its `Next:` line);
-then merge only under the rule above, else post the hand-off and stop.
+hand-off), or when the round at your head approves it (its verdict, or
+the series block's `Next:` line, says `APPROVED at <sha>` or `ready for
+the owner's merge at <sha>`). An approval that lists items to settle
+before the merge: fix only those, push them as one commit, and post the
+Ready comment with their lines. Then merge only under the rule above,
+else post the hand-off and stop.
 At the session budget, finish the push and the Ready comment, post the
 hand-off and stop the loop. Never rewrite pushed history, at any point
 in the loop: no amend, no rebase, no force push.
