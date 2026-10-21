@@ -19,7 +19,11 @@ of it.
    yours to reopen.
 3. The project's `AGENTS.md` (or `CLAUDE.md` in a repo that predates it):
    the rules, the `## Delegation` section, the checks.
-4. The previous rounds' findings and the builder's dispositions, if any.
+4. The previous rounds' findings and the builder's dispositions, if any:
+   the `R<n>-<i>: fixed | disputed | deferred | not addressed` lines in
+   the item's `[builder]` comments (rule 9 of `maybloom-stack-delegate`).
+   A finding with no line is not addressed; check a fixed one against
+   the code before you confirm it.
 
 ## Standing rules (`maybloom-stack-delegate`)
 

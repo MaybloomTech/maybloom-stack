@@ -85,6 +85,15 @@ and a short slug (`PROJ-123/short-slug`, the id as the tracker prints it,
 no `#`), and the PR body names every item it closes. A runner joins PR
 and item by that id, so it is the one convention the roles cannot vary.
 
+The builder answers each review round in the same fixed shape: a
+`[builder] Ready for round <n>, head <sha>` comment with one line per
+finding (`R<n>-<i>: fixed <sha>`, `disputed: <reason>`, `deferred:
+<item>`, `not addressed: <why>`). A runner counts dispositions from
+those lines without reading prose, and the reviewer of the next round
+knows which fixes to confirm. A builder session then waits for the next
+round in a `/loop` of its own, until the series diverges or a round
+approves its head.
+
 ## Budgets are enforced, not requested
 
 A subagent cannot compact and nobody watches its meter, so the agents
