@@ -61,16 +61,34 @@ orchestrator's own filesystem commands in Bash (`sed -i`, `mv`, `rm`),
 and a dispatched builder still asks at `git commit`, `git push` and
 `gh pr create`). Decides alone: when to start the next round,
 the round series and its state (converging / diverging / ready), which
-reviewer effort a round gets, whether a deferral goes to a new item.
-Files: a diverging series (with the series attached), the merge, a
-reviewer's stop-the-line decision, a run that will not fit its budget.
-Starts with: the run's item(s), the PR if one exists, `AGENTS.md` §
-Delegation. Tools: Read, Bash (search, the tracker CLI, `gh`, `git`),
-Agent (to launch a mechanic or a small builder), Skill (the tracker's
-skill and this one); no Edit or Write. It is
-the only role that reaches the owner outside the tracker. It is always a
-main session, never an `Agent` call: a run outlives any one call (it waits
-on review rounds), it needs the per-session numbers the status line
+reviewer effort a round gets, whether a deferral goes to a new item,
+the run's learning. Files: a diverging series (with the series
+attached), the merge, a reviewer's stop-the-line decision, a run that
+will not fit its budget, an item another run has claimed, a session
+that stalls twice. Starts with: the run's item(s), the PR if one exists,
+`AGENTS.md` § Delegation. Then it claims the item. It posts
+`[orchestrator] action: claimed` and adds itself as an assignee, or the
+label the tracker's skill names. The item counts as held while its
+newest `[orchestrator]` comment is not a `handoff`, because roles may
+share one account and an assignment to the owner is no claim. It
+releases the item at the hand-off, so that two runs never pick up the
+same one. A run that dies before its `handoff` leaves a stale claim.
+The owner releases it by posting `[orchestrator] handoff: released by
+owner` on the item.
+It reads the item and the PR again before every round, and keeps each
+round's builder and reviewer session ids in the series row. A launched
+session that has posted nothing 30 minutes after the launch comment is
+re-posted once, not waited on. Once the deep review passes, it posts
+`[orchestrator] action: learning: <file> — <line>` (or `learning:
+none`). The builder waits for that line and commits it before the merge;
+for an `Agent` builder, which has already returned, the orchestrator
+dispatches one more for that commit. Tools: Read, Bash (search, the
+tracker CLI, `gh`, `git`), Agent (to launch a mechanic or a small
+builder), Skill (the tracker's skill and this one); no Edit or Write.
+It is the only role that reaches the owner outside the tracker. It is
+always a main session, never an `Agent` call: a run outlives any one
+call (it waits on review rounds), it needs the per-session numbers the
+status line
 writes and the budget hook, which only a main session has, and nested launches are
 capped in depth. It does not start sessions itself: until a runner does,
 it posts the launch command and the starting prompt on the item and asks
@@ -81,11 +99,17 @@ acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
 Decides alone: anything inside the brief and the repo's rules; a
 finding's disposition (fixed, disputed, deferred, not addressed).
 Files (by stopping and reporting, never by guessing): a brief that is
-wrong, a contract gap, a protected path it needs. Starts with: the brief,
-`AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill, ScheduleWakeup (to
-pace its `/loop` between rounds); no Agent. As a session it posts on the
-item like any role, answers each round in the lines of rule 9 and waits
-for the next one itself (the agent file says how).
+wrong, a contract gap, a protected path it needs. Before it opens the
+PR, it goes through the brief's acceptance criteria and puts the result
+in the PR body, `met` or `not met` with the evidence for each, and
+review round 1 reads that list first. As an `Agent` call it runs in a
+worktree of its own (`isolation: worktree`), cut from an up-to-date
+main, and stops if it finds itself in the main checkout. Starts with:
+the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill,
+ScheduleWakeup (to pace its `/loop` between rounds); no Agent. As a
+session it posts on the item like any role, answers each round in the
+lines of rule 9 and waits for the next one itself (the agent file says
+how).
 
 **Mechanic** (`Agent` with `subagent_type: maybloom-stack:mechanic`).
 Decides alone: anything inside the chore. Files (by stopping): a chore
@@ -143,6 +167,14 @@ decision.
    foundations itself. Builder work is **a fresh builder session per
    slice**; `Agent` with `subagent_type: maybloom-stack:builder` only for a
    slice the plan marks under ~500 lines, the brief as the whole prompt.
+   A larger slice may still be an `Agent` call, but only where the owner
+   allows it for that run (in the architect's session, or in a comment on
+   the run's item for an orchestrator). Add the model override
+   `model: opus` where the owner asks for it because of the slice's
+   weight. Each allowance covers one run, never a standing default.
+   `maxTurns` still binds. Every `Agent` builder gets
+   `isolation: worktree`, dispatched after a `git fetch`, so that
+   parallel slices never share a checkout.
    Mechanic chores are `Agent` with `subagent_type: maybloom-stack:mechanic`.
    A question about the world outside the repo (prior art, a library or
    service choice, whether something is still maintained) is `Agent`
@@ -160,7 +192,9 @@ decision.
    `Agent` calls only: a session launched with `--agent` ignores
    `maxTurns` and works to the session budget instead). A
    subagent cannot compact and nobody watches its meter; a slice that
-   outgrows the budget is a session, not a longer `Agent` call. Splitting
+   outgrows the budget is a session, not a longer `Agent` call. The
+   owner's per-run allowance in rule 5 raises the line limit, never
+   `maxTurns`. Splitting
    a slice in halves does not make it `Agent`-sized: each half still
    replays the plan, the conventions and the codebase it touches.
 7. **One item, one branch, one PR.** The branch is the tracker id, a
@@ -172,7 +206,10 @@ decision.
    comments on the run's item and pushes to the PR, each comment starting
    with the author's role in brackets (`[builder]`, `[reviewer]`) until
    each role posts from its own account; a watcher skips its own role's
-   comments.
+   comments. The orchestrator also types every comment, with a first line
+   of `[orchestrator] <kind>: <one line>`. The kind is `action`,
+   `question`, `handoff` or `error`, so that a runner can read the run's
+   state without reading prose.
 9. **A round is answered in lines a runner reads.** After pushing the
    fixes for round n, the builder posts a comment whose first line is
    `[builder] Ready for round <n+1>, head <sha>`, then one line per
