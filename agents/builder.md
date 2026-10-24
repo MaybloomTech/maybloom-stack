@@ -1,6 +1,6 @@
 ---
 name: builder
-description: Builder tier (the maybloom-stack-delegate roster). Implements one screen or feature slice of a maybloom-stack project against a fixed brief, with its tests. Use only for a slice the plan marks under ~500 lines; anything larger is a fresh builder session, not an Agent call.
+description: Builder tier (the maybloom-stack-delegate roster). Implements one screen or feature slice of a maybloom-stack project against a fixed brief, with its tests. Use only for a slice the plan marks under ~500 lines, or a larger one the project owner has allowed as an Agent call for this run; anything else larger is a fresh builder session. As an Agent call it runs in a worktree of its own (worktree isolation).
 model: sonnet
 effort: medium
 maxTurns: 120
@@ -37,9 +37,23 @@ package has one.
 ## Branch and PR
 
 Work on the branch the brief names: the item id, a slash and a short
-slug (`PROJ-123/short-slug`), cut from an up-to-date main. Commits are
-Conventional Commits. When you open the PR, its body names every item it
-closes, what you ran and what you did not. In a review loop, answer every
+slug (`PROJ-123/short-slug`), cut from an up-to-date main
+(`git fetch origin` first, then cut it from `origin/main`). Commits are
+Conventional Commits.
+
+As an `Agent` call you work in a worktree of your own, which whoever
+dispatched you creates (`isolation: worktree`), so parallel slices never
+share a checkout. Cut the branch there. If `git rev-parse --git-dir`
+and `git rev-parse --git-common-dir` print the same path, you are in the
+main checkout: stop before the first edit and report that the worktree
+is missing. A builder session cuts its own branch as before.
+
+Before you open the PR, go through the brief's acceptance criteria one
+by one against what you built. The PR body carries the result as a
+`## Acceptance criteria` list, each line `met` or `not met` with its
+evidence: the test, the command and its result, or the file and line.
+Round 1 of the review reads that list first. The body also names every
+item the PR closes, what you ran and what you did not. In a review loop, answer every
 finding with a disposition (fixed with the commit, disputed with the
 reason, deferred to which item, or not addressed and why; the line
 format is under *Answering a round*), list scope beyond the findings
@@ -48,6 +62,11 @@ Merge only on the deep review's `APPROVED at <sha>. Merge allowed.`, and
 only where the project owner has allowed builder merges on the run's
 item: fix only the listed items, push them as one commit, wait for the
 required checks, and squash-merge at the approved head plus that commit.
+Where the run's item carries an `[orchestrator]` learning for the run,
+append that line, as written, to the file it names, in that same
+commit, whether you merge or the owner does. If nothing else is
+listed, the learning is that commit on its own. Where the owner merges,
+it is the only commit after the approved head.
 
 ## As a session
 
@@ -113,8 +132,8 @@ block says `diverging` (the owner decides the run from there; post the
 hand-off), or when the round at your head approves it (its verdict, or
 the series block's `Next:` line, says `APPROVED at <sha>` or `ready for
 the owner's merge at <sha>`). An approval that lists items to settle
-before the merge: fix only those, push them as one commit, and post the
-Ready comment with their lines. Then merge only under the rule above,
+before the merge: fix only those, push them as one commit (with the
+run's learning, as above), and post the Ready comment with their lines. Then merge only under the rule above,
 else post the hand-off and stop.
 At the session budget, finish the push and the Ready comment, post the
 hand-off and stop the loop. Never rewrite pushed history, at any point
@@ -149,6 +168,7 @@ call costs double. So:
 
 ## Report
 
-End with, in this order: criteria met / not met, contract gaps, files
+End with, in this order: criteria met / not met (the same list as the
+PR body's), contract gaps, files
 touched, the check results verbatim, and anything you needed from a
 protected path. Nothing else.

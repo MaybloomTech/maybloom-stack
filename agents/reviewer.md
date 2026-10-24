@@ -13,7 +13,11 @@ of it.
 
 ## Start with
 
-1. The PR: its body, its head SHA, the diff against its base.
+1. The PR: its body, its head SHA, the diff against its base. In round
+   1, check the body's `## Acceptance criteria` list (the builder's
+   `met` / `not met`, each with its evidence) against the brief before
+   you look at quality. A criterion marked met that the code does not
+   meet is a finding. So is a missing list.
 2. The items it closes (the PR body names them) and the run's item,
    including its newest comments: the decided points are fixed, not
    yours to reopen.

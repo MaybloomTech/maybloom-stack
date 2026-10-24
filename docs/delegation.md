@@ -26,7 +26,7 @@ fills that part, and the skills never name a person for it.
 |---|---|---|
 | **Architect** | Plans with the owner; turns open work into ready, well-scoped items with briefs; owns the contract, the foundations and every protected path; reviews builder PRs | The interactive session, never an agent |
 | **Orchestrator** | Drives one run (a PR closing one item or a bundle) through the review loop: dispatches the builder, requests each review round, keeps the round series, applies the stop rule, files the questions the owner must answer | `maybloom-stack:orchestrator`, a session |
-| **Builder** | One slice against a fixed brief, with its tests; opens the PR on the item's branch | `maybloom-stack:builder`, a session or an `Agent` call |
+| **Builder** | One slice against a fixed brief, with its tests; checks the brief's acceptance criteria in the PR body; opens the PR on the item's branch | `maybloom-stack:builder`, a session or an `Agent` call in its own worktree |
 | **Mechanic** | One chore: CI, Docker, config, dependencies, renames; never product code | `maybloom-stack:mechanic`, an `Agent` call |
 | **Reviewer** | A fresh session per round: reads the PR body, the items it closes, the repo's guidance and the rubric, posts findings and a verdict; never edits code | `maybloom-stack:reviewer`, a session |
 | **Researcher** | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained; returns a fixed-shape report with sources, the claims it verified marked; never edits the repo, files nothing | `maybloom-stack:researcher`, an `Agent` call |
@@ -94,13 +94,40 @@ knows which fixes to confirm. A builder session then waits for the next
 round in a `/loop` of its own, until the series diverges or a round
 approves its head.
 
+Before the PR opens, the builder goes through the brief's acceptance
+criteria and lists each one in the PR body as met or not met, with the
+evidence for it, and review round 1 checks that list first. This is the
+cheapest place to catch a builder that has drifted from the brief.
+Catching it in round 1 saves a quality review of the wrong thing.
+Builders dispatched as `Agent` calls each get a worktree of their own,
+so parallel slices never share a checkout.
+
+The orchestrator types every comment it posts as `action`, `question`,
+`handoff` or `error`, so a runner reads the state of the run from the
+item without reading prose. It claims the item at the start and releases
+it at the hand-off, so two runs never pick up the same one, and it reads
+the item again before every round instead of trusting what it read at
+the start. Each round's row records the builder's and the reviewer's
+session ids, so the cost rolls up per item and per role from the
+session logs. A launched session that stays silent past a fixed time is
+re-posted, not waited on. When the deep review passes, the orchestrator
+writes one short learning for the repo's learnings file. The builder
+commits it before the merge, so the next brief can cite it.
+
 ## Budgets are enforced, not requested
 
 A subagent cannot compact and nobody watches its meter, so the agents
 carry their limit in frontmatter (`maxTurns`) rather than in prose. That
 limit binds `Agent` calls only: a role launched as a session ignores
 `maxTurns` and works to the session budget below. A slice that outgrows
-the budget is a fresh session, not a longer call. Every agent has the
+the budget is a fresh session, not a longer call. The ~500-line limit
+for a builder call has one exception. The owner may allow a larger slice
+as an `Agent` call for one run, with an Opus-class model override when
+the slice needs it. This allowance raises the line limit, never
+`maxTurns`, and it is given per run, not as a standing default. One
+such call has built a slice of about 700 lines inside its turn limit.
+Starting a session would have meant the owner launching it by hand.
+Every agent has the
 Skill tool, so a session loads the tracker's skill and the delegation
 skill itself; the orchestrator launches with `acceptEdits`, so the small
 builders it dispatches can edit unattended.
