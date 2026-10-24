@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/check-skill-tree.py)",
+      "Bash(python3 scripts/check-plugin-version.py:*)",
+      "Bash(claude -p --plugin-dir . --agent maybloom-stack:builder *)",
+      "Bash(claude -p --plugin-dir . --agent maybloom-stack:mechanic *)",
+      "Bash(claude -p --plugin-dir . --agent maybloom-stack:orchestrator *)",
+      "Bash(claude -p --plugin-dir . --agent maybloom-stack:researcher *)",
+      "Bash(claude -p --plugin-dir . --agent maybloom-stack:reviewer *)",
+      "Bash(printenv CLAUDE_CODE_SESSION_ID)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(vk show:*)",
+      "Bash(vk ls:*)",
+      "Bash(vk comment:*)"
+    ],
+    "deny": []
+  }
+}
