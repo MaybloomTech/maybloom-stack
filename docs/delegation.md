@@ -111,8 +111,14 @@ the start. Each round's row records the builder's and the reviewer's
 session ids, so the cost rolls up per item and per role from the
 session logs. A launched session that stays silent past a fixed time is
 re-posted, not waited on. When the deep review passes, the orchestrator
-writes one short learning for the repo's learnings file. The builder
-commits it before the merge, so the next brief can cite it.
+writes one short learning for the repo's learnings file, on a fixed
+line (`[orchestrator] action: learning: <file> — <line>`, or `learning:
+none`). A builder session waits for that line and commits it before the
+merge, so the next brief can cite it. A builder dispatched as an `Agent`
+call has already returned by then, so the orchestrator dispatches one
+more for that commit. A run that dies before its hand-off leaves the
+item claimed. The owner releases it with an `[orchestrator] handoff:
+released by owner` comment.
 
 ## Budgets are enforced, not requested
 

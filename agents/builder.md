@@ -140,9 +140,13 @@ hand-off), or when the round at your head approves it (its verdict, or
 the series block's `Next:` line, says `APPROVED at <sha>` or `ready for
 the owner's merge at <sha>`). On an approval, before you stop the
 loop, keep checking until the orchestrator's learning line is there, if
-the run has an orchestrator. Then push the listed items and the
-learning as one commit, and post the Ready comment with their lines. Merge only under the rule above;
-otherwise post the hand-off and stop.
+the run has an orchestrator. The orchestrator may post a `handoff`
+after the approval instead, with no learning line. In that case stop
+waiting: push the listed items without the learning, and name the
+missing learning in your hand-off. Otherwise push the listed items and
+the learning as one commit. Either way, post the Ready comment with
+their lines. Merge only under the rule above; otherwise post the
+hand-off and stop.
 At the session budget, finish the push and the Ready comment, post the
 hand-off and stop the loop. Never rewrite pushed history, at any point
 in the loop: no amend, no rebase, no force push.

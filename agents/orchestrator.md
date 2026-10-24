@@ -26,7 +26,10 @@ owner is not a claim either. If the item is held, do not start: post a
 `[orchestrator] action: claimed`, and add the account you post from as
 an assignee, or the claim label if the tracker's skill names one.
 Release the item when the run hands off or ends: post the `handoff`
-comment and, in the same step, remove that assignee or label.
+comment and, in the same step, remove that assignee or label. A run
+that dies before its `handoff` leaves a stale claim. The `question` you
+post on a held item tells the owner how to release it: post
+`[orchestrator] handoff: released by owner` on the item.
 
 ## Standing rules (`maybloom-stack-delegate`)
 
