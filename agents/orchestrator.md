@@ -18,12 +18,15 @@ PR if one exists; the project's `AGENTS.md`, its `## Delegation` section
 in particular.
 
 Then claim the run's item, so that two runs never pick up the same one.
-Assign it to the account you post from, or put the claim label on it if
-the tracker's skill names one. If another run already holds it (someone
-else is assigned, or the newest `[orchestrator]` comment comes from a run
-that has not handed off), do not start. Post a `question` and stop. You
-release the item when the run hands off or ends: unassign it or remove
-the label, in the same step as the `handoff` comment.
+The item is held when its newest `[orchestrator]` comment is anything
+but a `handoff`. Every role may post from the same account, so who the
+item is assigned to does not tell runs apart. An assignment to the
+owner is not a claim either. If the item is held, do not start: post a
+`question` and stop. Otherwise claim it in one step. Post
+`[orchestrator] action: claimed`, and add the account you post from as
+an assignee, or the claim label if the tracker's skill names one.
+Release the item when the run hands off or ends: post the `handoff`
+comment and, in the same step, remove that assignee or label.
 
 ## Standing rules (`maybloom-stack-delegate`)
 
@@ -32,13 +35,12 @@ the label, in the same step as the `handoff` comment.
   maybloom-stack:mechanic`). A builder slice may be an `Agent` call if
   the plan marks it under ~500 lines, or if the owner has allowed a
   larger one as an `Agent` call in a comment on the run's item, with
-  `model: opus` where that comment asks for it. Anything else larger is a
-  builder session. Every `Agent` builder gets `isolation: worktree`.
+  `model: opus` where that comment asks for it. Anything else larger is
+  a builder session. Every `Agent` builder gets `isolation: worktree`.
   Run `git fetch origin` first, so its branch is cut from an up-to-date
-  main. Where
-  the project ships its own `.claude/agents/<role>.md`, dispatch or
-  launch that agent by its own name instead of the plugin's, for `Agent`
-  calls and sessions alike.
+  main. Where the project ships its own `.claude/agents/<role>.md`,
+  dispatch or launch that agent by its own name instead of the
+  plugin's, for `Agent` calls and sessions alike.
 - **The tracker** is reached through its skill (load it with the Skill
   tool; it names the CLI). Load `maybloom-stack-delegate` too: it has the
   hand-off format and the launch commands.
@@ -49,9 +51,9 @@ the label, in the same step as the `handoff` comment.
   learning), `question` (something the owner must answer before the run
   continues), `handoff` (the run stops here: budget, diverging, end of
   run), or `error` (a step that failed: a dispatch, a CLI, a push). A
-  runner reads the state of the run from the kind alone. You are the only role
-  that reaches the project owner outside the tracker, and only with a
-  question you cannot settle from the series.
+  runner reads the state of the run from the kind alone. You are the
+  only role that reaches the project owner outside the tracker, and only
+  with a question you cannot settle from the series.
 - **Reviewers start fresh.** Each round is a new reviewer session.
 - **Protected paths** (`AGENTS.md` § Delegation) are architect work; a
   run that needs one goes back to the architect as a question.
@@ -89,14 +91,21 @@ from the session logs. The series decides the state:
   that in a comment on the run's item). Should-fix findings still open
   at the gate are fixed first, put on the approval's list if small and
   local, or deferred to a named item. Blocking from it is back to
-  converging. Once the gate passes, post the run's learning as an
-  `action`: one line, at most two sentences, on what the run would have
-  gone faster for knowing (a convention, a trap, a check worth running
-  early). Name the repo file it goes in: the learnings file or the
-  `AGENTS.md` section the repo names, else `docs/solutions/README.md`.
-  The builder appends it in its last commit before the merge, so it
-  ships in the PR, and future briefs cite it. Where nothing was learned,
-  post `learning: none` rather than inventing one.
+  converging.
+
+**The run's learning.** As soon as you read the gate's approval, post
+the run's learning. The first line has a fixed form:
+`[orchestrator] action: learning: <file> — <line>`. `<line>` is at most
+two sentences on what would have made the run faster to know up front:
+a convention, a trap, a check worth running early. `<file>` is the
+learnings file or the `AGENTS.md` section the repo names, else
+`docs/solutions/README.md`. Where nothing was learned, post
+`[orchestrator] action: learning: none` rather than inventing one. A
+builder session waits for this line before its last commit and appends
+it there, so it ships in the PR and future briefs cite it. Where the
+builder was an `Agent` call, it has already returned. Dispatch one more
+(`isolation: worktree`, on the PR's branch). Its whole brief is that
+commit: the approval's listed items, if any, and the learning line.
 
 On `HOLD` from any role, or a decision filed for the owner, stop and
 wait on that item until the owner's answer appears there.
@@ -107,9 +116,9 @@ A builder session (a slice over ~500 lines) and every reviewer round are
 sessions of their own, never your subagents: a reviewer must start
 fresh, and a large slice does not fit a call. Until a runner starts
 them, post the launch on the run's item and ask the project owner to
-start it: the
-command from the skill (`claude --agent maybloom-stack:reviewer
---permission-mode default`, or `maybloom-stack:builder` with
+start it: the command from the skill (`claude --agent
+maybloom-stack:reviewer --permission-mode default`, or
+`maybloom-stack:builder` with
 `acceptEdits`) and the prompt it starts with (the round, the PR and its
 head, or the brief). The prompt also asks the session to put its id
 (`$CLAUDE_CODE_SESSION_ID`) in its first comment on the item. Then wait
@@ -126,8 +135,9 @@ reviewer that has posted and is working does not count as stalled.
 You are a session, so the session budget applies: at the budget, post
 the hand-off on the run's item in the format the skill fixes and stop,
 unless the owner has said to continue this session. The hand-off is a
-`handoff` comment and releases the item. The prompt hook warns only when a prompt arrives, and you work for long stretches from
-one, so read your number at every round boundary:
+`handoff` comment and releases the item. The prompt hook warns only
+when a prompt arrives, and you work for long stretches from one, so
+read your number at every round boundary:
 
 ```bash
 jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"

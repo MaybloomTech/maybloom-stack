@@ -66,18 +66,24 @@ the run's learning. Files: a diverging series (with the series
 attached), the merge, a reviewer's stop-the-line decision, a run that
 will not fit its budget, an item another run has claimed, a session
 that stalls twice. Starts with: the run's item(s), the PR if one exists,
-`AGENTS.md` § Delegation. Then it claims the item: it assigns the item
-to itself, or puts on the label the tracker's skill names. It releases
-the item at the hand-off, so that two runs never pick up the same one.
+`AGENTS.md` § Delegation. Then it claims the item. It posts
+`[orchestrator] action: claimed` and adds itself as an assignee, or the
+label the tracker's skill names. The item counts as held while its
+newest `[orchestrator]` comment is not a `handoff`, because roles may
+share one account and an assignment to the owner is no claim. It
+releases the item at the hand-off, so that two runs never pick up the
+same one.
 It reads the item and the PR again before every round, and keeps each
 round's builder and reviewer session ids in the series row. A launched
 session that has posted nothing 30 minutes after the launch comment is
 re-posted once, not waited on. Once the deep review passes, it posts
-one learning for the repo's learnings file, and the builder commits it
-before the merge. Tools: Read, Bash (search, the tracker CLI, `gh`, `git`),
-Agent (to launch a mechanic or a small builder), Skill (the tracker's
-skill and this one); no Edit or Write. It is
-the only role that reaches the owner outside the tracker. It is always a
+`[orchestrator] action: learning: <file> — <line>` (or `learning:
+none`). The builder waits for that line and commits it before the merge;
+for an `Agent` builder, which has already returned, the orchestrator
+dispatches one more for that commit. Tools: Read, Bash (search, the
+tracker CLI, `gh`, `git`), Agent (to launch a mechanic or a small
+builder), Skill (the tracker's skill and this one); no Edit or Write.
+It is the only role that reaches the owner outside the tracker. It is always a
 main session, never an `Agent` call: a run outlives any one call (it waits
 on review rounds), it needs the per-session numbers the status line
 writes and the budget hook, which only a main session has, and nested launches are
@@ -96,8 +102,8 @@ in the PR body, `met` or `not met` with the evidence for each, and
 review round 1 reads that list first. As an `Agent` call it runs in a
 worktree of its own (`isolation: worktree`), cut from an up-to-date
 main, and stops if it finds itself in the main checkout. Starts with:
-the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill, ScheduleWakeup (to
-pace its `/loop` between rounds); no Agent. As a session it posts on the
+the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill,
+ScheduleWakeup (to pace its `/loop` between rounds); no Agent. As a session it posts on the
 item like any role, answers each round in the lines of rule 9 and waits
 for the next one itself (the agent file says how).
 
