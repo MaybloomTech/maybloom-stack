@@ -7,7 +7,7 @@
     {
       "name": "maybloom-stack",
       "source": ".",
-      "version": "0.13.0",
+      "version": "0.13.1",
       "description": "Agent skills for the maybloom stack: bootstrap a proto-first Connect-RPC monorepo and add resources end-to-end through every layer. Validated TypeScript and Go paths ship in full; a language-neutral core reference supports any other Connect-RPC implementation. Includes the builder, mechanic, reviewer, orchestrator and researcher agents and the delegation skill that says which role does what, plus a status-line skill that installs the team's Claude Code status line (usage windows, the model-scoped weekly limit, context)."
     }
   ]
