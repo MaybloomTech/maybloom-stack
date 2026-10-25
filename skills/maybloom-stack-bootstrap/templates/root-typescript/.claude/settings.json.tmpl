@@ -3,28 +3,28 @@
     "allow": [
       "Bash(pnpm install)",
       "Bash(pnpm test)",
-      "Bash(pnpm typecheck:*)",
-      "Bash(pnpm lint:*)",
-      "Bash(pnpm proto:gen:*)",
-      "Bash(pnpm build:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint:proto)",
+      "Bash(pnpm lint:ts)",
+      "Bash(pnpm lint:ts:fix)",
+      "Bash(pnpm proto:gen)",
+      "Bash(pnpm build)",
+      "Bash(pnpm build:web)",
+      "Bash(pnpm build:docs-site)",
       "Bash(pnpm --filter __ORG_SCOPE__/interface check:gallery)",
       "Bash(pnpm --filter __ORG_SCOPE__/protocol-buffers build)",
       "Bash(pnpm --filter __ORG_SCOPE__/docs-site build)",
       "Bash(pnpm --filter __ORG_SCOPE__/backend build)",
-      "Bash(buf lint:*)",
+      "Bash(buf lint)",
       "Bash(pnpm --filter __ORG_SCOPE__/backend db:generate)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
       "Bash(git branch --show-current)",
       "Bash(git branch --list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)"
     ],
-    "deny": [
-      "Bash(git *--output*)"
-    ]
+    "deny": []
   },
   "hooks": {
     "UserPromptSubmit": [

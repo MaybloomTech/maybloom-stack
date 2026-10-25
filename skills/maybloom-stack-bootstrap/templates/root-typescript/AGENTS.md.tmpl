@@ -89,11 +89,14 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 - `.claude/settings.json` allows the checks without a prompt. A `*` in a
   rule there spans spaces (`pnpm --filter * build` also matches
   `pnpm --filter x exec <anything> build`), so keep new rules as narrow
-  as the command they are for: name the package, and put a `*` only
-  after a subcommand. A trailing `*` still takes any flag, so the deny
-  list blocks the flags that make a check write a file
-  (`git diff --output`); never allow a command that starts another
-  session, such as `claude`, with a `*`.
+  as the command they are for: name the package. A rule for a command
+  that hands its arguments on to a tool (every `pnpm` script) is exact,
+  with no `*`: a trailing `*` takes any flag, and a deny rule matches
+  only the literal text, so a quoted flag gets past both. A run outside
+  the exact forms asks first.
+  Read-only `git` needs no rule: Claude Code allows it on its own and
+  asks for a flag that writes, such as `--output`, however it is quoted.
+  Never allow a command that starts another session, such as `claude`.
 
 - Never edit `pnpm-lock.yaml` by hand; `pnpm install` writes it.
 - After a proto change, regenerate (`pnpm proto:gen`)
