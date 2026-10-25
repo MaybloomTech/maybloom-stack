@@ -3,11 +3,6 @@
     "allow": [
       "Bash(python3 scripts/check-skill-tree.py)",
       "Bash(python3 scripts/check-plugin-version.py:*)",
-      "Bash(claude -p --plugin-dir . --agent maybloom-stack:builder *)",
-      "Bash(claude -p --plugin-dir . --agent maybloom-stack:mechanic *)",
-      "Bash(claude -p --plugin-dir . --agent maybloom-stack:orchestrator *)",
-      "Bash(claude -p --plugin-dir . --agent maybloom-stack:researcher *)",
-      "Bash(claude -p --plugin-dir . --agent maybloom-stack:reviewer *)",
       "Bash(printenv CLAUDE_CODE_SESSION_ID)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
@@ -20,13 +15,6 @@
       "Bash(vk comment:*)"
     ],
     "deny": [
-      "Bash(claude *--permission-mode*)",
-      "Bash(claude *--dangerously-skip-permissions*)",
-      "Bash(claude *--allow-dangerously-skip-permissions*)",
-      "Bash(claude *--allowedTools*)",
-      "Bash(claude *--allowed-tools*)",
-      "Bash(claude *--settings*)",
-      "Bash(claude *--agents*)",
       "Bash(git diff *--output*)"
     ]
   }

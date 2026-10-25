@@ -41,15 +41,15 @@ to their published routes at build time.
 ## What CI enforces
 
 These checks run on pull requests, and all of them are mechanical.
-`.claude/settings.json` allows the two scripts below, an agent launch
-from this checkout (`claude -p --plugin-dir . --agent maybloom-stack:<role>`)
-the `gh pr` reads and the tracker's `show`, `ls` and `comment` without a
-prompt, so a non-interactive review session can run them. Claude Code
-reads the file only in a trusted workspace; a session in a fresh clone
-gets it through `--settings`. A `*` in a rule there spans spaces, so
-keep a new rule as narrow as the command it is for. The deny rules stop
-a nested launch from widening its own permissions (`--permission-mode`,
-`--settings`, `--allowedTools` and the like); deny wins over allow.
+`.claude/settings.json` allows the two scripts below, the `git` and
+`gh pr` reads, `printenv CLAUDE_CODE_SESSION_ID` and the tracker's
+`show`, `ls` and `comment` without a prompt, so a non-interactive review session
+can run them. Claude Code reads the file only in a trusted workspace; a
+session in a fresh clone gets it through `--settings`. A `*` in a rule
+there spans spaces and matches any flag that follows, so put one only
+after a command that cannot run or write anything else (`git diff
+--output` is denied for that reason), and never after a command that
+starts another process, such as `claude`.
 
 - **Validate PR title** —
   [Conventional Commits](https://www.conventionalcommits.org). Merges are
