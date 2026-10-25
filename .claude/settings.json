@@ -15,7 +15,7 @@
       "Bash(vk comment:*)"
     ],
     "deny": [
-      "Bash(git diff *--output*)"
+      "Bash(git *--output*)"
     ]
   }
 }

@@ -47,8 +47,8 @@ These checks run on pull requests, and all of them are mechanical.
 can run them. Claude Code reads the file only in a trusted workspace; a
 session in a fresh clone gets it through `--settings`. A `*` in a rule
 there spans spaces and matches any flag that follows, so put one only
-after a command that cannot run or write anything else (`git diff
---output` is denied for that reason), and never after a command that
+after a command that cannot run or write anything else (`--output` on
+`git diff` and `git log` is denied for that reason), and never after a command that
 starts another process, such as `claude`.
 
 - **Validate PR title** —
