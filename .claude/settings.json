@@ -3,10 +3,8 @@
     "allow": [
       "Bash(python3 scripts/check-skill-tree.py)",
       "Bash(python3 scripts/check-plugin-version.py:*)",
+      "Bash(git fetch origin)",
       "Bash(printenv CLAUDE_CODE_SESSION_ID)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)",
@@ -14,8 +12,6 @@
       "Bash(vk ls:*)",
       "Bash(vk comment:*)"
     ],
-    "deny": [
-      "Bash(git *--output*)"
-    ]
+    "deny": []
   }
 }

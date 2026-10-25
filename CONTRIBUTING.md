@@ -41,15 +41,22 @@ to their published routes at build time.
 ## What CI enforces
 
 These checks run on pull requests, and all of them are mechanical.
-`.claude/settings.json` allows the two scripts below, the `git` and
-`gh pr` reads, `printenv CLAUDE_CODE_SESSION_ID` and the tracker's
-`show`, `ls` and `comment` without a prompt, so a non-interactive review session
-can run them. Claude Code reads the file only in a trusted workspace; a
-session in a fresh clone gets it through `--settings`. A `*` in a rule
-there spans spaces and matches any flag that follows, so put one only
-after a command that cannot run or write anything else (`--output` on
-`git diff` and `git log` is denied for that reason), and never after a command that
-starts another process, such as `claude`.
+`.claude/settings.json` lets a non-interactive review session run them
+without a prompt: the two scripts below, `git fetch origin`, `gh pr
+view`, `checks` and `diff`, the tracker's `show`, `ls` and `comment`, and
+`printenv CLAUDE_CODE_SESSION_ID`. Claude Code reads the file only in a
+trusted workspace; a session in a fresh clone gets it through
+`--settings`.
+
+Read-only `git` (`status`, `diff`, `log`, `show`) needs no rule: Claude
+Code allows it on its own and asks first for a flag that writes, such
+as `--output`, however it is quoted. A `git diff:*` rule would replace
+that check with a match on the command's text, which a quoted flag gets
+past, so the file has none. The same goes for any rule: a `*` matches
+whatever follows it, and a deny rule matches only the literal text, so
+it catches mistakes, not a session trying to get around it. Put a `*`
+only after a command that cannot run or write anything else, never
+after one that starts another process, such as `claude`.
 
 - **Validate PR title** —
   [Conventional Commits](https://www.conventionalcommits.org). Merges are
