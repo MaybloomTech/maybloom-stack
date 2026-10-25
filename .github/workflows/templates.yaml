@@ -52,6 +52,10 @@ jobs:
             echo "::error::a placeholder survived substitution in AGENTS.md"
             exit 1
           fi
+          if grep -n '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/.claude/settings.json"; then
+            echo "::error::a placeholder survived substitution in .claude/settings.json"
+            exit 1
+          fi
       - name: Biome check the scaffold
         run: |
           cd "$RUNNER_TEMP/orchard"
