@@ -1,0 +1,29 @@
+# The Forgejo copy of .github/workflows/site.yaml, the same job: build the
+# site, then typecheck it. This file is mirrored to GitHub, so nothing
+# about the instance goes in it.
+name: Site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Build first: it is the cheaper failure and the one that means the
+      # site is broken rather than merely unverifiable.
+      - run: pnpm build
+      - run: pnpm typecheck

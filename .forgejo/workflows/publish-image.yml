@@ -1,0 +1,126 @@
+# The Forgejo copy of .github/workflows/publish-image.yaml: the site image,
+# built on a pull request that touches its inputs and pushed from main, so
+# a deployment pulls a tag instead of building from source.
+#
+# Where it goes is a repository setting, never this file:
+#
+#   REGISTRY            repository variable: the image prefix, e.g.
+#                       registry.example.com/team
+#   REGISTRY_USERNAME   secret
+#   REGISTRY_PASSWORD   secret: a token allowed to push there
+#
+# Until all three are set, main builds the image and pushes nothing, with a
+# notice saying what is missing. The image is <REGISTRY>/maybloom-stack-site,
+# tagged `latest` and `sha-<the commit's full SHA>`, as the GitHub copy
+# tags its own. The build cache is the runner's cache server. This file is
+# mirrored to GitHub, so nothing about the instance goes in it.
+name: Publish image
+
+on:
+  push:
+    branches: [main]
+    # Only the inputs that change the image. A docs edit changes the site,
+    # so docs/ belongs here; a skills edit does not.
+    paths:
+      - docs/**
+      - site/**
+      - Dockerfile
+      - nginx.conf
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .forgejo/workflows/publish-image.yml
+  pull_request:
+    paths:
+      - docs/**
+      - site/**
+      - Dockerfile
+      - nginx.conf
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .forgejo/workflows/publish-image.yml
+  workflow_dispatch:
+
+# A queued run for an older commit would publish a stale `latest`. Pull
+# requests get a group each, so one cannot cancel main's publish.
+concurrency:
+  group: publish-image-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build the site image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Name the image
+        id: name
+        env:
+          REGISTRY: ${{ vars.REGISTRY }}
+          # Whether the secrets exist, never their values.
+          HAS_USERNAME: ${{ secrets.REGISTRY_USERNAME != '' }}
+          HAS_PASSWORD: ${{ secrets.REGISTRY_PASSWORD != '' }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          # Registries refuse uppercase in a repository name.
+          registry="$(printf '%s' "${REGISTRY%/}" | tr '[:upper:]' '[:lower:]')"
+          push=false
+          # A pull request proves the image builds; only main publishes it.
+          if [ "$EVENT" != pull_request ]; then
+            missing=""
+            [ -n "$registry" ] || missing="$missing the REGISTRY variable,"
+            [ "$HAS_USERNAME" = true ] || missing="$missing the REGISTRY_USERNAME secret,"
+            [ "$HAS_PASSWORD" = true ] || missing="$missing the REGISTRY_PASSWORD secret,"
+            if [ -z "$missing" ]; then
+              push=true
+            else
+              echo "::notice::the site image is built, not pushed, the repository is missing${missing%,}"
+            fi
+          fi
+          ref="${registry:+$registry/}maybloom-stack-site"
+          {
+            echo "host=${registry%%/*}"
+            echo "push=$push"
+            echo "tags<<EOF"
+            echo "$ref:latest"
+            echo "$ref:sha-$GITHUB_SHA"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        if: steps.name.outputs.push == 'true'
+        with:
+          registry: ${{ steps.name.outputs.host }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ steps.name.outputs.push == 'true' }}
+          # linux/amd64 only, because that is what the site is deployed to
+          # (the GitHub copy says what adding arm64 takes).
+          platforms: linux/amd64
+          tags: ${{ steps.name.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Maybloom Stack documentation site
+            org.opencontainers.image.description=The maybloom stack documents, rendered as a static site.
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          # Exporting to the runner's cache may fail without failing the build.
+          cache-to: type=gha,mode=max,ignore-error=true
+          # Public values baked into a public static site, not secrets. Unset
+          # repository variables arrive as empty strings, which is the
+          # Dockerfile's documented "ship no tracking tag at all" case.
+          build-args: |
+            PUBLIC_ANALYTICS_SCRIPT_URL=${{ vars.PUBLIC_ANALYTICS_SCRIPT_URL }}
+            PUBLIC_ANALYTICS_SITE_ID=${{ vars.PUBLIC_ANALYTICS_SITE_ID }}

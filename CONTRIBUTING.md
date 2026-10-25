@@ -48,6 +48,17 @@ and the reads a review needs, without a prompt: the two scripts below,
 trusted workspace; a session in a fresh clone gets it through
 `--settings`.
 
+The workflows exist twice: `.github/workflows/` runs on GitHub, and
+`.forgejo/workflows/` is the copy a Forgejo instance runs (Forgejo ignores
+`.github/workflows/` while its own folder exists). Each Forgejo file's
+header says where it differs, which is only where the forge or its runner
+does. A change to one copy is made to the other in the same pull request,
+and neither names anything about an instance: where the site image goes is
+the `REGISTRY` repository variable and the `REGISTRY_USERNAME` and
+`REGISTRY_PASSWORD` secrets. The dependency bot watches only
+`.github/workflows/`, so the Forgejo copy's action versions follow its
+pull requests by hand.
+
 Read-only `git` (`status`, `diff`, `log`, `show`) needs no rule: Claude
 Code allows it on its own and asks first for a flag that writes, such
 as `--output`, however it is quoted. A `git diff:*` rule would replace

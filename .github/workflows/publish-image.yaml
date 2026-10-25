@@ -35,9 +35,10 @@ on:
       - .github/workflows/publish-image.yaml
   workflow_dispatch:
 
-# A queued run for an older commit would publish a stale `latest`.
+# A queued run for an older commit would publish a stale `latest`. Pull
+# requests get a group each, so one cannot cancel main's publish.
 concurrency:
-  group: publish-image
+  group: publish-image-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
   cancel-in-progress: true
 
 permissions:

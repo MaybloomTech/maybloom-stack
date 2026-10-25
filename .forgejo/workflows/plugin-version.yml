@@ -1,0 +1,30 @@
+# The Forgejo copy of .github/workflows/plugin-version.yaml (see its header
+# for why the check exists). The one difference: a pull request here checks
+# out its head, not a test merge, so HEAD^1 is the branch's previous commit
+# rather than main. The pull request diffs against main's merge base
+# instead (the script's default base, origin/main, fetched whole); on main,
+# merges are squashed, so HEAD^1 is still main before this one. This file
+# is mirrored to GitHub, so nothing about the instance goes in it.
+name: Plugin version
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Check the plugin version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the version against the base
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && 'origin/main' || 'HEAD^1' }}
+        run: python3 scripts/check-plugin-version.py "$BASE"
