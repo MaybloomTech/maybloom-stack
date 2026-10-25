@@ -1,0 +1,101 @@
+# The Forgejo copy of .github/workflows/templates.yaml (see its header for
+# what it lints). It differs where the runner does: its image has no
+# shellcheck, so the job installs it, and its Docker is a sidecar daemon,
+# so actionlint gets the scaffold copied in rather than bind-mounted. This
+# file is mirrored to GitHub, so nothing about the instance goes in it.
+name: Templates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - skills/maybloom-stack-bootstrap/**
+      - skills/maybloom-stack-statusline/**
+      - .forgejo/workflows/templates.yml
+
+permissions:
+  contents: read
+
+jobs:
+  workflows:
+    name: Lint the scaffolded workflows
+    runs-on: ubuntu-latest
+    env:
+      VISIBILITY: ${{ matrix.visibility || 'private' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [go, typescript]
+        # one scaffold of each visibility: go is private (the default)
+        include:
+          - backend: typescript
+            visibility: public
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # The runner's image has no shellcheck, which GitHub's has.
+      - name: Install shellcheck
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends shellcheck
+      - name: Scaffold
+        env:
+          BACKEND: ${{ matrix.backend }}
+        run: |
+          python3 skills/maybloom-stack-bootstrap/scripts/scaffold.py \
+            --name Orchard --slug orchard --org @orchard-tech \
+            --out "$RUNNER_TEMP/orchard" --backend "$BACKEND" --visibility "$VISIBILITY"
+          if grep -rn '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/.github"; then
+            echo "::error::a placeholder survived substitution in the workflows"
+            exit 1
+          fi
+          if grep -n '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/AGENTS.md"; then
+            echo "::error::a placeholder survived substitution in AGENTS.md"
+            exit 1
+          fi
+          if grep -n '__[A-Z][A-Z_]*__' "$RUNNER_TEMP/orchard/.claude/settings.json"; then
+            echo "::error::a placeholder survived substitution in .claude/settings.json"
+            exit 1
+          fi
+      - name: Biome check the scaffold
+        run: |
+          cd "$RUNNER_TEMP/orchard"
+          # The pinned version of the scaffold's catalog (^2.3.11), no install needed.
+          npx --yes @biomejs/biome@2.3.11 check packages
+      - name: Agent setup
+        run: |
+          cd "$RUNNER_TEMP/orchard"
+          jq empty .claude/settings.json
+          jq -r '.hooks[][].hooks[].command' .claude/settings.json | while read -r cmd; do
+            hook="${cmd//\"\$CLAUDE_PROJECT_DIR\"/$PWD}"
+            if [ ! -x "$hook" ]; then
+              echo "::error::hook $cmd does not resolve to an executable in the scaffold"
+              exit 1
+            fi
+          done
+          grep -qx '@AGENTS.md' CLAUDE.md
+          grep -q '^## Delegation' AGENTS.md
+          if [ "$VISIBILITY" = private ]; then
+            test -f docs/plans/README.md
+          else
+            test ! -e docs/plans
+          fi
+          shellcheck .claude/hooks/*.sh
+      - name: shellcheck the status line
+        run: shellcheck skills/maybloom-stack-statusline/scripts/statusline.sh
+      - name: actionlint
+        run: |
+          cd "$RUNNER_TEMP/orchard"
+          # actionlint looks for the repository root.
+          git init -q
+          # The runner's Docker is a sidecar daemon, which cannot see the
+          # job's files, so a bind mount would lint an empty folder: copy
+          # the scaffold into the container instead.
+          id="$(docker create -w /repo rhysd/actionlint:1.7.12 -no-color)"
+          docker cp . "$id:/repo"
+          rc=0
+          docker start -a "$id" || rc=$?
+          docker rm "$id" >/dev/null
+          exit "$rc"
