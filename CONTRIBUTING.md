@@ -41,10 +41,10 @@ to their published routes at build time.
 ## What CI enforces
 
 These checks run on pull requests, and all of them are mechanical.
-`.claude/settings.json` lets a non-interactive review session run them
-without a prompt: the two scripts below, `git fetch origin`, `gh pr
-view`, `checks` and `diff`, the tracker's `show`, `ls` and `comment`, and
-`printenv CLAUDE_CODE_SESSION_ID`. Claude Code reads the file only in a
+`.claude/settings.json` lets a non-interactive review session run them,
+and the reads a review needs, without a prompt: the two scripts below,
+`git fetch origin`, `gh pr view`, `checks` and `diff`, the tracker's
+`show`, `ls` and `comment`, and `printenv CLAUDE_CODE_SESSION_ID`. Claude Code reads the file only in a
 trusted workspace; a session in a fresh clone gets it through
 `--settings`.
 
@@ -56,7 +56,10 @@ past, so the file has none. The same goes for any rule: a `*` matches
 whatever follows it, and a deny rule matches only the literal text, so
 it catches mistakes, not a session trying to get around it. Put a `*`
 only after a command that cannot run or write anything else, never
-after one that starts another process, such as `claude`.
+after one that starts another process, such as `claude` (`gh pr …
+--web` is the one exception: it only opens a browser). The two scripts
+run the checked-out code, so read a pull request's changes to
+`scripts/` before running them.
 
 - **Validate PR title** —
   [Conventional Commits](https://www.conventionalcommits.org). Merges are
