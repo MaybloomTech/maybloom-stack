@@ -17,11 +17,11 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/inter-tight": "^5.2.7",
     "@fontsource/source-serif-4": "^5.3.1",
-    "astro": "^7.3.8"
+    "astro": "^7.4.1"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.4",
-    "@astrojs/markdown-remark": "^7.3.2",
+    "@astrojs/check": "^0.9.11",
+    "@astrojs/markdown-remark": "^7.3.3",
     "@types/hast": "^3.0.5",
     "typescript": "^6.0.3"
   }
