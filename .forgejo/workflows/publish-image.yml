@@ -12,7 +12,10 @@
 # Until all three are set, main builds the image and pushes nothing, with a
 # notice saying what is missing. The image is <REGISTRY>/maybloom-stack-site,
 # tagged `latest` and `sha-<the commit's full SHA>`, as the GitHub copy
-# tags its own. The build cache is the runner's cache server. This file is
+# tags its own. Unlike the GitHub copy, the image is loaded into the
+# runner's Docker and pushed with `docker push`, not from the BuildKit
+# builder: Forgejo's registry answered the builder's upload with 405 Method
+# Not Allowed. The build cache is the runner's cache server. This file is
 # mirrored to GitHub, so nothing about the instance goes in it.
 name: Publish image
 
@@ -105,7 +108,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ steps.name.outputs.push == 'true' }}
+          load: true
           # linux/amd64 only, because that is what the site is deployed to
           # (the GitHub copy says what adding arm64 takes).
           platforms: linux/amd64
@@ -124,3 +127,26 @@ jobs:
           build-args: |
             PUBLIC_ANALYTICS_SCRIPT_URL=${{ vars.PUBLIC_ANALYTICS_SCRIPT_URL }}
             PUBLIC_ANALYTICS_SITE_ID=${{ vars.PUBLIC_ANALYTICS_SITE_ID }}
+
+      # A pull request proves the image builds; only main or a manual
+      # dispatch publishes it.
+      - name: Push
+        if: steps.name.outputs.push == 'true'
+        env:
+          TAGS: ${{ steps.name.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while read -r tag; do
+            if [ -n "$tag" ]; then docker push "$tag"; fi
+          done <<< "$TAGS"
+
+      # The image was loaded into the runner's Docker, which every job
+      # shares; remove it so runs do not pile up images there.
+      - name: Remove the loaded image
+        if: always()
+        env:
+          TAGS: ${{ steps.name.outputs.tags }}
+        run: |
+          while read -r tag; do
+            if [ -n "$tag" ]; then docker image rm "$tag" >/dev/null 2>&1 || true; fi
+          done <<< "$TAGS"
