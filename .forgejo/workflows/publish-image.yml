@@ -11,8 +11,8 @@
 #
 # Until all three are set, main builds the image and pushes nothing, with a
 # notice saying what is missing. The image is <REGISTRY>/maybloom-stack-site,
-# tagged `latest` and with the commit's full SHA, as the GitHub copy tags
-# its own. The build cache is the runner's cache server. This file is
+# tagged `latest` and `sha-<the commit's full SHA>`, as the GitHub copy
+# tags its own. The build cache is the runner's cache server. This file is
 # mirrored to GitHub, so nothing about the instance goes in it.
 name: Publish image
 
@@ -42,9 +42,10 @@ on:
       - .forgejo/workflows/publish-image.yml
   workflow_dispatch:
 
-# A queued run for an older commit would publish a stale `latest`.
+# A queued run for an older commit would publish a stale `latest`. Pull
+# requests get a group each, so one cannot cancel main's publish.
 concurrency:
-  group: publish-image
+  group: publish-image-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
   cancel-in-progress: true
 
 permissions:
@@ -88,7 +89,7 @@ jobs:
             echo "push=$push"
             echo "tags<<EOF"
             echo "$ref:latest"
-            echo "$ref:$GITHUB_SHA"
+            echo "$ref:sha-$GITHUB_SHA"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -113,6 +114,7 @@ jobs:
             org.opencontainers.image.title=Maybloom Stack documentation site
             org.opencontainers.image.description=The maybloom stack documents, rendered as a static site.
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           # Exporting to the runner's cache may fail without failing the build.
           cache-to: type=gha,mode=max,ignore-error=true

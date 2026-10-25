@@ -94,8 +94,6 @@ jobs:
           # job's files, so a bind mount would lint an empty folder: copy
           # the scaffold into the container instead.
           id="$(docker create -w /repo rhysd/actionlint:1.7.12 -no-color)"
+          trap 'docker rm "$id" >/dev/null' EXIT
           docker cp . "$id:/repo"
-          rc=0
-          docker start -a "$id" || rc=$?
-          docker rm "$id" >/dev/null
-          exit "$rc"
+          docker start -a "$id"
