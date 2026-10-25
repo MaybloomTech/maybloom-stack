@@ -100,7 +100,12 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 - `.claude/settings.json` allows the checks without a prompt. A `*` in a
   rule there spans spaces (`pnpm --filter * build` also matches
   `pnpm --filter x exec <anything> build`), so keep new rules as narrow
-  as the command they are for.
+  as the command they are for: name the package, and put a `*` only
+  after a subcommand. A trailing `*` still takes any flag, so the deny
+  list blocks the flags that make a check run another program or write
+  a file (`go test -exec`, `go build -toolexec`, `go vet -vettool`,
+  `git diff --output`); never allow a command that starts another
+  session, such as `claude`, with a `*`.
 
 - Never edit `pnpm-lock.yaml` or `go.sum` by hand; `pnpm install` and
   `go mod tidy` write them.

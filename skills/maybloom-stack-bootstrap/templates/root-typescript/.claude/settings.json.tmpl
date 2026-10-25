@@ -7,20 +7,12 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm proto:gen:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm --filter * check:gallery)",
-      "Bash(pnpm --filter * build)",
+      "Bash(pnpm --filter __ORG_SCOPE__/interface check:gallery)",
+      "Bash(pnpm --filter __ORG_SCOPE__/protocol-buffers build)",
+      "Bash(pnpm --filter __ORG_SCOPE__/docs-site build)",
+      "Bash(pnpm --filter __ORG_SCOPE__/backend build)",
       "Bash(buf lint:*)",
-      "Bash(pnpm test:backend:*)",
-      "Bash(scripts/go generate:*)",
-      "Bash(scripts/go build:*)",
-      "Bash(scripts/go vet:*)",
-      "Bash(scripts/go test:*)",
-      "Bash(scripts/golangci-lint run:*)",
-      "Bash(go generate:*)",
-      "Bash(go build:*)",
-      "Bash(go vet:*)",
-      "Bash(go test:*)",
-      "Bash(docker compose up -d db)",
+      "Bash(pnpm --filter __ORG_SCOPE__/backend db:generate)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -30,7 +22,9 @@
       "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)"
     ],
-    "deny": []
+    "deny": [
+      "Bash(git *--output*)"
+    ]
   },
   "hooks": {
     "UserPromptSubmit": [
