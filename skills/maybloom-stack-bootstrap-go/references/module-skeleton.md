@@ -9,8 +9,8 @@ holds the repo-root pieces (`go.work`, `scripts/go`,
 `.claude/settings.json`). **The
 templates are canonical; this file is the commentary**: what each file is
 for, which choices carry weight, and where a service may deviate. Copy
-the files (substituting `__GO_MODULE__`, `__APP_SLUG__`, `__APP_NAME__`
-and dropping `.tmpl`) rather than retyping them from the excerpts here.
+the files (substituting `__GO_MODULE__`, `__APP_SLUG__`, `__APP_NAME__`,
+`__ORG_SCOPE__` and dropping `.tmpl`) rather than retyping them from the excerpts here.
 Per-layer patterns — migrations, queries, adapters, stores, handlers —
 are in `../../maybloom-stack-shared/references/paths/backend-go/README.md`.
 
