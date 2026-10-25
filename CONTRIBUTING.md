@@ -43,9 +43,13 @@ to their published routes at build time.
 These checks run on pull requests, and all of them are mechanical.
 `.claude/settings.json` allows the two scripts below, an agent launch
 from this checkout (`claude -p --plugin-dir . --agent maybloom-stack:<role>`)
-and the read-only `gh pr` and tracker commands without a prompt, so a
-non-interactive review session can run them. A `*` in a rule there spans
-spaces, so keep a new rule as narrow as the command it is for.
+the `gh pr` reads and the tracker's `show`, `ls` and `comment` without a
+prompt, so a non-interactive review session can run them. Claude Code
+reads the file only in a trusted workspace; a session in a fresh clone
+gets it through `--settings`. A `*` in a rule there spans spaces, so
+keep a new rule as narrow as the command it is for. The deny rules stop
+a nested launch from widening its own permissions (`--permission-mode`,
+`--settings`, `--allowedTools` and the like); deny wins over allow.
 
 - **Validate PR title** —
   [Conventional Commits](https://www.conventionalcommits.org). Merges are

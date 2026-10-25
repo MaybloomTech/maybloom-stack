@@ -19,6 +19,15 @@
       "Bash(vk ls:*)",
       "Bash(vk comment:*)"
     ],
-    "deny": []
+    "deny": [
+      "Bash(claude *--permission-mode*)",
+      "Bash(claude *--dangerously-skip-permissions*)",
+      "Bash(claude *--allow-dangerously-skip-permissions*)",
+      "Bash(claude *--allowedTools*)",
+      "Bash(claude *--allowed-tools*)",
+      "Bash(claude *--settings*)",
+      "Bash(claude *--agents*)",
+      "Bash(git diff *--output*)"
+    ]
   }
 }
