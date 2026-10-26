@@ -90,9 +90,15 @@ The builder answers each review round in the same fixed shape: a
 finding of round n (`R<n>-<i>: fixed <sha>`, `disputed: <reason>`, `deferred:
 <item>`, `not addressed: <why>`). A runner counts dispositions from
 those lines without reading prose, and the reviewer of the next round
-knows which fixes to confirm. A builder session then waits for the next
-round in a `/loop` of its own, until the series diverges or a round
-approves its head.
+knows which fixes to confirm. The comment is the header of those lines,
+not what starts the round: where a runner watches the forge, every
+push before the gate's approval starts a round after a short settle
+window, and the comment follows the push at once so the
+round reads it. The pull request opens as a
+draft and is marked ready for round 1; a draft gets no round, which is
+how the builder pauses the loop while a fix spans several commits. A
+builder session then waits for the next round in a `/loop` of its own,
+until the series diverges or a round approves its head.
 
 Before the PR opens, the builder goes through the brief's acceptance
 criteria and lists each one in the PR body as met or not met, with the

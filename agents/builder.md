@@ -49,6 +49,19 @@ share a checkout. Cut the branch there. If `git rev-parse
 in the main checkout: stop before the first edit and report that the
 worktree is missing. A builder session cuts its own branch as before.
 
+Open the pull request as a draft, and mark it ready for review once it
+is ready for round 1: the criteria list below is in the body and the
+checks have run. Where a runner watches the forge, it starts round 1
+from the head marked ready and a round from every later push before
+the gate's approval, after a short settle window (after it, none: see
+*The run's learning*); a draft gets no round. So a fix that takes
+several commits is pushed once, whole, or
+the pull request goes back to draft until it is, and marking it ready
+again resumes the loop at the head it has then. On GitHub the draft is
+`gh pr create --draft` and `gh pr ready` marks it ready; on Forgejo a
+`WIP:` title prefix makes the draft, removing it marks the PR ready,
+and the title check fails until then.
+
 Before you open the PR, go through the brief's acceptance criteria one
 by one against what you built. The PR body carries the result as a
 `## Acceptance criteria` list, each line `met` or `not met` with its
@@ -73,7 +86,11 @@ commit, wait for that comment, newer than the approving round. Append
 `<line>`, as written, to `<file>` in that same commit, whether you merge
 or the owner does. If nothing else is listed, the learning is that
 commit on its own. `learning: none` adds nothing. Where the owner
-merges, this commit is the only one after the approved head.
+merges, this commit is the only one after the approved head. On either
+path, where a runner watches the forge, that push starts no round: a
+series the deep review approved (`APPROVED at <sha>` or `ready for the
+owner's merge at <sha>`) takes no more automatic rounds, and the
+commit is merged as it is.
 
 ## As a session
 
@@ -87,12 +104,12 @@ stop, never mid-fix.
 
 ### Answering a round
 
-When the PR is up, and again after the fixes for each round are
-pushed, post one comment whose first line is
+When the PR is marked ready, and again right after the fixes for each
+round are pushed, post one comment whose first line is
 `[builder] Ready for round <n+1>, head <sha>` (the head you just
 pushed, the round the reviewer runs next; `Ready for round 1` when the
-PR opens), then one line per finding of the round you answer, in the
-grammar the delegate skill's round rules fix:
+PR is marked ready), then one line per finding of the round you
+answer, in the grammar the delegate skill's round rules fix:
 
 ```
 R<n>-<i>: fixed <sha>
@@ -105,6 +122,13 @@ A runner reads these lines from any comment that starts with
 `[builder]`; a finding without a line counts as not addressed. Then the
 scope beyond the findings, and the `HANDOFF` block from
 `maybloom-stack-delegate`.
+
+The first line is the header of those lines, not what starts the
+round: a runner starts the round from the push (see *Branch and PR*)
+and reads the dispositions when it starts, so the comment follows the
+push at once, inside the settle window, never minutes later. Where no
+runner watches, the orchestrator or the owner requests the round, and
+the comment tells them which head to request it at.
 
 ### Waiting for the next round
 
@@ -131,8 +155,9 @@ the loop. Each check:
    disposition. A `Next:` line that says the gate waits for `<ids>`
    names the should-fix you must fix or defer to an item before the deep
    review runs.
-4. Run the builder checks, push the fixes as new commits, post the
-   Ready comment for the next round, then schedule the next check.
+4. Run the builder checks, push the fixes as new commits in one push,
+   post the Ready comment for the next round right after it, then
+   schedule the next check.
 
 The loop ends, with `ScheduleWakeup` and `stop: true`, when the series
 block says `diverging` (the owner decides the run from there; post the
@@ -145,8 +170,8 @@ after the approval instead, with no learning line. In that case stop
 waiting: push the listed items without the learning, and name the
 missing learning in your hand-off. Otherwise push the listed items and
 the learning as one commit. Either way, post the Ready comment with
-their lines. Merge only under the rule above; otherwise post the
-hand-off and stop.
+their lines; it keeps the header form, and no round follows it. Merge
+only under the rule above; otherwise post the hand-off and stop.
 At the session budget, finish the push and the Ready comment, post the
 hand-off and stop the loop. Never rewrite pushed history, at any point
 in the loop: no amend, no rebase, no force push.

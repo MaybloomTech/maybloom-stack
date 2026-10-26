@@ -59,7 +59,8 @@ the builders and mechanics it dispatches through `Agent` inherit its
 mode, so they can edit unattended. The mode also auto-approves the
 orchestrator's own filesystem commands in Bash (`sed -i`, `mv`, `rm`),
 and a dispatched builder still asks at `git commit`, `git push` and
-`gh pr create`). Decides alone: when to start the next round,
+`gh pr create`). Decides alone: when to start the next round (where no
+runner watches the forge),
 the round series and its state (converging / diverging / ready), which
 reviewer effort a round gets, whether a deferral goes to a new item,
 the run's learning. Files: a diverging series (with the series
@@ -99,10 +100,11 @@ acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
 Decides alone: anything inside the brief and the repo's rules; a
 finding's disposition (fixed, disputed, deferred, not addressed).
 Files (by stopping and reporting, never by guessing): a brief that is
-wrong, a contract gap, a protected path it needs. Before it opens the
-PR, it goes through the brief's acceptance criteria and puts the result
-in the PR body, `met` or `not met` with the evidence for each, and
-review round 1 reads that list first. As an `Agent` call it runs in a
+wrong, a contract gap, a protected path it needs. It opens the PR as a
+draft and marks it ready for round 1. Before that, it goes through the
+brief's acceptance criteria and puts the result in the PR body, `met`
+or `not met` with the evidence for each, and review round 1 reads that
+list first. As an `Agent` call it runs in a
 worktree of its own (`isolation: worktree`), cut from an up-to-date
 main, and stops if it finds itself in the main checkout. Starts with:
 the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill,
@@ -210,9 +212,9 @@ decision.
    of `[orchestrator] <kind>: <one line>`. The kind is `action`,
    `question`, `handoff` or `error`, so that a runner can read the run's
    state without reading prose.
-9. **A round is answered in lines a runner reads.** After pushing the
-   fixes for round n, the builder posts a comment whose first line is
-   `[builder] Ready for round <n+1>, head <sha>`, then one line per
+9. **A round is answered in lines a runner reads.** Right after pushing
+   the fixes for round n, the builder posts a comment whose first line
+   is `[builder] Ready for round <n+1>, head <sha>`, then one line per
    finding of round n:
 
    ```
@@ -224,8 +226,13 @@ decision.
 
    A finding with no line counts as not addressed; a leading `- ` and
    `fixed with <sha>` are accepted; the newest line for an id wins.
-   Every comment that starts with `[builder]` is read for them. A
-   runner ends each round comment with the series block, `Series of PR
+   Every comment that starts with `[builder]` is read for them. The
+   first line is a header, not a trigger: where a runner watches the
+   forge, every push before the gate's approval starts a round after
+   a short settle window, which the comment lands inside,
+   and a draft pull request gets none, so the builder opens the PR as
+   a draft until round 1 and sets it back to draft to pause the loop.
+   A runner ends each round comment with the series block, `Series of PR
    <n>: <state>` and a `Next:` line; `the gate waits for <ids>` lists
    the should-fix the builder fixes (and the next round confirms) or
    defers to an item before the deep review is requested. Until the
