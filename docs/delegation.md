@@ -85,10 +85,15 @@ and a short slug (`PROJ-123/short-slug`, the id as the tracker prints it,
 no `#`), and the PR body names every item it closes. A runner joins PR
 and item by that id, so it is the one convention the roles cannot vary.
 
+The roles talk on the run's channel: the tracker item, or the pull
+request's own conversation where the runner that watches the forge
+posts its rounds there (the item then keeps one line per round, the
+series and the decisions; the project's `AGENTS.md` names the channel).
 The builder answers each review round in the same fixed shape: a
-`[builder] Ready for round <n+1>, head <sha>` comment with one line per
-finding of round n (`R<n>-<i>: fixed <sha>`, `disputed: <reason>`, `deferred:
-<item>`, `not addressed: <why>`). A runner counts dispositions from
+`[builder] Ready for round <n+1>, head <sha>` comment on the channel
+with one line per finding of round n (`R<n>-<i>: fixed <sha>`,
+`disputed: <reason>`, `deferred: <item>`, `not addressed: <why>`). A
+runner counts dispositions from
 those lines without reading prose, and the reviewer of the next round
 knows which fixes to confirm. The comment is the header of those lines,
 not what starts the round: where a runner watches the forge, every

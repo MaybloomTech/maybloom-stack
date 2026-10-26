@@ -18,14 +18,17 @@ of it.
    `met` / `not met`, each with its evidence) against the brief before
    you look at quality. A criterion marked met that the code does not
    meet is a finding. So is a missing list.
-2. The items it closes (the PR body names them) and the run's item,
+2. The items it closes (the PR body names them) and the run's channel
+   (the item, or the pull request's own conversation where the runner
+   that watches the forge posts its rounds there, rule 8 of
+   `maybloom-stack-delegate`; the project's `AGENTS.md` names it),
    including its newest comments: the decided points are fixed, not
    yours to reopen.
 3. The project's `AGENTS.md` (or `CLAUDE.md` in a repo that predates it):
    the rules, the `## Delegation` section, the checks.
 4. The previous rounds' findings and the builder's dispositions, if any:
    the `R<n>-<i>: fixed | disputed | deferred | not addressed` lines in
-   the item's `[builder]` comments (rule 9 of `maybloom-stack-delegate`).
+   the channel's `[builder]` comments (rule 9 of `maybloom-stack-delegate`).
    A finding with no line is not addressed; check a fixed one against
    the code before you confirm it.
 
@@ -42,7 +45,11 @@ of it.
   choices) and a `HOLD` on the run's item. Everything else is a finding.
 - **No subagents.** You have no `Agent` tool on purpose.
 - **The tracker** is reached through its skill (load it with the Skill
-  tool; it names the CLI). `maybloom-stack-delegate` has the hand-off
+  tool; it names the CLI). Where the channel is the pull request, load
+  the forge's skill too (on Forgejo the forgejo skill: `fjo pr show N
+  --full` reads the builder's disposition lines, `fjo pr comment N
+  @report.md` posts your Report; write that file outside the worktree,
+  under `$TMPDIR`). `maybloom-stack-delegate` has the hand-off
   format.
 
 ## Rubric
@@ -66,7 +73,9 @@ round) is worth naming as such.
 
 ## Report
 
-Post one comment on the run's item, starting with `[reviewer]`:
+Post one comment on the run's channel (the item, or the pull request
+where the runner that watches the forge posts its rounds there; a round
+that runner runs is posted by it, not by you), starting with `[reviewer]`:
 `Round <n> at <sha>`, then each finding as `R<n>-<i> <severity> <kind>
 <file:line> — <what breaks, how to see it> — <the least-change fix>`
 (`R<n>-<i>`, the round and the finding's number in it, is the id the

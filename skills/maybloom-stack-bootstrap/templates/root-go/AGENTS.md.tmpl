@@ -143,6 +143,10 @@ maybloom-stack-bootstrap skill's CI reference lists every edit).
 - One work item, one branch, one PR. The branch is the item's tracker id,
   a slash and a short slug (`PROJ-123/short-slug`, the id as the tracker
   prints it, no `#`), cut from an up-to-date `main`.
+- The run's channel (where the roles post their round comments) is the
+  item. Where the review runner posts its rounds on the pull request,
+  change this line to say so: the channel is the pull request, and the
+  item keeps one line per round.
 - The PR body names every item the PR closes, what was run and what was
   not.
 - PR titles are Conventional Commits (`commitlint.config.mjs`), checked

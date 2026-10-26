@@ -46,9 +46,15 @@ post on a held item tells the owner how to release it: post
   plugin's, for `Agent` calls and sessions alike.
 - **The tracker** is reached through its skill (load it with the Skill
   tool; it names the CLI). Load `maybloom-stack-delegate` too: it has the
-  hand-off format and the launch commands.
-- **The item is the channel.** You talk through comments on the run's
-  item and pushes to the PR. Each comment's first line is
+  hand-off format and the launch commands. Where the channel is the pull
+  request, load the forge's skill as well (on Forgejo the forgejo skill,
+  whose `fjo pr show N --full` reads the conversation and `fjo pr
+  comment` posts on it).
+- **The channel.** You talk through comments on the run's channel (the
+  item, or the pull request's own conversation where the runner that
+  watches the forge posts its rounds there, rule 8 of the skill; the
+  claim, the series rows and the hand-off stay on the item) and pushes
+  to the PR. Each comment's first line is
   `[orchestrator] <kind>: <one line>`, and the kind is one of four:
   `action` (what you started or did: a round, a dispatch, a re-post, the
   learning), `question` (something the owner must answer before the run
@@ -118,16 +124,17 @@ wait on that item until the owner's answer appears there.
 A builder session (a slice over ~500 lines) and every reviewer round are
 sessions of their own, never your subagents: a reviewer must start
 fresh, and a large slice does not fit a call. Until a runner starts
-them, post the launch on the run's item and ask the project owner to
+them, post the launch on the run's channel (the item while no PR
+exists) and ask the project owner to
 start it: the command from the skill (`claude --agent
 maybloom-stack:reviewer --permission-mode default`, or
 `maybloom-stack:builder` with
 `acceptEdits`) and the prompt it starts with (the round, the PR and its
 head, or the brief). The prompt also asks the session to put its id
-(`$CLAUDE_CODE_SESSION_ID`) in its first comment on the item. Then wait
-on the item.
+(`$CLAUDE_CODE_SESSION_ID`) in its first comment on the channel. Then
+wait on the channel.
 
-**Stall rule.** If a launched session has posted nothing on the item 30
+**Stall rule.** If a launched session has posted nothing on the channel 30
 minutes after your launch comment, it has stalled. Do not keep waiting:
 post the launch again as an `action` that says it is a re-post. If it
 stalls a second time, post a `question` to the owner. A builder or

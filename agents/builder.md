@@ -58,9 +58,11 @@ the gate's approval, after a short settle window (after it, none: see
 several commits is pushed once, whole, or
 the pull request goes back to draft until it is, and marking it ready
 again resumes the loop at the head it has then. On GitHub the draft is
-`gh pr create --draft` and `gh pr ready` marks it ready; on Forgejo a
-`WIP:` title prefix makes the draft, removing it marks the PR ready,
-and the title check fails until then.
+`gh pr create --draft` and `gh pr ready` marks it ready; on Forgejo it
+is `fjo pr open --draft` and `fjo pr ready N` (`fjo` is the forgejo
+skill's client, loaded with the Skill tool), and `fjo pr draft N` sets
+it back. There the draft is a `WIP:` title prefix, so the title check
+fails until the PR is marked ready.
 
 Before you open the PR, go through the brief's acceptance criteria one
 by one against what you built. The PR body carries the result as a
@@ -78,7 +80,7 @@ only where the project owner has allowed builder merges on the run's
 item: fix only the listed items, push them as one commit, wait for the
 required checks, and squash-merge at the approved head plus that commit.
 
-**The run's learning.** Where the run has an orchestrator (the item
+**The run's learning.** Where the run has an orchestrator (the channel
 carries `[orchestrator]` comments), it posts the learning after the
 gate, on a first line of `[orchestrator] action: learning: <file> —
 <line>` or `[orchestrator] action: learning: none`. Before your last
@@ -95,9 +97,16 @@ commit is merged as it is.
 ## As a session
 
 Launched as a session (`claude --agent maybloom-stack:builder`) rather
-than an `Agent` call, you report on the run's item, not to a parent:
-load the tracker's skill (the Skill tool) for its CLI, start every
-comment with `[builder]`, and post your plan before code. The session
+than an `Agent` call, you report on the run's channel, not to a parent.
+The channel is the run's item, or the pull request's own conversation
+where the runner that watches the forge posts its rounds there (rule 8
+of `maybloom-stack-delegate`; the project's `AGENTS.md` names it, and
+the item then keeps one line per round). Load the tracker's skill (the
+Skill tool) for its CLI, and the forge's where the channel is the pull
+request (`gh` on GitHub; on Forgejo the forgejo skill: `fjo pr comment
+N @note.md` posts, `fjo pr show N --full` reads the conversation). Start
+every comment with `[builder]`, and post your plan before code on the
+channel (on the item while no pull request exists). The session
 budget replaces the turn and token limits below: `maxTurns` is not
 enforced for a session, so at the budget you write the hand-off and
 stop, never mid-fix.
@@ -105,7 +114,7 @@ stop, never mid-fix.
 ### Answering a round
 
 When the PR is marked ready, and again right after the fixes for each
-round are pushed, post one comment whose first line is
+round are pushed, post one comment on the channel whose first line is
 `[builder] Ready for round <n+1>, head <sha>` (the head you just
 pushed, the round the reviewer runs next; `Ready for round 1` when the
 PR is marked ready), then one line per finding of the round you
@@ -139,18 +148,21 @@ takes longer than that, and it stays inside a five-minute prompt cache).
 Nothing else wakes you: a check that does not schedule the next one ends
 the loop. Each check:
 
-1. Read the item's comments with the tracker's CLI, keeping only those
-   newer than your Ready comment (filter the output; a long wait must
-   not refill your context with the whole item every check). Skip every
+1. Read the channel's comments with its CLI (the tracker's for the
+   item; `fjo pr show N --full` for a Forgejo pull request, which prints
+   its comments and reviews in order), keeping only those newer than
+   your Ready comment (filter the output; a long wait must not refill
+   your context with the whole channel every check). Skip every
    comment that starts with `[builder]`: those are yours.
 2. Look for a `[reviewer]` comment newer than your Ready comment, for
    the head you named (a runner posts `[reviewer] round <n> of PR
-   <number> at <sha>`, a reviewer session `[reviewer] Round <n> at
+   <number> at <sha>`, as a review on the pull request where that is
+   the channel; a reviewer session `[reviewer] Round <n> at
    <sha>`). None yet, or only a note that the round did not finish:
    schedule the next check and stop there.
 3. Read its findings and the series block at its end (`Series of PR
    <n>: <state>` and a `Next:` line; where an orchestrator keeps the
-   series instead, its newest comment). Fix every blocking and should-fix
+   series instead, its newest comment on the item). Fix every blocking and should-fix
    finding; for the rest, and for any you dispute or defer, choose the
    disposition. A `Next:` line that says the gate waits for `<ids>`
    names the should-fix you must fix or defer to an item before the deep

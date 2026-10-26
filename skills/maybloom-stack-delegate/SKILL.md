@@ -84,15 +84,17 @@ re-posted once, not waited on. Once the deep review passes, it posts
 none`). The builder waits for that line and commits it before the merge;
 for an `Agent` builder, which has already returned, the orchestrator
 dispatches one more for that commit. Tools: Read, Bash (search, the
-tracker CLI, `gh`, `git`), Agent (to launch a mechanic or a small
-builder), Skill (the tracker's skill and this one); no Edit or Write.
+tracker CLI, the forge's CLI, `git`), Agent (to launch a mechanic or a small
+builder), Skill (the tracker's skill, the forge's where the channel is
+the pull request, and this one); no Edit or Write.
 It is the only role that reaches the owner outside the tracker. It is
 always a main session, never an `Agent` call: a run outlives any one
 call (it waits on review rounds), it needs the per-session numbers the
 status line
 writes and the budget hook, which only a main session has, and nested launches are
 capped in depth. It does not start sessions itself: until a runner does,
-it posts the launch command and the starting prompt on the item and asks
+it posts the launch command and the starting prompt on the channel (the
+item while no PR exists) and asks
 the owner to start the builder or reviewer session.
 
 **Builder** (`claude --agent maybloom-stack:builder --permission-mode
@@ -109,7 +111,7 @@ worktree of its own (`isolation: worktree`), cut from an up-to-date
 main, and stops if it finds itself in the main checkout. Starts with:
 the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill,
 ScheduleWakeup (to pace its `/loop` between rounds); no Agent. As a
-session it posts on the item like any role, answers each round in the
+session it posts on the channel like any role, answers each round in the
 lines of rule 9 and waits for the next one itself (the agent file says
 how).
 
@@ -126,7 +128,8 @@ the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
 rubric. Tools: Read, Bash (to search, run checks and post), Skill (the
-tracker's skill and this one); no Edit or Write, and it never pushes.
+tracker's skill, the forge's where the channel is the pull request, and
+this one); no Edit or Write, and it never pushes.
 
 **Researcher** (`Agent` with `subagent_type: maybloom-stack:researcher`).
 Decides alone: which sources to read, how to rank what it finds, what
@@ -204,17 +207,24 @@ decision.
    prints it, no `#`); the PR body names every item the PR closes. A
    runner joins PR and item by that id. A bundle is one PR on the lead
    item's branch.
-8. **The tracker item is the channel.** The roles in a run talk through
-   comments on the run's item and pushes to the PR, each comment starting
-   with the author's role in brackets (`[builder]`, `[reviewer]`) until
-   each role posts from its own account; a watcher skips its own role's
-   comments. The orchestrator also types every comment, with a first line
+8. **The channel is the tracker item, or the pull request where the
+   runner says so.** The roles in a run talk through comments on the
+   run's channel and pushes to the PR. The channel is the run's item,
+   or the pull request's own conversation where the runner that watches
+   the forge posts its rounds there (its `post_reviews` setting for that
+   forge); the item then keeps one line per round, the series and the
+   decisions, and the project's `AGENTS.md` names the channel. Each
+   comment starts with the author's role in brackets (`[builder]`,
+   `[reviewer]`) until each role posts from its own account; a watcher
+   skips its own role's comments. The orchestrator also types every
+   comment, with a first line
    of `[orchestrator] <kind>: <one line>`. The kind is `action`,
    `question`, `handoff` or `error`, so that a runner can read the run's
    state without reading prose.
 9. **A round is answered in lines a runner reads.** Right after pushing
-   the fixes for round n, the builder posts a comment whose first line
-   is `[builder] Ready for round <n+1>, head <sha>`, then one line per
+   the fixes for round n, the builder posts a comment on the channel
+   whose first line is `[builder] Ready for round <n+1>, head <sha>`,
+   then one line per
    finding of round n:
 
    ```
@@ -237,7 +247,7 @@ decision.
    the should-fix the builder fixes (and the next round confirms) or
    defers to an item before the deep review is requested. Until the
    runner can hand a round to the builder itself, a builder session
-   waits for the next round in a `/loop` that polls the item, and stops
+   waits for the next round in a `/loop` that polls the channel, and stops
    it on a diverging series or an approval at its head (the builder
    agent has the loop).
 
@@ -300,7 +310,8 @@ way.
 ### The hand-off
 
 Posted on the run's item at the budget, and in every round comment of a
-review loop, so a fresh session can continue from the item alone. Fixed
+review loop (on the channel), so a fresh session can continue from the
+item and the channel. Fixed
 format:
 
 ```
