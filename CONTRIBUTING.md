@@ -55,9 +55,10 @@ header says where it differs, which is only where the forge or its runner
 does. A change to one copy is made to the other in the same pull request,
 and neither names anything about an instance: where the site image goes is
 the `REGISTRY` repository variable and the `REGISTRY_USERNAME` and
-`REGISTRY_PASSWORD` secrets. The dependency bot watches only
-`.github/workflows/`, so the Forgejo copy's action versions follow its
-pull requests by hand.
+`REGISTRY_PASSWORD` secrets. No dependency bot runs for now: the action
+pins of both copies are raised by hand, the same action to the same SHA
+in both, and so are the site's npm dependencies (keep `typescript` below
+7: `astro check` does not run on the native compiler yet).
 
 Read-only `git` (`status`, `diff`, `log`, `show`) needs no rule: Claude
 Code allows it on its own and asks first for a flag that writes, such
