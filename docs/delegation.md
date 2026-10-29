@@ -92,18 +92,21 @@ series and the decisions; the project's `AGENTS.md` names the channel).
 The builder answers each review round in the same fixed shape: a
 `[builder] Ready for round <n+1>, head <sha>` comment on the channel
 with one line per finding of round n (`R<n>-<i>: fixed <sha>`,
-`disputed: <reason>`, `deferred: <item>`, `not addressed: <why>`). A
-runner counts dispositions from
-those lines without reading prose, and the reviewer of the next round
-knows which fixes to confirm. The comment is the header of those lines,
-not what starts the round: where a runner watches the forge, every
-push before the gate's approval starts a round after a short settle
-window, and the comment follows the push at once so the
-round reads it. The pull request opens as a
-draft and is marked ready for round 1; a draft gets no round, which is
-how the builder pauses the loop while a fix spans several commits. A
-builder session then waits for the next round in a `/loop` of its own,
-until the series diverges or a round approves its head.
+`disputed: <reason>`, `deferred: <item>`, `not addressed: <why>`). Where
+the project's `AGENTS.md` names a review-loop tool, the builder sends
+that header and those lines through it instead of a comment, with the
+same ids and states, and reads the round's findings and the series state
+from it, and a reviewer session posts its round through it. A runner
+counts dispositions from those lines without reading prose, and the
+reviewer of the next round knows which fixes to confirm. The Ready
+header is the header of those lines, not what starts the round: where a
+runner watches the forge, every push before the gate's approval starts a
+round after a short settle window, and the header follows the push at
+once so the round reads it. The pull request opens as a draft and is
+marked ready for round 1; a draft gets no round, which is how the
+builder pauses the loop while a fix spans several commits. A builder
+session then waits for the next round in a `/loop` of its own, until the
+series diverges or a round approves its head.
 
 Before the PR opens, the builder goes through the brief's acceptance
 criteria and lists each one in the PR body as met or not met, with the

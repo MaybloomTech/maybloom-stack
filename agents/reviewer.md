@@ -28,7 +28,8 @@ of it.
    the rules, the `## Delegation` section, the checks.
 4. The previous rounds' findings and the builder's dispositions, if any:
    the `R<n>-<i>: fixed | disputed | deferred | not addressed` lines in
-   the channel's `[builder]` comments (rule 9 of `maybloom-stack-delegate`).
+   the channel's `[builder]` comments, or in the review-loop tool the
+   project's `AGENTS.md` names (rule 9 of `maybloom-stack-delegate`).
    A finding with no line is not addressed; check a fixed one against
    the code before you confirm it.
 
@@ -73,9 +74,11 @@ round) is worth naming as such.
 
 ## Report
 
-Post one comment on the run's channel (the item, or the pull request
-where the runner that watches the forge posts its rounds there; a round
-that runner runs is posted by it, not by you), starting with `[reviewer]`:
+Post the round on the run's channel: one comment (the item, or the pull
+request where the runner that watches the forge posts its rounds there),
+or, where the project's `AGENTS.md` names a review-loop tool, through
+that tool; either way a round that the runner runs is posted by it, not
+by you. Start it with `[reviewer]`:
 `Round <n> at <sha>`, then each finding as `R<n>-<i> <severity> <kind>
 <file:line> — <what breaks, how to see it> — <the least-change fix>`
 (`R<n>-<i>`, the round and the finding's number in it, is the id the

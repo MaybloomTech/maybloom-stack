@@ -221,10 +221,13 @@ decision.
    of `[orchestrator] <kind>: <one line>`. The kind is `action`,
    `question`, `handoff` or `error`, so that a runner can read the run's
    state without reading prose.
-9. **A round is answered in lines a runner reads.** Right after pushing
-   the fixes for round n, the builder posts a comment on the channel
-   whose first line is `[builder] Ready for round <n+1>, head <sha>`,
-   then one line per
+9. **A round is answered in lines a runner reads.** Where the project's
+   `AGENTS.md` names a review-loop tool, the Ready header and the lines
+   below go through that tool instead of a comment, with the same ids
+   and states, and the round's findings and series state are read from
+   it. Right after pushing the fixes for round n, the builder posts a
+   comment on the channel whose first line is
+   `[builder] Ready for round <n+1>, head <sha>`, then one line per
    finding of round n:
 
    ```
@@ -236,20 +239,20 @@ decision.
 
    A finding with no line counts as not addressed; a leading `- ` and
    `fixed with <sha>` are accepted; the newest line for an id wins.
-   Every comment that starts with `[builder]` is read for them. The
-   first line is a header, not a trigger: where a runner watches the
-   forge, every push before the gate's approval starts a round after
-   a short settle window, which the comment lands inside,
-   and a draft pull request gets none, so the builder opens the PR as
-   a draft until round 1 and sets it back to draft to pause the loop.
-   A runner ends each round comment with the series block, `Series of PR
-   <n>: <state>` and a `Next:` line; `the gate waits for <ids>` lists
-   the should-fix the builder fixes (and the next round confirms) or
-   defers to an item before the deep review is requested. Until the
-   runner can hand a round to the builder itself, a builder session
-   waits for the next round in a `/loop` that polls the channel, and stops
-   it on a diverging series or an approval at its head (the builder
-   agent has the loop).
+   Every comment that starts with `[builder]` (or the review-loop tool,
+   where it takes them) is read for them. The first line is a header,
+   not a trigger: where a runner watches the forge, every push before
+   the gate's approval starts a round after a short settle window, which
+   the Ready header lands inside, and a draft pull request gets none, so
+   the builder opens the PR as a draft until round 1 and sets it back to
+   draft to pause the loop. A runner ends each round comment with the
+   series block, `Series of PR <n>: <state>` and a `Next:` line;
+   `the gate waits for <ids>` lists the should-fix the builder fixes
+   (and the next round confirms) or defers to an item before the deep
+   review is requested. Until the runner can hand a round to the builder
+   itself, a builder session waits for the next round in a `/loop` that
+   polls the channel (or the tool), and stops it on a diverging series
+   or an approval at its head (the builder agent has the loop).
 
 ## Session budget
 

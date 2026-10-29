@@ -114,11 +114,15 @@ stop, never mid-fix.
 ### Answering a round
 
 When the PR is marked ready, and again right after the fixes for each
-round are pushed, post one comment on the channel whose first line is
+round are pushed, post the Ready header and the lines for the round you
+answer: through the review-loop tool when the project's `AGENTS.md`
+names one (its commands say how), otherwise as one comment on the
+channel whose first line is
 `[builder] Ready for round <n+1>, head <sha>` (the head you just
 pushed, the round the reviewer runs next; `Ready for round 1` when the
-PR is marked ready), then one line per finding of the round you
-answer, in the grammar the delegate skill's round rules fix:
+PR is marked ready). The lines are one
+per finding of the round you answer, in the grammar the delegate
+skill's round rules fix, with the same ids and states either way:
 
 ```
 R<n>-<i>: fixed <sha>
@@ -128,39 +132,48 @@ R<n>-<i>: not addressed: <why>
 ```
 
 A runner reads these lines from any comment that starts with
-`[builder]`; a finding without a line counts as not addressed. Then the
+`[builder]`, or from the review-loop tool where that is the place; a
+finding without a line counts as not addressed. Then the
 scope beyond the findings, and the `HANDOFF` block from
-`maybloom-stack-delegate`.
+`maybloom-stack-delegate`: with the Ready header, through the tool where
+it takes them, else in the comment.
 
 The first line is the header of those lines, not what starts the
 round: a runner starts the round from the push (see *Branch and PR*)
-and reads the dispositions when it starts, so the comment follows the
+and reads the dispositions when it starts, so the Ready header follows the
 push at once, inside the settle window, never minutes later. Where no
 runner watches, the orchestrator or the owner requests the round, and
-the comment tells them which head to request it at.
+the Ready header tells them which head to request it at.
 
 ### Waiting for the next round
 
-After the Ready comment, wait for the next round yourself: run `/loop`
+Where `AGENTS.md` names a review-loop tool, the wait is on the tool: the
+Ready header went through it, and the round is read from it. After the
+Ready header, wait for the next round yourself: run `/loop`
 with no interval (the Skill tool, skill `loop`), whose prompt is the
 check below, and pace it with `ScheduleWakeup` at 270 seconds (a round
 takes longer than that, and it stays inside a five-minute prompt cache).
 Nothing else wakes you: a check that does not schedule the next one ends
 the loop. Each check:
 
-1. Read the channel's comments with its CLI (the tracker's for the
-   item; `fjo pr show N --full` for a Forgejo pull request, which prints
-   its comments and reviews in order), keeping only those newer than
-   your Ready comment (filter the output; a long wait must not refill
-   your context with the whole channel every check). Skip every
-   comment that starts with `[builder]`: those are yours.
-2. Look for a `[reviewer]` comment newer than your Ready comment, for
+1. Read the round's findings and the series state through the
+   review-loop tool where the project's `AGENTS.md` names one (for the
+   head you named); otherwise read the channel's comments with its CLI
+   (the tracker's for the item; `fjo pr show N --full` for a Forgejo
+   pull request, which prints its comments and reviews in order),
+   keeping only those newer than your Ready header (filter the output;
+   a long wait must not refill your context with the whole channel every
+   check). Skip every comment that starts with `[builder]`: those are
+   yours.
+2. Look for a `[reviewer]` comment newer than your Ready header, or, where
+   the review-loop tool is the place, the round it reports, for
    the head you named (a runner posts `[reviewer] round <n> of PR
    <number> at <sha>`, as a review on the pull request where that is
    the channel; a reviewer session `[reviewer] Round <n> at
    <sha>`). None yet, or only a note that the round did not finish:
    schedule the next check and stop there.
-3. Read its findings and the series block at its end (`Series of PR
+3. Read its findings and series state wherever the round came from: the
+   series block at its end (`Series of PR
    <n>: <state>` and a `Next:` line; where an orchestrator keeps the
    series instead, its newest comment on the item). Fix every blocking and should-fix
    finding; for the rest, and for any you dispute or defer, choose the
@@ -168,7 +181,7 @@ the loop. Each check:
    names the should-fix you must fix or defer to an item before the deep
    review runs.
 4. Run the builder checks, push the fixes as new commits in one push,
-   post the Ready comment for the next round right after it, then
+   post the Ready header for the next round right after it, then
    schedule the next check.
 
 The loop ends, with `ScheduleWakeup` and `stop: true`, when the series
@@ -181,10 +194,10 @@ the run has an orchestrator. The orchestrator may post a `handoff`
 after the approval instead, with no learning line. In that case stop
 waiting: push the listed items without the learning, and name the
 missing learning in your hand-off. Otherwise push the listed items and
-the learning as one commit. Either way, post the Ready comment with
+the learning as one commit. Either way, post the Ready header with
 their lines; it keeps the header form, and no round follows it. Merge
 only under the rule above; otherwise post the hand-off and stop.
-At the session budget, finish the push and the Ready comment, post the
+At the session budget, finish the push and the Ready header, post the
 hand-off and stop the loop. Never rewrite pushed history, at any point
 in the loop: no amend, no rebase, no force push.
 
