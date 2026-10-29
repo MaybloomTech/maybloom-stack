@@ -13,6 +13,7 @@
     "gallery": "EXPO_PUBLIC_GALLERY=1 expo start --web --port 8082",
     "build:gallery": "EXPO_PUBLIC_GALLERY=1 expo export --platform web --output-dir dist-gallery && node scripts/gallery-export.mjs dist-gallery",
     "check:gallery": "node scripts/check-gallery.mjs",
+    "capture": "node scripts/capture-board.mjs",
     "check:no-gallery": "expo export --platform web --source-maps --output-dir dist-check && node scripts/check-no-gallery.mjs dist-check",
     "test": "jest",
     "typecheck": "tsc --noEmit"
@@ -44,6 +45,7 @@
     "@types/react": "catalog:",
     "jest": "~29.7.0",
     "jest-expo": "~54.0.17",
+    "playwright-core": "1.64.1",
     "react-test-renderer": "catalog:",
     "typescript": "catalog:"
   },

@@ -192,6 +192,10 @@ and the URL hash keeps the view, so a link opens it. `pnpm --filter
 <scope>/interface gallery` serves it with live reload (the scripts below
 are the interface package's, run from the repo root with `--filter` or
 from `packages/interface` as they are).
+A capture script (`pnpm --filter <scope>/interface capture`) takes a
+screenshot of every tab at every width and writes a `probes.json` of
+mechanical checks, for an agent or a person to read instead of driving a
+browser; it needs Chrome and a served board.
 
 Pages and components run against a fake backend: the real Connect client
 over `createRouterTransport`, answering the whole service from fixtures

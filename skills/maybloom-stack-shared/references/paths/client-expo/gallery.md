@@ -45,7 +45,7 @@ how imports are spelled:
   and fails if any source under `gallery/`, `src/gallery/` or
   `src/design/` is in the bundle's maps, or if the bundle carries the
   board's sentinel (the testID on its page, kept in
-  `src/gallery/sentinel.json`, which `Gallery.tsx` and both scripts
+  `src/gallery/sentinel.json`, which `Gallery.tsx` and the scripts
   read). Whatever the spelling (any relative depth, the `@/` alias, a
   `baseUrl` path, a re-export through a helper, `require()` or
   `import()`), a file that reaches the app's bundle is in its maps. Metro
@@ -244,6 +244,73 @@ Then run `pnpm typecheck`, `pnpm lint`, `pnpm --filter <scope>/interface
 check:gallery`, and look at it with `pnpm --filter <scope>/interface
 gallery`.
 
+## Capturing the board
+
+`scripts/capture-board.mjs` (the interface package's `capture` script)
+looks at the board for an agent or a person who should not have to drive a
+browser step by step. One run writes a PNG per view and width and one
+`probes.json` of mechanical checks; the reader opens the JSON first and
+only the shots it points at. It drives the installed Google Chrome through
+`playwright-core` (`channel: 'chrome'`; `CHROME_PATH` names another
+binary), downloads no browser, and runs on a machine with Chrome, not in
+CI.
+
+The board must be served first: `pnpm --filter <scope>/interface gallery`
+(port 8082, which is the script's default base URL). A Metro server can
+serve a stale bundle after edits, so restart it with `--clear` before a
+final capture.
+
+```
+pnpm --filter <scope>/interface capture \
+  [--base-url http://localhost:8082] \
+  [--view pages@390 --view components/NoteRow@768] \
+  [--out .board-captures] [--strict]
+```
+
+- `--view` is the board's own hash form, `<tab>[/<entry>][@<width>]`,
+  repeatable. A view with no width is taken at every width the board
+  offers (390, 768, 1280). With no `--view` every tab is taken at every
+  width; the tabs and widths are read from `src/gallery`, so a new tab is
+  captured with no edit. A view that names an entry (`components/NoteRow`)
+  writes that section's box only; the probes still run on the whole tab.
+  An entry that matches no section ends the run with one line naming the
+  view, exit 2.
+- `--out` is the folder for the shots and `probes.json`; the scaffold's
+  `.gitignore` lists `.board-captures/`.
+- Each view writes `<view>@<width>.png` with slashes turned into
+  underscores. The sheet scrolls inside the window, so the script measures
+  the scroll container's `scrollHeight` and sizes the viewport to it
+  rather than using `fullPage`, up to 8000 px; a taller sheet is cut there
+  and the view says `heightCapped: true`. The width is the window's, so a
+  sheet wider than it (a frame at 1280 plus the sheet's padding) is
+  clipped on the right, as the board's own horizontal scroll hides it.
+- Without `--strict` the exit code is 0 and one line per view is printed:
+  `pages@390  overflow 0  nested 0  focus 2/14 no ring  contrast 1  console 0`.
+  With `--strict` any failing probe exits 1. A missing Chrome exits 2 with
+  one line on how to point at one.
+
+`probes.json` is
+`{ baseUrl, capturedAt, views: [{ view, width, png, heightCapped, overflow,
+nested, focus, contrast, console }] }`. Each check is `{ count, items }`
+with at most 10 items, and each item names the element: its `testID`,
+else its role and accessible name, else a short selector.
+
+- **overflow**: the page scrolls sideways; an element's right edge is past
+  the window outside any horizontal scroller; or a box that does not
+  scroll clips its text sideways.
+- **nested**: an interactive element inside another (`button button`,
+  `a a`, `[role=button] button` and the like).
+- **focus**: up to 30 Tab stops, each checked for `:focus-visible` and a
+  ring (an outline or box-shadow); `count` is the stops without one. Then
+  the first focusable is clicked and `pointerRing` says whether a ring
+  shows after a pointer click, which the board's keyboard-only convention
+  says it must not (`--strict` fails on `true`).
+- **contrast**: each text element's colour against its first opaque
+  background above it, as a WCAG ratio; items are the ones under 4.5:1
+  (3:1 for 24px text, or 18.66px bold).
+- **console**: errors and warnings the page logged while loading the
+  view; React key and nesting warnings show here.
+
 ## In CI
 
 The interface job, after the web export, runs `check:no-gallery` (its own
@@ -268,7 +335,8 @@ under a sub-path needs no rewrite rules.
   the components render on a device under the gallery root
   (`EXPO_PUBLIC_GALLERY=1 expo start`), but nobody has walked that path.
 - **Visual regression.** The board makes states reachable by URL, which
-  is what a screenshot test needs, but no screenshot diffing is wired.
+  is what a screenshot test needs, and the capture script above takes the
+  shots, but no screenshot diffing is wired.
 - **Grouping.** The sheets list entries in declaration order. A board
   with many components may want them grouped by the job they serve or
   by kind, with an outline that follows the scroll; that is a layout
