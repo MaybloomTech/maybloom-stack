@@ -26,6 +26,10 @@ directory at the point of use.
 - `references/proto-conventions.md` — proto authoring rules that are
   specific to this stack (field-ID reuse policy, oneof/flatMap idiom,
   enum defaults, empty-string semantics).
+- `references/design/` — how an interface is designed rather than built: the
+  loop, the `design.md` convention, the rubrics and the critique
+  procedure. Entered through its `README.md`; each client path adds its
+  own translation.
 
 ## Paths
 

@@ -306,6 +306,10 @@ module the Components sheet does not list. A new RPC also needs an
 answer in the fake backend, or the typecheck fails there.
 [gallery.md](./gallery.md) has the mechanism and the steps.
 
+Designing a screen or a direction, as opposed to building one, follows
+[design.md](./design.md): where a design's tokens land, how a pass sits on
+the board, and the step-by-step take.
+
 ## Session
 
 The scaffold has no auth and no `GetMe` RPC, so it ships the Backend

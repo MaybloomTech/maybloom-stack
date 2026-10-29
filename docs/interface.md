@@ -197,6 +197,10 @@ screenshot of every tab at every width and writes a `probes.json` of
 mechanical checks, for an agent or a person to read instead of driving a
 browser; it needs Chrome and a served board.
 
+How a screen or a whole direction is designed on the board, by a
+designer and a critic before the build, is in the stack's design
+references (`skills/maybloom-stack-shared/references/design/`).
+
 Pages and components run against a fake backend: the real Connect client
 over `createRouterTransport`, answering the whole service from fixtures
 built with the contract's own `create()`, one copy
