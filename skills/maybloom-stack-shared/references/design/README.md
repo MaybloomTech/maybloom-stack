@@ -19,11 +19,15 @@ Order of reading:
 
 - **The architect** writing a design brief reads `loop.md` (what the
   brief must contain) and `design-md.md` (whether the project has one).
-- **The designer** reads `loop.md`, then `design-md.md`, then the rubric
-  for the surface, then the inspiration entries that fit, then the path's
-  `design.md` before writing any code.
-- **The critic** reads `critique.md` first, then the project's `design.md`
-  and the rubric it names. It does not need `loop.md` past its own step.
+- **The designer**
+  ([`maybloom-stack:designer`](../../../../agents/designer.md)) reads
+  `loop.md`, then `design-md.md`, then the rubric for the surface, then
+  the inspiration entries that fit, then the path's `design.md` before
+  writing any code.
+- **The critic**
+  ([`maybloom-stack:critic`](../../../../agents/critic.md)) reads
+  `critique.md` first, then the project's `design.md` and the rubric it
+  names. It does not need `loop.md` past its own step.
 - **The builder** doing the take reads the path's `design.md`.
 
 The framework-independent files describe decisions; each client path says

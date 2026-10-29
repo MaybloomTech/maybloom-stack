@@ -17,7 +17,7 @@ be spending its context on a dependency bump.
 
 ## The roles
 
-Six roles do the work, and all of them answer to one party that is not
+Eight roles do the work, and all of them answer to one party that is not
 a role: the **project owner**, the person who owns the decisions, plans
 with the architect and answers the questions the roles file. No agent
 fills that part, and the skills never name a person for it.
@@ -30,6 +30,8 @@ fills that part, and the skills never name a person for it.
 | **Mechanic** | One chore: CI, Docker, config, dependencies, renames; never product code | `maybloom-stack:mechanic`, an `Agent` call |
 | **Reviewer** | A fresh session per round: reads the PR body, the items it closes, the repo's guidance and the rubric, posts findings and a verdict; never edits code | `maybloom-stack:reviewer`, a session |
 | **Researcher** | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained; returns a fixed-shape report with sources, the claims it verified marked; never edits the repo, files nothing | `maybloom-stack:researcher`, an `Agent` call |
+| **Designer** | One design change before it is built: the sketches, one design pass under `src/design/` from the real primitives and fixtures, the board captures; never hooks, data, the contract, the primitives or the tokens module | `maybloom-stack:designer`, an `Agent` call in its own worktree or a session |
+| **Critic** | A fresh context per round: reviews the designer's captures and probes against `design.md` and the rubric, before the owner looks; never edits | `maybloom-stack:critic`, an `Agent` call |
 
 The orchestrator is the only role that reaches the owner outside the
 tracker, and only with a question it cannot settle from the series. Until
@@ -46,6 +48,14 @@ a decision, and only as an `Agent` call because a question fits one
 call and the summary has to come back to whoever asked. Claude Code's
 own search agents cover the inside of the repo; the researcher owns the
 outside.
+
+The designer and the critic are the two roles of the design loop
+(`skills/maybloom-stack-shared/references/design/loop.md`). The designer
+decides what a screen looks like and builds one pass; the builder keeps
+the take, moving the chosen pass into the app. The critic is a new
+context every round for the same reason the reviewer is: it judges the
+captures, not the designer's intent. Both need Chrome and a served
+board, so for now they run on a laptop, not on the review runner.
 
 The architect is deliberately not an agent. The paths where a mistake is
 silent are the ones no subagent edits, and the brief is written by

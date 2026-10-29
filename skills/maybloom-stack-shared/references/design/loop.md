@@ -1,9 +1,11 @@
 # The design loop
 
-One design change, from the owner's request to code in the app. The roles
-are a designer, a critic, a builder, a reviewer and the owner; the
-architect writes the brief. Nothing here is a runtime: it is the order of
-work.
+One design change, from the owner's request to code in the app. The
+roles are a designer
+([`maybloom-stack:designer`](../../../../agents/designer.md)), a critic
+([`maybloom-stack:critic`](../../../../agents/critic.md)), a builder, a
+reviewer and the owner; the architect writes the brief. Nothing here is
+a runtime: it is the order of work.
 
 ## 1. The design brief
 

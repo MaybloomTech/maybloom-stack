@@ -1,8 +1,8 @@
 {
   "name": "maybloom-stack",
   "displayName": "Maybloom Stack",
-  "version": "0.18.0",
-  "description": "Skills for building on the maybloom stack: monorepos whose core is a Protocol Buffers + Connect-RPC contract with generated, typed edges on both sides of the wire. Validated paths include TypeScript (Fastify + Drizzle + PGlite) and Go (connect-go + sqlc + pgx) backends and an Expo Router interface; a shared core reference supports any other Connect-RPC language the user prefers. Also ships the delegation model the stack is built with: a skill for the roles, the rules, the brief and the session budget, and the builder, mechanic, reviewer, orchestrator and researcher agents, and a status-line skill that installs the team's Claude Code status line (usage windows, the model-scoped weekly limit, context).",
+  "version": "0.19.0",
+  "description": "Skills for building on the maybloom stack: monorepos whose core is a Protocol Buffers + Connect-RPC contract with generated, typed edges on both sides of the wire. Validated paths include TypeScript (Fastify + Drizzle + PGlite) and Go (connect-go + sqlc + pgx) backends and an Expo Router interface; a shared core reference supports any other Connect-RPC language the user prefers. Also ships the delegation model the stack is built with: a skill for the roles, the rules, the brief and the session budget, and the builder, mechanic, reviewer, orchestrator, researcher, designer and critic agents, and a status-line skill that installs the team's Claude Code status line (usage windows, the model-scoped weekly limit, context).",
   "author": {
     "name": "MaybloomTech"
   },

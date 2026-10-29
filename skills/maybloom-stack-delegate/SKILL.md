@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-delegate
-description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries", "is this still maintained". The builder, mechanic, reviewer, orchestrator and researcher agents it describes ship with this plugin (namespaced `maybloom-stack:<role>`); the architect is the interactive session, never an agent.
+description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher, designer, critic), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries", "is this still maintained", "design this screen", "run the design loop", "start a critic". The builder, mechanic, reviewer, orchestrator, researcher, designer and critic agents it describes ship with this plugin (namespaced `maybloom-stack:<role>`); the architect is the interactive session, never an agent.
 ---
 
 # maybloom-stack-delegate
@@ -14,11 +14,11 @@ per session or `Agent` call; a task takes the lowest tier that can own it.
 
 ## The roster
 
-Six roles, all answering to the **project owner**: the person who owns
+Eight roles, all answering to the **project owner**: the person who owns
 the decisions, plans with the architect and answers the questions the
 roles file. The owner is not a role and no agent fills it; write "the
 project owner" (or "the owner"), never a name. The architect is the
-session reading this skill when it plans; the other five are agents this
+session reading this skill when it plans; the other seven are agents this
 plugin ships. A repo may pin other models in its `AGENTS.md`, outside
 `## Delegation`.
 
@@ -30,11 +30,15 @@ plugin ships. A repo may pin other models in its `AGENTS.md`, outside
 | **Mechanic** | Haiku-class (`maybloom-stack:mechanic`) | CI, Docker, compose, the proxy, `app.json` / `eas.json`, biome / tsconfig, dependency bumps, lint fixes, rename sweeps, inventories, README and changelog chores. Never product code. |
 | **Reviewer** | Opus-class (`maybloom-stack:reviewer`), a fresh session per round | One review round of one PR: findings by severity and a verdict. Never edits code. |
 | **Researcher** | Opus-class (`maybloom-stack:researcher`), an `Agent` call | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained, what a neighbour does better. A fixed-shape report with sources, the claims it verified marked. Never edits the repo; files nothing. |
+| **Designer** | Opus-class (`maybloom-stack:designer`), an `Agent` call in a worktree, or a session | One design change before it is built: `design.md` if it changes, two or three sketches, one design pass under `src/design/` from the real primitives and fixtures, and the board captures. Never hooks, data, the contract, the primitives or the tokens module. |
+| **Critic** | Opus-class (`maybloom-stack:critic`), an `Agent` call, fresh each round | One round of critique on a designer's pass, from the captures and probes against `design.md` and the rubric, before the owner looks. Never edits. |
 
-A project may add roles above these (a design role that decides screens
-one slice ahead, for instance) in its own `AGENTS.md`; it does not remove
-any. Until a runner automates the orchestrator, the owner or an architect
-session does its job by hand, by the same rules.
+A project may add roles above these in its own `AGENTS.md`; it does not
+remove any. A design change follows [the design
+loop](../maybloom-stack-shared/references/design/loop.md), and the
+architect's design brief is its § 1 (the builder brief template below
+stays as it is). Until a runner automates the orchestrator, the owner or
+an architect session does its job by hand, by the same rules.
 
 ## Each role
 
@@ -147,6 +151,31 @@ and the summary has to come back to the session that asked. It runs on
 the Opus tier, not the cheapest, because a sloppy survey misleads a
 decision.
 
+**Designer** (`Agent` with `subagent_type: maybloom-stack:designer` and
+`isolation: worktree`, or `claude --agent maybloom-stack:designer`).
+Decides alone: the sketches, which direction to build, and everything
+inside the pass. Files: a token the module lacks, a hook or primitive the
+pass needs, a change to `design.md` (the owner accepts it); the caller
+files them from its report. Starts with: the design brief, `design.md`,
+[the design references](../maybloom-stack-shared/references/design/README.md) and the files it routes to, the path's
+`design.md`, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Grep, Glob,
+Skill; no Agent, so it cannot launch the critic. It opens the pass PR as
+a draft, keeps it a draft through the critic rounds and the owner's look,
+and marks it ready only when the owner has picked. The caller resumes it
+between critic rounds and after the owner's look. Laptop only: it needs
+Chrome and a served board, which the review runner has not.
+
+**Critic** (`Agent` with `subagent_type: maybloom-stack:critic`, a new
+call every round, at most two before the owner looks). Decides alone: its
+findings, their ranking and the verdict, from [the critique procedure](../maybloom-stack-shared/references/design/critique.md).
+Files: nothing; a direction it doubts goes in the verdict for the owner.
+Starts with: the design brief, `design.md`, `critique.md` and the rubric
+for the surface, the sketches in the PR body and the PR's head, which it
+captures itself on a port of its own. Tools: Read, Grep, Glob, Bash, Skill;
+no Edit or Write, no Agent. It posts one `[critic]` comment on the PR with
+findings numbered `C<n>-<i>`, and never edits, pushes or marks the PR
+ready. Laptop only, like the designer.
+
 ## The rules
 
 1. **A brief precedes a builder.** A builder that finds the brief wrong
@@ -188,11 +217,16 @@ decision.
    The report path is outside the repo (the session's scratchpad, or
    `~/.cache/maybloom-research/`), never a tracked file; being outside
    the working directory, the write may ask once.
+   A design change is `Agent` with `subagent_type: maybloom-stack:designer`
+   and `isolation: worktree` (or a session), resumed by the caller between
+   critic rounds and after the owner's look; each critic round is a new
+   `Agent` call with `subagent_type: maybloom-stack:critic`, never the
+   designer's context.
    Parallel builders only where the plan marks slices independent; a
    multi-agent `Workflow` only when the owner opts in.
 6. **Every subagent has a budget** and stops at it: the builder at 120
    turns or ~150K context, the mechanic at 60 or ~100K, the researcher at
-   80 or ~150K. The agents carry
+   80 or ~150K, the designer at 120 or ~150K, the critic at 40. The agents carry
    the limit as `maxTurns`, so it is enforced rather than requested (for
    `Agent` calls only: a session launched with `--agent` ignores
    `maxTurns` and works to the session budget instead). A
@@ -392,7 +426,7 @@ a repo that predates it adds one by hand, and the agents fall back to a
 ```
 
 A repo that needs a different builder, mechanic, reviewer,
-orchestrator or researcher ships its own `.claude/agents/<name>.md` and launches it by
+orchestrator, researcher, designer or critic ships its own `.claude/agents/<name>.md` and launches it by
 that name (`claude --agent reviewer`, `subagent_type: builder`): the
 plugin's agents are namespaced (`maybloom-stack:reviewer`), so a project
 agent never replaces them under the launches this skill documents. Keep
