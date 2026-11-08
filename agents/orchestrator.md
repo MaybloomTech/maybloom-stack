@@ -75,13 +75,25 @@ state. Do not trust what you read at the start, because the owner, the
 builder or a reviewer may have moved since.
 
 Keep one row per round on the item: findings by severity and kind,
-recurrences, the builder's dispositions (fixed, disputed, deferred, not
-addressed), the next round's confirmation of those fixes, wall time,
-and the session id of each role in the round (`builder <id>, reviewer
-<id>`). For an `Agent` builder, that is the agent id the call returns.
-For a session, it is the id the session posted. Write `unknown` where
-none was posted. The ids let the cost roll up per item and per role
-from the session logs. The series decides the state:
+recurrences, the builder's dispositions (fixed, disputed, deferred,
+escalated, not addressed), the next round's confirmation of those fixes,
+wall time, and the session id of each role in the round (`builder <id>,
+reviewer <id>`). For an `Agent` builder, that is the agent id the call
+returns. For a session, it is the id the session posted. Write `unknown`
+where none was posted. The ids let the cost roll up per item and per
+role from the session logs.
+
+A reviewer round that crashed or left a report the series cannot read is
+**not run**: it gets no row in the series and counts toward neither
+`ready` nor `converging`. Request it once more at the same head; a
+second failure is an `error` comment and a wait for the owner. A
+reviewer session that posts nothing is the stall rule's case, below.
+
+An `escalated` line is a `question` to the owner, with the finding and
+the builder's question attached. The finding stays open until the answer
+is on the item.
+
+The series decides the state:
 
 - **converging** — blocking count not rising over two rounds, kinds
   moving outward (contract → behaviour → operations → style), fixes
@@ -90,9 +102,9 @@ from the session logs. The series decides the state:
   the same finding returns, or the same step, function or file region
   draws should-fix or worse three rounds running (polish-grade guard gaps
   do not count); a new contract or design finding late in the series;
-  most of a round disputed or not addressed; or six rounds. Stop and
-  file a decision for the owner with the series attached and the
-  least-change option among the choices.
+  most of a round disputed, escalated or not addressed; or six rounds.
+  Stop and file a decision for the owner with the series attached and
+  the least-change option among the choices.
 - **ready** — zero blocking this round and at most two the round before.
   Run one deep review, and say in the request that it is the gate; zero
   blocking from it is the merge question for the owner (or the builder
@@ -138,7 +150,9 @@ wait on the channel.
 minutes after your launch comment, it has stalled. Do not keep waiting:
 post the launch again as an `action` that says it is a re-post. If it
 stalls a second time, post a `question` to the owner. A builder or
-reviewer that has posted and is working does not count as stalled.
+reviewer that has posted and is working does not count as stalled. For
+a reviewer round, the second stall is the not-run rule's second failure,
+posted as an `error`. One event, one kind.
 
 ## Budget
 

@@ -102,9 +102,9 @@ series and the decisions; the project's `AGENTS.md` names the channel).
 The builder answers each review round in the same fixed shape: a
 `[builder] Ready for round <n+1>, head <sha>` comment on the channel
 with one line per finding of round n (`R<n>-<i>: fixed <sha>`,
-`disputed: <reason>`, `deferred: <item>`, `not addressed: <why>`). Where
-the project's `AGENTS.md` names a review-loop tool, the builder sends
-that header and those lines through it instead of a comment, with the
+`disputed: <reason>`, `deferred: <item>`, `escalated: <question>`,
+`not addressed: <why>`). Where the project's `AGENTS.md` names a
+review-loop tool, the builder sends that header and those lines through it instead of a comment, with the
 same ids and states, and reads the round's findings and the series state
 from it, and a reviewer session posts its round through it. A runner
 counts dispositions from those lines without reading prose, and the
@@ -118,13 +118,15 @@ builder pauses the loop while a fix spans several commits. A builder
 session then waits for the next round in a `/loop` of its own, until the
 series diverges or a round approves its head.
 
-Before the PR opens, the builder goes through the brief's acceptance
-criteria and lists each one in the PR body as met or not met, with the
-evidence for it, and review round 1 checks that list first. This is the
-cheapest place to catch a builder that has drifted from the brief.
-Catching it in round 1 saves a quality review of the wrong thing.
-Builders dispatched as `Agent` calls each get a worktree of their own,
-so parallel slices never share a checkout.
+The PR body opens with the builder's reading of the brief, written
+before any code. Before the PR opens, the builder goes through the
+brief's acceptance criteria and lists each one in the PR body as met or
+not met, with the evidence for it. Review round 1 compares the reading
+with the brief, then checks that list. This is the cheapest place to
+catch a builder that has drifted from the brief. Catching it in round 1
+saves a quality review of the wrong thing. Builders dispatched as
+`Agent` calls each get a worktree of their own, so parallel slices never
+share a checkout.
 
 The orchestrator types every comment it posts as `action`, `question`,
 `handoff` or `error`, so a runner reads the state of the run from the

@@ -95,11 +95,12 @@ a direction. Push once per round, whole.
 
 Once the PR is ready, you answer the reviewer's rounds in the lines of
 rule 9 of `maybloom-stack-delegate` (`R<n>-<i>: fixed <sha>`, `disputed:
-<reason>`, `deferred: <item>`, `not addressed: <why>`), after the Ready
-header `Ready for round <n+1>, head <sha>`. Until the runner reads a
-`[designer]` comment, post the Ready header and the disposition lines
-under `[builder]`. Critic findings are `C<n>-<i>` and are answered in your
-report to the caller, not on the PR. Never rewrite pushed history.
+<reason>`, `deferred: <item>`, `escalated: <question>`, `not addressed:
+<why>`), after the Ready header `Ready for round <n+1>, head <sha>`.
+Until the runner reads a `[designer]` comment, post the Ready header and
+the disposition lines under `[builder]`. Critic findings are `C<n>-<i>`
+and are answered in your report to the caller, not on the PR. Never
+rewrite pushed history.
 
 ## Budget
 

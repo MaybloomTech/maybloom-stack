@@ -14,7 +14,12 @@ of it.
 ## Start with
 
 1. The PR: its body, its head SHA, the diff against its base. In round
-   1, check the body's `## Acceptance criteria` list (the builder's
+   1, read the body's `## Reading of the brief` section first and compare
+   it with the brief: a reading that contradicts the brief, drops a
+   requirement it states, or takes in scope what it excludes is a
+   blocking finding on the reading, cited as brief versus body, not as a
+   code finding. A body with no such section is a should-fix, in round 1
+   only. Then check the `## Acceptance criteria` list (the builder's
    `met` / `not met`, each with its evidence) against the brief before
    you look at quality. A criterion marked met that the code does not
    meet is a finding. So is a missing list.
@@ -27,11 +32,11 @@ of it.
 3. The project's `AGENTS.md` (or `CLAUDE.md` in a repo that predates it):
    the rules, the `## Delegation` section, the checks.
 4. The previous rounds' findings and the builder's dispositions, if any:
-   the `R<n>-<i>: fixed | disputed | deferred | not addressed` lines in
-   the channel's `[builder]` comments, or in the review-loop tool the
-   project's `AGENTS.md` names (rule 9 of `maybloom-stack-delegate`).
-   A finding with no line is not addressed; check a fixed one against
-   the code before you confirm it.
+   the `R<n>-<i>: fixed | disputed | deferred | escalated | not
+   addressed` lines in the channel's `[builder]` comments, or in the
+   review-loop tool the project's `AGENTS.md` names (rule 9 of
+   `maybloom-stack-delegate`). A finding with no line is not addressed;
+   check a fixed one against the code before you confirm it.
 
 ## Standing rules (`maybloom-stack-delegate`)
 

@@ -64,16 +64,37 @@ skill's client, loaded with the Skill tool), and `fjo pr draft N` sets
 it back. There the draft is a `WIP:` title prefix, so the title check
 fails until the PR is marked ready.
 
+Before any code, write your reading of the brief. The PR body opens
+with a `## Reading of the brief` section, ahead of `## Acceptance
+criteria`: one paragraph on what the brief (and the card it came from)
+asks for as you read it, then a list of what you took as out of scope.
+A part of the brief you cannot paraphrase is a brief question: stop and
+report, as the first rule says. Round 1 compares the section with the
+brief.
+
 Before you open the PR, go through the brief's acceptance criteria one
 by one against what you built. The PR body carries the result as a
 `## Acceptance criteria` list, each line `met` or `not met` with its
 evidence: the test, the command and its result, or the file and line.
-Round 1 of the review reads that list first. The body also names every
-item the PR closes, what you ran and what you did not. In a review
-loop, answer every finding with a disposition (fixed with the commit,
-disputed with the reason, deferred to which item, or not addressed and
-why; the line format is under *Answering a round*), list scope beyond
-the findings separately, and never rewrite pushed history.
+Round 1 of the review reads the reading, then that list. The body also
+names every item the PR closes, what you ran and what you did not. In a
+review loop, answer every finding with a disposition (fixed with the
+commit, disputed with the evidence, deferred to which item, escalated
+with the question, or not addressed and why; the line format is under
+*Answering a round*), list scope beyond the findings separately, and
+never rewrite pushed history.
+
+A finding is disputed only with evidence the reviewer could have read: a
+file and line, or a test. A disagreement without such evidence is
+`escalated` for the owner's or the architect's call, and you go on with
+the other findings. A point that rests on the brief or the item, which
+the reviewer may not have read the same way, is `escalated` too, with
+the line of the brief or the item quoted in the question. The reason of
+a `disputed` line holds the evidence as one token: `<path>:<line>` or
+`<path>:<line>-<line>` (a file in the repo at the answered head, a repo
+document included) or `test:<TestName>`, as in `R2-3: disputed: the
+guard is already there, go/internal/review/round.go:212`. A `disputed`
+line without such a token is not a dispute; write `escalated` instead.
 
 Merge only on the deep review's `APPROVED at <sha>. Merge allowed.`, and
 only where the project owner has allowed builder merges on the run's
@@ -128,6 +149,7 @@ skill's round rules fix, with the same ids and states either way:
 R<n>-<i>: fixed <sha>
 R<n>-<i>: disputed: <reason>
 R<n>-<i>: deferred: <item>
+R<n>-<i>: escalated: <question>
 R<n>-<i>: not addressed: <why>
 ```
 
@@ -175,9 +197,10 @@ the loop. Each check:
 3. Read its findings and series state wherever the round came from: the
    series block at its end (`Series of PR
    <n>: <state>` and a `Next:` line; where an orchestrator keeps the
-   series instead, its newest comment on the item). Fix every blocking and should-fix
-   finding; for the rest, and for any you dispute or defer, choose the
-   disposition. A `Next:` line that says the gate waits for `<ids>`
+   series instead, its newest comment on the item). Fix every blocking
+   and should-fix finding; for the rest, and for any you dispute, defer
+   or escalate, choose the disposition (a dispute needs evidence, else
+   escalate). A `Next:` line that says the gate waits for `<ids>`
    names the should-fix you must fix or defer to an item before the deep
    review runs.
 4. Run the builder checks, push the fixes as new commits in one push,

@@ -7,6 +7,7 @@ context, before the owner looks. It never edits: not the pass, not
 ## Inputs, and nothing else
 
 - the project's `design.md`;
+- the design brief the caller gives it;
 - the rubric for the surface, [rubric-app.md](./rubric-app.md) or
   [rubric-reading.md](./rubric-reading.md), as `design.md` names it;
 - the designer's sketches (two lines each, from the PR body);
@@ -17,7 +18,7 @@ context, before the owner looks. It never edits: not the pass, not
 - the pass's source, opened only to name a component file or to quote copy.
 
 It is not told why anything is the way it is: it reads the result, not the
-intent. It stops reading by the tenth tool call and writes.
+designer's reasons. It stops reading by the tenth tool call and writes.
 
 ## Questions
 
@@ -34,7 +35,12 @@ intent. It stops reading by the tenth tool call and writes.
 
 ## Output
 
-The first line is the verdict: `ready for the owner` or `another designer
+The report opens with one paragraph reading the design intent: what
+`design.md` and the design brief ask the pass to do, and what is out of
+scope. Write it before you look at the captures. A reading the designer
+or the owner can show is wrong is itself a finding against the critique.
+
+Then the verdict line: `ready for the owner` or `another designer
 pass`. Then findings, ranked by cost, at most eight, one line each:
 
 ```

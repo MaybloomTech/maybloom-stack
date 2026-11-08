@@ -50,68 +50,71 @@ flag (`claude --agent <name> --permission-mode <mode>`); an `Agent` call
 inherits the parent's.
 
 **Architect.** Decides alone: the brief, the split into slices, the
-order, the review effort, anything a card already decided. Files: product
-direction, a change to a decided point, a new dependency or an
+order, the review effort, anything a card already decided. Files:
+product direction, a change to a decided point, a new dependency or an
 architectural shift, anything that trades one of the owner's stated
-priorities against another. Starts with: `AGENTS.md`, `docs/context.md`,
-the item and the plan it belongs to. Tools: all. Mode: `default`; the
-owner is in the session.
+priorities against another. *Reconcile before Next:* before a card moves
+to Next, it lists where the brief contradicts the card or the plan it
+came from, and any addition that changes the architecture, and resolves
+each on the card; a contradiction the card and plan cannot settle is the
+owner's question, never a guess in the brief. Starts with: `AGENTS.md`,
+`docs/context.md`, the item and the plan it belongs to. Tools: all.
+Mode: `default`; the owner is in the session.
 
 **Orchestrator** (`claude --agent maybloom-stack:orchestrator
 --permission-mode acceptEdits`: it has no Edit or Write of its own, and
 the builders and mechanics it dispatches through `Agent` inherit its
 mode, so they can edit unattended. The mode also auto-approves the
 orchestrator's own filesystem commands in Bash (`sed -i`, `mv`, `rm`),
-and a dispatched builder still asks at `git commit`, `git push` and
-`gh pr create`). Decides alone: when to start the next round (where no
-runner watches the forge),
-the round series and its state (converging / diverging / ready), which
-reviewer effort a round gets, whether a deferral goes to a new item,
-the run's learning. Files: a diverging series (with the series
-attached), the merge, a reviewer's stop-the-line decision, a run that
-will not fit its budget, an item another run has claimed, a session
-that stalls twice. Starts with: the run's item(s), the PR if one exists,
-`AGENTS.md` § Delegation. Then it claims the item. It posts
-`[orchestrator] action: claimed` and adds itself as an assignee, or the
-label the tracker's skill names. The item counts as held while its
-newest `[orchestrator]` comment is not a `handoff`, because roles may
-share one account and an assignment to the owner is no claim. It
-releases the item at the hand-off, so that two runs never pick up the
-same one. A run that dies before its `handoff` leaves a stale claim.
-The owner releases it by posting `[orchestrator] handoff: released by
-owner` on the item.
-It reads the item and the PR again before every round, and keeps each
-round's builder and reviewer session ids in the series row. A launched
-session that has posted nothing 30 minutes after the launch comment is
-re-posted once, not waited on. Once the deep review passes, it posts
-`[orchestrator] action: learning: <file> — <line>` (or `learning:
-none`). The builder waits for that line and commits it before the merge;
-for an `Agent` builder, which has already returned, the orchestrator
-dispatches one more for that commit. Tools: Read, Bash (search, the
-tracker CLI, the forge's CLI, `git`), Agent (to launch a mechanic or a small
-builder), Skill (the tracker's skill, the forge's where the channel is
-the pull request, and this one); no Edit or Write.
-It is the only role that reaches the owner outside the tracker. It is
-always a main session, never an `Agent` call: a run outlives any one
-call (it waits on review rounds), it needs the per-session numbers the
-status line
-writes and the budget hook, which only a main session has, and nested launches are
-capped in depth. It does not start sessions itself: until a runner does,
-it posts the launch command and the starting prompt on the channel (the
-item while no PR exists) and asks
-the owner to start the builder or reviewer session.
+and a dispatched builder still asks at `git commit`, `git push` and `gh
+pr create`). Decides alone: when to start the next round (where no
+runner watches the forge), the round series and its state (converging /
+diverging / ready), which reviewer effort a round gets, whether a
+deferral goes to a new item, the run's learning. Files: a diverging
+series (with the series attached), the merge, a reviewer's stop-the-line
+decision, a run that will not fit its budget, an item another run has
+claimed, an escalated finding, a session that stalls twice. Starts with:
+the run's item(s), the PR if one exists, `AGENTS.md` § Delegation. Then
+it claims the item. It posts `[orchestrator] action: claimed` and adds
+itself as an assignee, or the label the tracker's skill names. The item
+counts as held while its newest `[orchestrator]` comment is not a
+`handoff`, because roles may share one account and an assignment to the
+owner is no claim. It releases the item at the hand-off, so that two
+runs never pick up the same one. A run that dies before its `handoff`
+leaves a stale claim. The owner releases it by posting `[orchestrator]
+handoff: released by owner` on the item. It reads the item and the PR
+again before every round, and keeps each round's builder and reviewer
+session ids in the series row. A launched session that has posted
+nothing 30 minutes after the launch comment is re-posted once, not
+waited on. Once the deep review passes, it posts `[orchestrator] action:
+learning: <file> — <line>` (or `learning: none`). The builder waits for
+that line and commits it before the merge; for an `Agent` builder, which
+has already returned, the orchestrator dispatches one more for that
+commit. Tools: Read, Bash (search, the tracker CLI, the forge's CLI,
+`git`), Agent (to launch a mechanic or a small builder), Skill (the
+tracker's skill, the forge's where the channel is the pull request, and
+this one); no Edit or Write. It is the only role that reaches the owner
+outside the tracker. It is always a main session, never an `Agent` call:
+a run outlives any one call (it waits on review rounds), it needs the
+per-session numbers the status line writes and the budget hook, which
+only a main session has, and nested launches are capped in depth. It
+does not start sessions itself: until a runner does, it posts the launch
+command and the starting prompt on the channel (the item while no PR
+exists) and asks the owner to start the builder or reviewer session.
 
 **Builder** (`claude --agent maybloom-stack:builder --permission-mode
 acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
 Decides alone: anything inside the brief and the repo's rules; a
-finding's disposition (fixed, disputed, deferred, not addressed).
-Files (by stopping and reporting, never by guessing): a brief that is
-wrong, a contract gap, a protected path it needs. It opens the PR as a
-draft and marks it ready for round 1. Before that, it goes through the
-brief's acceptance criteria and puts the result in the PR body, `met`
-or `not met` with the evidence for each, and review round 1 reads that
-list first. As an `Agent` call it runs in a
-worktree of its own (`isolation: worktree`), cut from an up-to-date
+finding's disposition (fixed, disputed, deferred, not addressed;
+`escalated` it does not settle, it hands the call up). Files (by
+stopping and reporting, never by guessing): a brief that is wrong, a
+contract gap, a protected path it needs. It opens the PR as a draft and
+marks it ready for round 1. Before that, it goes through the brief's
+acceptance criteria and puts the result in the PR body, `met` or `not
+met` with the evidence for each. The body opens with its `## Reading of
+the brief` section, written before any code, ahead of that list; review
+round 1 reads the reading, then the list. As an `Agent` call it runs in
+a worktree of its own (`isolation: worktree`), cut from an up-to-date
 main, and stops if it finds itself in the main checkout. Starts with:
 the brief, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill,
 ScheduleWakeup (to pace its `/loop` between rounds); no Agent. As a
@@ -126,8 +129,9 @@ chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent.
 
 **Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode
 default`, a fresh session every round). Decides alone: findings, their
-severity, the verdict; approval at a head only in the deep review the
-orchestrator names as the gate. Files: a decision that stops
+severity, the verdict; in round 1 it checks the builder's reading of
+the brief against the brief first; approval at a head only in the deep
+review the orchestrator names as the gate. Files: a decision that stops
 the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
@@ -238,9 +242,10 @@ ready. Laptop only, like the designer.
    replays the plan, the conventions and the codebase it touches.
 7. **One item, one branch, one PR.** The branch is the tracker id, a
    slash and a short slug (`PROJ-123/short-slug`, the id as the tracker
-   prints it, no `#`); the PR body names every item the PR closes. A
-   runner joins PR and item by that id. A bundle is one PR on the lead
-   item's branch.
+   prints it, no `#`); the PR body opens with the builder's reading of
+   the brief, then the acceptance list, and names every item the PR
+   closes. A runner joins PR and item by that id. A bundle is one PR on
+   the lead item's branch.
 8. **The channel is the tracker item, or the pull request where the
    runner says so.** The roles in a run talk through comments on the
    run's channel and pushes to the PR. The channel is the run's item,
@@ -268,8 +273,19 @@ ready. Laptop only, like the designer.
    R<n>-<i>: fixed <sha>
    R<n>-<i>: disputed: <reason>
    R<n>-<i>: deferred: <item>
+   R<n>-<i>: escalated: <question>
    R<n>-<i>: not addressed: <why>
    ```
+
+   A finding is `disputed` only with evidence the reviewer could have
+   read. The reason holds the evidence as one token in a fixed form:
+   `<path>:<line>` or `<path>:<line>-<line>` (a file in the repo at the
+   answered head, a repo document included) or `test:<TestName>`, as in
+   `R2-3: disputed: the guard is already there, go/internal/review/round.go:212`.
+   A `disputed` line without such a token is not a dispute: the builder
+   writes `escalated` instead, for the owner's or the architect's call,
+   and goes on with the other findings. A point that rests on the brief
+   or the item is `escalated` too, with its line quoted in the question.
 
    A finding with no line counts as not addressed; a leading `- ` and
    `fixed with <sha>` are accepted; the newest line for an id wins.
