@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code status line script
-# Shows: cwd | git branch | model | 5-hour usage+reset | weekly usage+reset | model-scoped week (e.g. Fable) | context usage
+# Shows: cwd | git branch | model | 5-hour usage+reset | weekly usage+reset | model-scoped week (e.g. Fable) | context usage | prompt cache countdown
 #
 # ctx is coloured against the session budget: amber from MAYBLOOM_CTX_BUDGET_PCT
 # (default 30), red from 50. Every redraw also writes this session's numbers to
@@ -119,7 +119,7 @@ iso_to_epoch() {
 
 # Everything the status-line payload gives us, in one jq call. Missing values
 # come through as empty fields; US keeps empty fields in place.
-IFS="$US" read -r session_id raw_cwd model used_pct five_pct five_resets week_pct week_resets < <(
+IFS="$US" read -r session_id raw_cwd model used_pct five_pct five_resets week_pct week_resets cache_warm cache_expires < <(
   printf '%s' "$input" | jq -r --arg us "$US" '
     [ (.session_id // ""),
       (.workspace.current_dir // .cwd // ""),
@@ -128,7 +128,9 @@ IFS="$US" read -r session_id raw_cwd model used_pct five_pct five_resets week_pc
       (.rate_limits.five_hour.used_percentage // ""),
       (.rate_limits.five_hour.resets_at // ""),
       (.rate_limits.seven_day.used_percentage // ""),
-      (.rate_limits.seven_day.resets_at // "") ]
+      (.rate_limits.seven_day.resets_at // ""),
+      (if (.prompt_cache.warm | type) == "boolean" then (.prompt_cache.warm | tostring) else "" end),
+      (.prompt_cache.expires_at // "" | tostring) ]
     | map(tostring) | join($us)' 2>/dev/null)
 
 # Display form of the directory: $HOME shortened to ~ only at a path boundary
@@ -286,7 +288,29 @@ usage_segment() {
   fi
 }
 
-# Line 2: 5-hour, weekly, scoped week (fable), context
+# Prompt cache countdown: time until the warm cache goes cold, from the payload's
+# expires_at (epoch seconds). Nothing when there is no expiry (no response yet,
+# or Claude Code older than 2.1.251). Green, then yellow under five minutes, red
+# under one minute; "cold" once the time has passed or warm is false.
+cache_segment() {
+  local expires="${1%%.*}" warm="$2" now secs
+  [[ "$expires" =~ ^[0-9]+$ ]] || return 0
+  now=$(date +%s)
+  secs=$(( expires - now ))
+  if [ "$warm" = false ] || [ "$secs" -le 0 ]; then
+    printf 'cache:%b%s%b' "$c_red" cold "$c_reset"
+  elif [ "$secs" -lt 60 ]; then
+    printf 'cache:%b%ds%b' "$c_red" "$secs" "$c_reset"
+  elif [ "$secs" -lt 300 ]; then
+    printf 'cache:%b%dm%02ds%b' "$c_yellow" $(( secs / 60 )) $(( secs % 60 )) "$c_reset"
+  elif [ "$secs" -lt 3600 ]; then
+    printf 'cache:%b%dm%b' "$c_green" $(( secs / 60 )) "$c_reset"
+  else
+    printf 'cache:%b%dh%02dm%b' "$c_green" $(( secs / 3600 )) $(( (secs % 3600) / 60 )) "$c_reset"
+  fi
+}
+
+# Line 2: 5-hour, weekly, scoped week (fable), context, prompt cache
 line2=()
 seg=$(usage_segment "5h" "$five_pct" "$five_resets" hm);                 [ -n "$seg" ] && line2+=("$seg")
 seg=$(usage_segment "weekly" "$week_pct" "$week_resets" dhm);            [ -n "$seg" ] && line2+=("$seg")
@@ -295,6 +319,7 @@ if [ -n "$used_pct" ]; then
   colored=$(color_ctx "$used_pct")
   [ -n "$colored" ] && line2+=("$(printf 'ctx:%s' "$colored")")
 fi
+seg=$(cache_segment "$cache_expires" "$cache_warm"); [ -n "$seg" ] && line2+=("$seg")
 
 join_parts() {
   local out=""
