@@ -24,7 +24,7 @@ situation, rather than a generator that stamps one shape.
 | `maybloom-stack-add-rpc` | A single non-CRUD RPC, on either backend | Instructions |
 | `maybloom-stack-bootstrap-go` | Add a Go service to a stack repo that has none (scaffolded with the TypeScript backend, or contract-only) | Instructions + the commentary on bootstrap's Go templates, following the [Go blueprint](./backend-go.md) |
 | `maybloom-stack-delegate` | Split the work between roles and model tiers: the eight roles, the rules, the brief template, the session budget and the hand-off; ships with the `builder`, `mechanic`, `reviewer`, `orchestrator`, `researcher`, `designer` and `critic` agents | Instructions, see [Delegation](./delegation.md) |
-| `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage against the session budget, and a per-session file the budget hook reads | Instructions + the one shell script, copied into place once per machine |
+| `maybloom-stack-statusline` | Install the team's Claude Code status line: the 5-hour and weekly usage windows with reset countdowns, the model-scoped weekly limit, context usage against the session budget, the prompt cache countdown, and a per-session file the budget hook reads | Instructions + the one shell script, copied into place once per machine |
 
 Bootstrap ships a complete working monorepo with one example resource wired
 through every layer, so install and `go generate .` end with a running
@@ -62,8 +62,9 @@ first. Claude Code pipes only the first two into a status-line command,
 so the script reads the scoped one from the usage endpoint the `/usage`
 command uses, cached and refreshed off the render path. A plugin cannot
 set a user's status line, so the skill ships the script and installs it
-by copying it to a stable path and setting one key in
-`~/.claude/settings.json`, once per machine.
+by copying it to a stable path and setting the `statusLine` key in
+`~/.claude/settings.json` (the command, and a `refreshInterval` so the
+countdowns tick while idle), once per machine.
 
 Three of the other skills split the work add-resource is the wrong shape for.
 Extend-resource changes a resource that already exists, where the RPC

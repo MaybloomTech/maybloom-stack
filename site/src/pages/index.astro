@@ -15,13 +15,13 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
       {/* Deliberately one unbroken line. Wrapping prose in the template makes
           the source look like it dictates the rendered breaks; on one line
           there is nothing for the rendered breaks to mirror. */}
-      <p class="lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is TypeScript by default and Go when the workload asks for it; the interface is one Expo app; the public surfaces are static Astro sites.</p>
+      <p class="lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is Go by default and TypeScript on request; the interface is one Expo app; the public surfaces are static Astro sites.</p>
       <img
         class="tree"
         src={skillTree.src}
         width={skillTree.width}
         height={skillTree.height}
-        alt="The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — TypeScript (the default), Expo shipping to iOS, Android and web, Astro for static surfaces; Go amber and validating; kotlin, python and swiftui waiting as dashed open paths"
+        alt="The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — Go (the default) and TypeScript, Expo shipping to iOS, Android and web, Astro for static surfaces; kotlin, python, rust, swiftui and flutter waiting as dashed open paths"
       />
       <a class="cta" href="/docs/overview">Read the docs</a>
     </section>

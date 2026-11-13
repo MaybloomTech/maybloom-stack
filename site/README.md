@@ -10,7 +10,7 @@ docs on GitHub and reading them on the site means reading the same files. Edit
 
 | Route | Source |
 |---|---|
-| `/` | Landing: pipeline diagram + document index |
+| `/` | Landing: skill-tree diagram + document index |
 | `/docs/<slug>` | One page per file in `docs/` |
 
 ## Commands

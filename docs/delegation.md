@@ -54,7 +54,8 @@ The designer and the critic are the two roles of the design loop
 decides what a screen looks like and builds one pass; the builder keeps
 the take, moving the chosen pass into the app. The critic is a new
 context every round for the same reason the reviewer is: it judges the
-captures, not the designer's intent. Both need Chrome and a served
+captures, not the designer's intent, and it runs at most two rounds before
+the owner's look. Both need Chrome and a served
 board, so for now they run on a laptop, not on the review runner.
 
 The architect is deliberately not an agent. The paths where a mistake is
@@ -104,9 +105,10 @@ The builder answers each review round in the same fixed shape: a
 with one line per finding of round n (`R<n>-<i>: fixed <sha>`,
 `disputed: <reason>`, `deferred: <item>`, `escalated: <question>`,
 `not addressed: <why>`). Where the project's `AGENTS.md` names a
-review-loop tool, the builder sends that header and those lines through it instead of a comment, with the
-same ids and states, and reads the round's findings and the series state
-from it, and a reviewer session posts its round through it. A runner
+review-loop tool, the builder sends that header and those lines through it
+instead of a comment. The ids and states are the same, and the builder
+reads the round's findings and the series state from it. A reviewer
+session posts its round through it too. A runner
 counts dispositions from those lines without reading prose, and the
 reviewer of the next round knows which fixes to confirm. The Ready
 header is the header of those lines, not what starts the round: where a

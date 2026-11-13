@@ -17,7 +17,15 @@
     "skills/maybloom-stack-shared/references/core.md",
     "skills/maybloom-stack-shared/references/gotchas.md",
     "skills/maybloom-stack-shared/references/proto-conventions.md",
-    "skills/maybloom-stack-shared/references/tx-patterns.md"
+    "skills/maybloom-stack-shared/references/tx-patterns.md",
+    "skills/maybloom-stack-shared/references/design/README.md",
+    "skills/maybloom-stack-shared/references/design/critique.md",
+    "skills/maybloom-stack-shared/references/design/design-md.md",
+    "skills/maybloom-stack-shared/references/design/loop.md",
+    "skills/maybloom-stack-shared/references/design/rubric-app.md",
+    "skills/maybloom-stack-shared/references/design/rubric-reading.md",
+    "skills/maybloom-stack-shared/references/design/inspiration/README.md",
+    "skills/maybloom-stack-shared/references/design/inspiration/affectui.md"
   ],
   "leaves": [
     {

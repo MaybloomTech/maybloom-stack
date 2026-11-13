@@ -6,8 +6,10 @@ order: 11
 
 # Adopting the stack
 
-Every skill in the family assumes a scaffolded start: a monorepo the
-bootstrap laid down, a contract that existed before the first handler.
+Every skill in the family assumes a repo that follows the stack's
+conventions: a monorepo the bootstrap laid down for a new project, or an
+existing one that has adopted the same proto-first layout by hand, with a
+contract that existed before the first handler.
 Most systems that would benefit from the stack already exist, and they
 have a REST API, hand-written DTOs, a UI that reads them, and users who
 will not tolerate a rewrite.

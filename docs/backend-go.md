@@ -22,7 +22,7 @@ services have since walked it, and this version records what they found:
 - **The Maybloom app**, the stack's own reference implementation, restarted
   as a Go backend-for-frontend over Postgres: connect-go, sqlc + pgx, goose,
   an OIDC login, the web interface embedded in the binary. Built from the
-  `bootstrap-go` skill's layout and in production since September 2026.
+  `maybloom-stack-bootstrap-go` skill's layout and in production since September 2026.
 
 Where the two agree, the pattern below is stated as settled. Where they
 chose differently, both answers are given with the reason each was chosen.
@@ -665,7 +665,7 @@ taken as an interface so a spy can be injected.
 Authentication is not core; the two services chose differently and both
 shapes are sound.
 
-**The backend as an OIDC client** (Maybloom, behind Authelia). `/auth/login`
+**The backend as an OIDC client** (behind an OIDC provider such as Authelia). `/auth/login`
 stores state, nonce and a PKCE verifier in a short-lived HMAC-signed cookie
 and redirects to the provider; `/auth/callback` exchanges the code, verifies
 the ID token and nonce, reads the profile from userinfo, upserts the user
