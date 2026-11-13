@@ -26,7 +26,7 @@
   }
   .nav-inner {
     display: flex; align-items: center; justify-content: space-between;
-    height: 64px;
+    height: 64px; gap: 12px;
   }
   .wordmark { display: inline-flex; align-items: baseline; font-size: 20px; letter-spacing: -0.01em; }
   .wordmark .mb { font-family: "Source Serif 4", serif; font-style: italic; font-weight: 500; color: var(--ink); }
@@ -51,4 +51,11 @@
   }
   .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
   .glyph { display: inline-flex; }
+  @media (max-width: 374px) {
+    /* Label drops out visually; the button keeps its glyph and aria-label. */
+    #themeLabel {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap;
+    }
+  }
 </style>
