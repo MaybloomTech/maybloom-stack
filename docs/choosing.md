@@ -35,8 +35,8 @@ interface screen exist for.
 The Go backend is the default for anything the interface talks to, and
 the word default is doing real work: choose it unless a specific pressure
 pushes to TypeScript. It became the default in September 2026, once two
-services had walked the path and the reference implementation itself had
-restarted on it. What it buys:
+services had walked the path, one of them the reference app (a private
+app built on the stack). What it buys:
 
 - **One binary, one container.** Embedded migrations, the web export
   served from the same process if you want it, a 33 MB image, no
@@ -49,15 +49,15 @@ restarted on it. What it buys:
   fan-out to many devices or APIs, streaming aggregation, small hardware.
   These used to be the reasons to reach past the default; now they are
   the default's home ground.
-- **A thin backend over other systems.** The reference implementation is
-  a backend-for-frontend with near-zero own state over a photo library,
-  an identity provider and a task board. Go's stdlib HTTP client, its
+- **A thin backend over other systems.** The reference app is
+  a backend-for-frontend with near-zero own state over a media store,
+  an identity provider and an issue tracker. Go's stdlib HTTP client, its
   concurrency, and its footprint fit that shape exactly.
 
 The scaffold ships this backend without being asked (`--backend
 typescript` is the flag, not the other way round) because a default that
 has to be requested is not one: the templates follow the module shape the
-reference implementation runs, so a new service starts where a proven one
+reference app runs, so a new service starts where a proven one
 stands rather than where a tutorial ends.
 
 The costs, stated plainly: a second toolchain in a repo whose interface is

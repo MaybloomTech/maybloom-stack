@@ -19,10 +19,10 @@ services have since walked it, and this version records what they found:
 - **OCF IMS**, an incident-management system for a fair, brought onto the
   contract from a Go REST codebase: 60 unary RPCs on connect-go, sqlc over
   MariaDB, goose, slog, a full interceptor spine, and an Expo client.
-- **The Maybloom app**, the stack's own reference implementation, restarted
-  as a Go backend-for-frontend over Postgres: connect-go, sqlc + pgx, goose,
-  an OIDC login, the web interface embedded in the binary. Built from the
-  `maybloom-stack-bootstrap-go` skill's layout and in production since September 2026.
+- **The reference app**, a private app built on the stack: a Go
+  backend-for-frontend over Postgres, with connect-go, sqlc + pgx, goose,
+  an OIDC login and the web interface embedded in the binary. Built from the
+  `maybloom-stack-bootstrap-go` skill's layout and in production.
 
 Where the two agree, the pattern below is stated as settled. Where they
 chose differently, both answers are given with the reason each was chosen.
@@ -37,7 +37,7 @@ Where neither went, the section says so.
 | Schema truth | `db/migrations/*.sql` (goose format), read by sqlc | both | `src/db/schema.ts` |
 | Migrations | goose, embedded, applied on boot | both | drizzle-kit, manual in prod |
 | Validation | protovalidate constraints in the contract, enforced by an interceptor | both | hand-written presence checks |
-| Config | struct + env tags (`caarlos0/env`) + `Validate()` | Maybloom | TypeBox + `@fastify/env` |
+| Config | struct + env tags (`caarlos0/env`) + `Validate()` | Reference app | TypeBox + `@fastify/env` |
 | Logging | `log/slog`; JSON in production, text in development | both | Fastify pino logger |
 | Codegen | buf and every plugin pinned as `go tool` binaries in go.mod, run from `go/` | both | pnpm catalog |
 | Dev database | a real database in a container; embedded-postgres unwalked | both | PGlite |
@@ -115,7 +115,7 @@ import it. An **adapter package per third party** (`internal/<provider>`)
 holds the client for one external service, with its configuration, its
 error mapping and its generated code (see "OpenAPI, optionally"), behind a
 small interface the consumer declares; nothing else in the module imports
-the vendor's types. The Maybloom backend has both: its rule packages are
+the vendor's types. The reference app has both: its rule packages are
 leaves, and its one third-party adapter is the only code that knows that
 service's wire format.
 
@@ -188,8 +188,8 @@ CI and the Dockerfile all run it. For buf and sqlc that is two
 `//go:generate` lines in a `go/generate.go` and `go generate .` from the
 module root; OCF IMS, with four generators and the repo-root/module-root
 split to manage, drives them from a `bin/build/build.go` with a
-`-generate-only` flag that the Dockerfile and CI both call. The Maybloom
-backend has three `go:generate` lines (buf, sqlc, oapi-codegen), and its
+`-generate-only` flag that the Dockerfile and CI both call. The reference
+app has three `go:generate` lines (buf, sqlc, oapi-codegen), and its
 README, CI and Dockerfile run `go generate .` and nothing else.
 
 ### Lint and vulnerabilities
@@ -207,13 +207,13 @@ CI. Both services carry the config.
 
 `protoc-gen-connect-openapi` as a third local plugin gives an OpenAPI
 document for people who will never read a proto, and it costs one line
-in `go/buf.gen.yaml`. OCF IMS generates it; the Maybloom repo answers the
+in `go/buf.gen.yaml`. OCF IMS generates it; the reference app answers the
 same need with the scaffolded docs site that renders the descriptor set.
 Choose one, and only when someone will read it.
 
 The other direction is an OpenAPI document you consume: a third-party
 service publishes one, and `oapi-codegen` turns it into a typed client.
-The shape the Maybloom backend settled on:
+The shape the reference app settled on:
 
 - **Vendor the document, unchanged**, in the adapter package
   (`internal/<provider>/<provider>-openapi-<release>.json`, next to the
@@ -237,7 +237,7 @@ The shape the Maybloom backend settled on:
   interface, so the consumer cannot tell which is which.
 
 Two small facts that cost an afternoon each: buf refuses to generate an
-empty module, so the clean contract of a restarted app starts with a
+empty module, so the clean contract of a fresh service starts with a
 `Health` RPC rather than nothing; and the `connect` dependency flips from
 indirect to direct in `go.mod` at the first `service` block, which is the
 self-documenting signal that the first service landed.
@@ -321,7 +321,7 @@ visible act. The stack's order, outermost first:
 Two of those need a word each.
 
 **Auth interceptors come in two shapes**, and the choice is per service.
-The Maybloom backend's *gates*: it rejects an unauthenticated call with
+The reference app's *gates*: it rejects an unauthenticated call with
 `CodeUnauthenticated` unless the procedure is on an open list passed at
 construction (the health check). OCF IMS's *populates*: it verifies a
 credential if one is present and puts the claims in the context, and each
@@ -423,10 +423,10 @@ to migrate.
 (a taxonomy) goes in the baseline migration. Environment data does not:
 seed an empty database once, from files a config setting names, and after
 that the app owns the data. OCF IMS loads a demo seed into an empty
-database when `IMS_SEED=demo`; the Maybloom backend reads the directory
-named by `SEED_DIR` on a boot where no node exists yet and skips it, with a
-log line, on every boot after, because the data is edited in the app from
-then on. Either is a store function called from `run()` after the
+database when `IMS_SEED=demo`; the reference app reads the directory
+named by `SEED_DIR` on a boot where its store is still empty, and skips it
+with a log line on every boot after, because the data is edited in the app
+from then on. Either is a store function called from `run()` after the
 migration, switched by config, off in production. A seed that re-applies on
 every boot fights the editor it exists to hand over to.
 
@@ -538,7 +538,7 @@ protovalidate rather than clamped in code.
 ## Config
 
 A plain struct with env tags, parsed by `caarlos0/env`, then validated as
-a whole. The Maybloom backend's, trimmed:
+a whole. The reference app's, trimmed:
 
 ```go
 type Config struct {
@@ -637,7 +637,7 @@ once, and the client reads the outcome later:
 The first version of this document promised embedded-postgres as the Go
 answer to PGlite. Neither service used it. What they did:
 
-- **The Maybloom backend** runs store tests against `TEST_DATABASE_URL`, a
+- **The reference app** runs store tests against `TEST_DATABASE_URL`, a
   throwaway Postgres container on a Docker network, and the tests skip
   when the variable is unset. Development runs the same way, with a
   `DEV_USER` setting that makes every request that user so the identity
@@ -665,7 +665,7 @@ taken as an interface so a spy can be injected.
 Authentication is not core; the two services chose differently and both
 shapes are sound.
 
-**The backend as an OIDC client** (behind an OIDC provider such as Authelia). `/auth/login`
+**The backend as an OIDC client** (the reference app, behind an OIDC provider such as Authelia). `/auth/login`
 stores state, nonce and a PKCE verifier in a short-lived HMAC-signed cookie
 and redirects to the provider; `/auth/callback` exchanges the code, verifies
 the ID token and nonce, reads the profile from userinfo, upserts the user
@@ -788,7 +788,7 @@ the binary's own `healthcheck` subcommand; both are walked.
 Both services serve the Expo web export from the API's origin, which is
 the rule (the interface document says why). They differ on the container:
 
-- **Embedded in the binary** (Maybloom). A Node stage in the same
+- **Embedded in the binary** (the reference app). A Node stage in the same
   Dockerfile runs the export; the Go stage copies it into `internal/web/dist`
   and `//go:embed`s it; an `http.Handler` serves files, falls back to
   `index.html` for anything that is not a file so the router's routes

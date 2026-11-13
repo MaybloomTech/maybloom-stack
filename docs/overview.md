@@ -17,9 +17,9 @@ It was extracted from a working production system, where it ran as a
 Fastify backend, an Expo interface, and static Astro sites in one pnpm
 workspace. This document set generalizes it, describes the Go backend as a
 peer of the TypeScript one, and defines when to reach for each runtime. The
-Go path has since been walked twice: by a Go service brought onto the
-contract from a REST codebase, and by the reference implementation's own
-restart as a Go backend. Since October 2026 the bootstrap skill scaffolds
+Go path has since been walked twice: by a Go service brought onto the contract
+from a REST codebase, and by the reference app, a private app built on the
+stack, running as a Go backend. Since October 2026 the bootstrap skill scaffolds
 the Go backend by default and the TypeScript one on request.
 
 ## The core and the paths
@@ -119,7 +119,7 @@ proto  →  schema  →  adapter  →  store  →  handlers  →  wiring
 
 7. **Documentation an agent can execute.** The stack ships as agent skills
    that scaffold a new monorepo and add resources end-to-end. The skills, these
-   docs, and the reference implementation are kept consistent on purpose. See
+   docs, and the reference app are kept consistent on purpose. See
    [Skills](./skills.md).
 
 ## Monorepo shape

@@ -142,8 +142,9 @@ That is the skill tree opening up.
 ## Consistency contract
 
 Three artifacts describe the stack: these docs, the skills, and the
-reference implementation. The rule when they disagree: the docs define
-intent, the reference implementation defines current truth, and the skills
+reference app (a private app built on the stack; nothing here requires
+reading it). The rule when they disagree: the docs define
+intent, the reference app defines current truth, and the skills
 must match the docs. Skill releases follow doc changes, never lead them.
 
 The skills live in `skills/` at the repo root, versioned and reviewed like
