@@ -10,7 +10,7 @@ docs on GitHub and reading them on the site means reading the same files. Edit
 
 | Route | Source |
 |---|---|
-| `/` | Landing: skill-tree diagram + document index |
+| `/` | Landing: the plugin and its install commands, the four uses with what each needs and the first prompt for each (from `docs/quick-start.md`), the skill tree (the diagram, or a list built from `docs/assets/skill-tree.json` on narrow screens), the document index |
 | `/docs/<slug>` | One page per file in `docs/` |
 
 ## Commands

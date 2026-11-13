@@ -2,32 +2,251 @@
 import { getCollection } from 'astro:content';
 import Layout from '~/layouts/Layout.astro';
 import skillTree from '../../../docs/assets/skill-tree.svg';
+import treeData from '../../../docs/assets/skill-tree.json';
 
 const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data.order);
+
+// The skill tree as text, for screens too narrow to read the drawing. It is
+// built from the manifest that scripts/check-skill-tree.py holds the SVG to,
+// so the list and the drawing cannot disagree. Each validated path links to
+// its doc and borrows that doc's description. The manifest has no "default"
+// field; the default backend is named here, as the lede above it says.
+// LIMBS mirrors LIMBS in scripts/check-skill-tree.py, and DEFAULT_LEAF must
+// be a leaf id in the manifest; the build fails below if either drifts.
+const LIMBS = ['servers', 'clients'] as const;
+const DEFAULT_LEAF = 'go';
+const strays = treeData.leaves.filter((l) => !(LIMBS as readonly string[]).includes(l.limb));
+if (strays.length > 0) {
+  throw new Error(`skill-tree.json has leaves on limbs the landing does not render: ${strays.map((l) => `${l.id} (${l.limb})`).join(', ')}. Add the limb to LIMBS in site/src/pages/index.astro.`);
+}
+if (!treeData.leaves.some((l) => l.id === DEFAULT_LEAF)) {
+  throw new Error(`skill-tree.json has no leaf "${DEFAULT_LEAF}", the landing's default; update DEFAULT_LEAF in site/src/pages/index.astro.`);
+}
+type Status = 'validated' | 'validating' | 'open';
+const statusOrder: Record<Status, number> = { validated: 0, validating: 1, open: 2 };
+const docById = new Map(docs.map((d) => [d.id, d]));
+const leaves = treeData.leaves.map((leaf) => {
+  const docId = 'doc' in leaf && leaf.doc ? leaf.doc.replace(/^docs\//, '').replace(/\.md$/, '') : undefined;
+  return {
+    ...leaf,
+    status: leaf.status as Status,
+    isDefault: leaf.id === DEFAULT_LEAF,
+    href: docId ? `/docs/${docId}` : undefined,
+    desc: docId ? docById.get(docId)?.data.description : undefined,
+  };
+});
+const limbs = LIMBS.map((limb) => {
+  const mine = leaves
+    .filter((l) => l.limb === limb)
+    .sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || Number(b.isDefault) - Number(a.isDefault));
+  return {
+    limb,
+    title: limb === 'servers' ? 'Servers' : 'Clients',
+    paths: mine.filter((l) => l.status !== 'open'),
+    open: mine.filter((l) => l.status === 'open'),
+  };
+});
+// The legend keeps each status's first sentence; the rest describes the drawing.
+const legend = (Object.entries(treeData.statuses) as [Status, string][]).map(([status, text]) => ({
+  status,
+  text: text.split(/(?<=\.)\s/)[0],
+}));
+
+// The two commands from docs/quick-start.md § Install the plugin.
+const install = [
+  { cmd: '/plugin marketplace add MaybloomTech/maybloom-stack', what: 'the marketplace command' },
+  { cmd: '/plugin install maybloom-stack@maybloom-stack', what: 'the install command' },
+];
+
+// The four uses, in the order of docs/quick-start.md, with the first prompt
+// that page gives for each, and what to have ready from its "What you need"
+// section. Change either there and here together. `needs` is authored HTML
+// (inline code and one link), never user input.
+const uses = [
+  {
+    id: 'template',
+    title: 'Start a project from the template',
+    what: 'A protobuf contract, a Go backend (TypeScript on request), an Expo client and a docs site, with one example resource wired through every layer from the first commit.',
+    needs: 'Python 3 and git, Node 24 and pnpm 10, and Docker for the Go backend’s database and toolchain.',
+    where: 'In a session started in an empty folder:',
+    prompt: 'Bootstrap a new maybloom stack project called Orchard.',
+    links: [
+      { href: '/docs/quick-start#a-new-project-from-the-template', text: 'The bootstrap, in the quick start' },
+      { href: '/docs/skills', text: 'Every skill in the family' },
+    ],
+  },
+  {
+    id: 'loop',
+    title: 'Have agents build and review a slice',
+    what: 'For work bigger than one conversation: an architect session writes the brief, a builder builds it, and a fresh reviewer reviews it round by round until it is ready to merge.',
+    needs: '<a href="/docs/running-a-loop#which-forge-and-tracker">A forge and its client</a> (<code>gh</code> for GitHub, <code>fjo</code> for Forgejo), a tracker and its skill, a Delegation section in <code>AGENTS.md</code>, and the status line.',
+    where: 'In a session in your project:',
+    prompt: 'Help me write a brief for this slice: <what you want built>.',
+    links: [{ href: '/docs/running-a-loop', text: 'Running a loop: every launch command and one run, card to merge' }],
+  },
+  {
+    id: 'design',
+    title: 'Decide how a screen looks before it is built',
+    what: 'A designer sketches directions and builds one pass on the design board, a critic judges it from screenshots, and you look last.',
+    needs: 'A laptop with Chrome, and an interface scaffolded from the template, with its design board.',
+    where: 'In a session in that project:',
+    prompt: 'Run the design loop for the notes list screen.',
+    links: [{ href: '/docs/design-loop', text: 'The design loop: launch commands and the capture script' }],
+  },
+  {
+    id: 'status',
+    title: 'Watch your usage and session budget',
+    what: 'Two lines under the prompt: the 5-hour and weekly windows with their resets, context against your session budget, and the prompt cache countdown.',
+    needs: '<code>jq</code>, <code>curl</code> and <code>git</code>, a claude.ai sign-in for the usage numbers, and Claude Code 2.1.251 or later for the cache countdown.',
+    where: 'In any session:',
+    prompt: 'Install the status line.',
+    // From docs/status-line.md § What it shows.
+    output: [
+      '~/workspace/app | [main] | Fable 5.1',
+      '5h:31% (2h00m) | weekly:55% (2d07h33m) | fable:53% (4d08h39m) | ctx:12% | cache:4m50s',
+    ],
+    links: [{ href: '/docs/status-line', text: 'The status line: each segment, the install, the checks' }],
+  },
+];
 ---
 <Layout>
-  <main>
-    <section class="hero frame">
-      <p class="eyebrow">A stack for seasonal software</p>
-      <h1 class="serif">
-        One contract, many paths, and a system you can tend for decades.
+  <main class="landing">
+    <section class="hero frame" aria-labelledby="hero-title">
+      <h1 id="hero-title" class="serif">
+        A Claude Code plugin for building and tending contract-first software.
       </h1>
+      <div class="hero-body">
+        <p class="hero-lede">One install gives you <a href="#template">a project template</a>, <a href="#loop">agents that build and review your work in a loop</a>, <a href="#design">a design loop</a> and <a href="#status">a status line</a>. From inside Claude Code, run:</p>
+
+        <div class="install">
+          {install.map(({ cmd, what }) => (
+            <div class="install-line">
+              {/* Each word is unbreakable, so a narrow panel breaks the
+                  command only at its spaces, never at a hyphen. Below about
+                  340px a word scrolls, so the command is a tab stop too. */}
+              <code class="cmd" tabindex="0" role="group" aria-label={what.charAt(0).toUpperCase() + what.slice(1)}>{cmd.split(' ').map((word, i) => (
+                <>{i > 0 && ' '}<span class="word">{word}</span></>
+              ))}</code>
+              {/* Hidden until the script below finds a clipboard; without it
+                  the command is still plain text, and one click selects it. */}
+              <button class="copy" type="button" data-copy={cmd} hidden>
+                Copy<span class="visually-hidden"> {what}</span>
+              </button>
+            </div>
+          ))}
+          <p class="visually-hidden" role="status" id="copy-status"></p>
+        </div>
+
+        <a class="cta" href="/docs/quick-start">Read the quick start</a>
+      </div>
+    </section>
+
+    <section class="uses frame" aria-labelledby="uses-title">
+      <h2 id="uses-title" class="serif section-title">Four uses, and the first prompt for each</h2>
+      <p class="section-lede">Each prompt is a plain sentence you type in a Claude Code session; the skill that answers it takes over from there. Every use needs Claude Code and the plugin, and each says what else to have ready: <a href="/docs/quick-start#what-you-need">everything each use needs</a>.</p>
+
+      <ol class="use-list">
+        {uses.map((use) => (
+          <li class="use" id={use.id}>
+            {/* Source order is reading order: what it is, what to type,
+                what it draws, where to read on. The wide grid moves the
+                prompt beside the text; one column keeps this order. */}
+            <h3 class="serif use-title">{use.title}</h3>
+            <p class="use-what">{use.what}</p>
+            <div class="use-try">
+              <p class="use-needs"><span class="use-needs-label">You need</span> <Fragment set:html={use.needs} /></p>
+              <p class="use-where">{use.where}</p>
+              <pre class="panel"><code>{use.prompt}</code></pre>
+            </div>
+            {use.output && (
+              <div class="use-output">
+                <p class="use-where">It draws this under the prompt:</p>
+                {/* It scrolls sideways on a phone; Safari does not make a
+                    scroller a tab stop on its own, so it is one here. */}
+                <pre class="panel panel-output" tabindex="0" role="group" aria-label="Status line sample"><code>{use.output.join('\n')}</code></pre>
+              </div>
+            )}
+            <ul class="use-links">
+              {use.links.map((link) => (
+                <li><a href={link.href}>{link.text}</a></li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="stack frame" aria-labelledby="stack-title">
+      <h2 id="stack-title" class="serif section-title">One contract, many paths</h2>
       {/* Deliberately one unbroken line. Wrapping prose in the template makes
           the source look like it dictates the rendered breaks; on one line
           there is nothing for the rendered breaks to mirror. */}
-      <p class="lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is Go by default and TypeScript on request; the interface is one Expo app; the public surfaces are static Astro sites.</p>
-      <img
-        class="tree"
-        src={skillTree.src}
-        width={skillTree.width}
-        height={skillTree.height}
-        alt="The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — Go (the default) and TypeScript, Expo shipping to iOS, Android and web, Astro for static surfaces; kotlin, python, rust, swiftui and flutter waiting as dashed open paths"
-      />
-      <a class="cta" href="/docs/overview">Read the docs</a>
+      <p class="section-lede">The maybloom stack is a schema-first monorepo framework. Protocol Buffers define every boundary, code generation owns the edges, and people write the three layers in the middle. The backend is Go by default and TypeScript on request; the interface is one Expo app; the public surfaces are static Astro sites.</p>
+      {/* Two forms of one tree, one shown at each width: the drawing from
+          861px, the list below it, where the drawing's labels would shrink
+          to 6 to 8px. The hidden one is display: none, out of the
+          accessibility tree, so a screen reader meets the tree once. */}
+      <div class="tree-frame">
+        <img
+          class="tree"
+          src={skillTree.src}
+          width={skillTree.width}
+          height={skillTree.height}
+          alt="The maybloom skill tree: the contract at the root with two limbs, servers and clients; validated paths lit green — Go (the default) and TypeScript, Expo shipping to iOS, Android and web, Astro for static surfaces; kotlin, python, rust, swiftui and flutter waiting as dashed open paths"
+        />
+      </div>
+      <div class="tree-list">
+        <p class="tl-root">
+          <span class="tl-root-name">The contract</span>
+          <span class="tl-root-sub">protobuf · Connect-RPC · generated edges</span>
+        </p>
+        {limbs.map((limb) => (
+          <div class="tl-limb">
+            <h3 class="tl-limb-title">{limb.title}</h3>
+            <ul class="tl-paths">
+              {limb.paths.map((leaf) => (
+                <li class="tl-path" data-status={leaf.status}>
+                  <span class={`tl-mark tl-mark-${leaf.status}`} aria-hidden="true"></span>
+                  <span class="tl-head">
+                    {leaf.href ? <a class="tl-name" href={leaf.href}>{leaf.label}</a> : <span class="tl-name">{leaf.label}</span>}
+                    {leaf.isDefault && <span class="tl-default">default</span>}
+                    <span class="tl-status">{leaf.status}</span>
+                  </span>
+                  {leaf.desc && <span class="tl-desc">{leaf.desc}</span>}
+                </li>
+              ))}
+              {limb.open.length > 0 && (
+                <li class="tl-path tl-open">
+                  <div class="tl-head">
+                    <span class="tl-status">Open:</span>
+                    <ul class="tl-open-list">
+                      {limb.open.map((leaf) => (
+                        <li data-status={leaf.status}>
+                          <span class="tl-mark tl-mark-open" aria-hidden="true"></span>{leaf.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
+              )}
+            </ul>
+          </div>
+        ))}
+        <dl class="tl-legend">
+          {legend.map((item) => (
+            <div>
+              <dt><span class={`tl-mark tl-mark-${item.status}`} aria-hidden="true"></span>{item.status}</dt>
+              <dd>{item.text}</dd>
+            </div>
+          ))}
+        </dl>
+        <p class="tl-drawing"><a href={skillTree.src}>See the drawing</a></p>
+      </div>
+      <p class="stack-link"><a href="/docs/overview">Read the overview of the stack</a></p>
     </section>
 
-    <section class="frame docs-index">
-      <p class="eyebrow">The documents</p>
+    <section class="frame docs-index" aria-labelledby="docs-title">
+      <h2 id="docs-title" class="serif section-title">The documents, in reading order</h2>
       <ol class="doc-list">
         {docs.map((doc) => (
           <li>
@@ -45,28 +264,138 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
   </main>
 </Layout>
 
+<script>
+  // Copy buttons for the install commands. A few lines on purpose: the page
+  // works without them, the commands being plain selectable text.
+  const status = document.getElementById('copy-status');
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
+    if (!navigator.clipboard) break;
+    btn.hidden = false;
+    const label = btn.firstChild;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    btn.addEventListener('click', async () => {
+      if (!label) return;
+      clearTimeout(timer);
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+        label.textContent = 'Copied';
+        if (status) status.textContent = 'Copied to the clipboard.';
+      } catch {
+        // The browser refused the write: select the command instead, so a
+        // keyboard copy is one keystroke away, and say so.
+        const cmd = btn.previousElementSibling;
+        if (cmd) window.getSelection()?.selectAllChildren(cmd);
+        label.textContent = 'Selected';
+        if (status) status.textContent = 'Selected; press Ctrl+C or Cmd+C to copy.';
+      }
+      timer = setTimeout(() => {
+        label.textContent = 'Copy';
+        if (status) status.textContent = '';
+      }, 1600);
+    });
+  }
+</script>
+
 <style>
-  .hero { padding: 84px 32px 30px; }
+  /* The panels match the docs' code blocks (.prose pre in global.css): the
+     same dark ground in both themes, like a terminal. The ink is the
+     foreground of the docs' Shiki theme, github-dark-default; global.css has
+     no token for text on --code-bg, since Shiki colours the docs' blocks. */
+  .landing {
+    --code-ink: #e6edf3;
+    --code-ink-2: rgba(230, 237, 243, 0.68);
+    --code-line: rgba(230, 237, 243, 0.22);
+  }
+
+  /* Chrome makes a scrolling block (a panel narrower than its line) a tab
+     stop of its own, so the panels get the ring too. */
+  .landing a:focus-visible,
+  .landing button:focus-visible,
+  .landing pre:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+
+  /* ---- hero ---- */
+  .hero { padding: 76px 32px 0; }
   .hero h1 {
-    margin-top: 20px;
+    max-width: 17em;
     font-weight: 400; font-size: clamp(34px, 4.6vw, 56px);
     line-height: 1.08; letter-spacing: -0.02em; text-wrap: balance;
   }
-  /* No measure of its own: the lede runs the width of the hero, the same
-     width as the headline above it and the diagram below. Long lines need a
-     longer return sweep, hence the extra leading; `pretty` keeps the last
-     line from falling to a single orphaned word. */
-  .lede {
-    margin-top: 26px;
-    font-size: 18px; line-height: 1.7; color: var(--ink-2);
+  /* From 1000px the lede and the action sit left and the commands right, on
+     the same columns as the four uses below, so every command on the page
+     stands in one column. */
+  .hero-body { margin-top: 24px; }
+  @media (min-width: 1000px) {
+    .hero-body {
+      display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      grid-template-rows: auto 1fr; column-gap: 56px; margin-top: 30px;
+    }
+    .hero-body .hero-lede { grid-column: 1; grid-row: 1; }
+    .hero-body .install { grid-column: 2; grid-row: 1 / span 2; align-self: start; margin-top: 4px; }
+    .hero-body .cta { grid-column: 1; grid-row: 2; justify-self: start; align-self: start; }
+  }
+  .hero-lede {
+    max-width: 36em;
+    font-size: 18px; line-height: 1.65; color: var(--ink-2);
     text-wrap: pretty;
   }
-  .tree {
-    display: block; margin: 40px 0 0; width: 100%; height: auto;
-    border: 1px solid var(--line-soft); border-radius: 12px;
+  /* Each of the four phrases jumps to its row below, so a reader with one
+     interest can go straight there from the first screen. Underlined, since
+     in running text the colour alone would not say "link". */
+  .hero-lede a {
+    color: var(--accent);
+    text-decoration: underline; text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
+  .hero-lede a:hover { text-decoration-color: var(--accent); }
+
+  .install {
+    max-width: 640px; margin-top: 22px;
+    background: var(--code-bg); color: var(--code-ink);
+    border: 1px solid var(--line-soft); border-radius: 10px;
+    padding: 8px 0;
+  }
+  .install-line {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start; gap: 14px; padding: 9px 14px 9px 20px;
+  }
+  .install-line + .install-line { border-top: 1px solid rgba(230, 237, 243, 0.08); }
+  .cmd {
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; line-height: 1.6;
+    /* A command that wraps on a phone hangs its second line, so it still
+       reads as one command. A word too long for the panel scrolls inside
+       it rather than breaking. */
+    display: block; overflow-x: auto;
+    padding-left: 2ch; text-indent: -2ch;
+    user-select: all;
+  }
+  .cmd .word { white-space: nowrap; }
+  .copy {
+    font: 500 12.5px/1 "Inter Tight", system-ui, sans-serif;
+    color: var(--code-ink); background: none;
+    border: 1px solid var(--code-line); border-radius: 999px;
+    padding: 6px 11px; margin-top: 1px; cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+  .copy[hidden] { display: none; }
+  .copy:hover { border-color: var(--code-ink); }
+  /* On the dark panel the accent ring is under 3:1 in Studio; the panel's
+     own ink is the ring there. */
+  .landing .copy:focus-visible { outline-color: var(--code-ink); }
+  .landing .cmd:focus-visible {
+    outline: 2px solid var(--code-ink); outline-offset: 2px;
+  }
+
   .cta {
-    display: inline-block; margin-top: 34px;
+    display: inline-block; margin-top: 30px;
     font-size: 14.5px; font-weight: 500;
     color: var(--accent); border: 1px solid var(--accent);
     border-radius: 999px; padding: 11px 22px;
@@ -74,7 +403,175 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
   }
   .cta:hover { background: var(--accent); color: var(--bg); }
 
-  .docs-index { padding-top: 74px; }
+  /* ---- shared section type ---- */
+  .section-title {
+    font-weight: 400; font-size: clamp(27px, 3vw, 34px);
+    line-height: 1.15; letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .section-lede {
+    max-width: 38em; margin-top: 14px;
+    font-size: 17px; line-height: 1.7; color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  /* ---- the four uses ---- */
+  /* 84px, not the 112px of the sections below: the lede above the rows
+     carries what every use needs, and the first row stays where it was. */
+  .uses { padding-top: 84px; }
+  .use-list { margin-top: 34px; padding: 0; list-style: none; }
+  /* One column (the default) follows the source: title, sentence, the
+     prompt, its output, the links. From 861px the prompt moves beside the
+     text, on the same columns as the hero's commands. */
+  .use {
+    padding: 30px 0 32px; border-top: 1px solid var(--line);
+    scroll-margin-top: 80px;
+  }
+  @media (min-width: 861px) {
+    .use {
+      display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      grid-template-rows: auto auto 1fr auto;
+      grid-template-areas:
+        "title  try"
+        "what   try"
+        "links  try"
+        "output output";
+      column-gap: 56px;
+    }
+    .use-title { grid-area: title; }
+    .use-what { grid-area: what; }
+    .use-links { grid-area: links; }
+    .use .use-try { grid-area: try; margin-top: 0; padding-top: 4px; }
+    .use .use-output { grid-area: output; margin-top: 24px; }
+  }
+  .use:last-child { border-bottom: 1px solid var(--line); }
+  .use-title {
+    font-size: 22px; font-weight: 500; line-height: 1.25; letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .use-what { margin-top: 10px; color: var(--ink-2); text-wrap: pretty; }
+  .use-links { margin-top: 14px; padding: 0; list-style: none; }
+  .use-links li + li { margin-top: 4px; }
+  .use-links a { font-size: 15px; font-weight: 500; color: var(--accent); }
+  .use-links a::after { content: " →"; }
+  .use-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  .use-try, .use-output { margin-top: 18px; }
+  /* What to have ready, from docs/quick-start.md § What you need. It sits
+     at the top of the prompt column, where the wide row has height to
+     spare, so it costs the row nothing at full width. */
+  .use-needs {
+    margin-bottom: 14px;
+    font-size: 14.5px; line-height: 1.6; color: var(--ink-2); text-wrap: pretty;
+  }
+  .use-needs-label { font-weight: 500; color: var(--ink); }
+  /* The needs are set as HTML, which Astro's scoping does not reach, hence
+     :global() on what is inside them. */
+  .use-needs :global(code) {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--ink);
+  }
+  .use-needs :global(a), .section-lede a {
+    color: var(--accent);
+    text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .use-needs :global(a:hover), .section-lede a:hover { text-decoration-color: var(--accent); }
+  .landing .use-needs :global(a:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .use-where { font-size: 14.5px; color: var(--ink-2); }
+  .use-where:not(:first-child) { margin-top: 16px; }
+  .panel {
+    margin: 8px 0 0;
+    background: var(--code-bg); color: var(--code-ink);
+    border: 1px solid var(--line-soft); border-radius: 10px;
+    padding: 14px 18px;
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; line-height: 1.55;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  /* The status line's output spans the row: wrapped at the column's width it
+     would no longer look like the two lines it is. */
+  .use-output .use-where { margin-top: 0; }
+  .panel-output {
+    font-size: 13px; color: var(--code-ink-2);
+    /* Two lines at every width; narrower than the line, it scrolls. */
+    white-space: pre; overflow-wrap: normal; overflow-x: auto;
+  }
+
+  /* ---- the stack ---- */
+  .stack { padding-top: 112px; }
+  .tree-frame {
+    margin-top: 34px; overflow: hidden;
+    border: 1px solid var(--line-soft); border-radius: 12px;
+  }
+  .tree { display: block; width: 100%; height: auto; }
+
+  /* The tree as a list: the index's hairline rows, a mark per path drawn
+     the way the drawing draws it (solid, half, dashed), and the status in
+     words beside it, so the mark is never the only cue. */
+  .tree-list { display: none; margin-top: 30px; }
+  .tl-root {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--line);
+  }
+  .tl-root-name { font-family: "Source Serif 4", Georgia, serif; font-size: 21px; font-weight: 500; }
+  .tl-root-sub { font-size: 14.5px; color: var(--ink-2); }
+  .tl-limb { margin-top: 26px; }
+  .tl-limb-title { font-size: 17.5px; font-weight: 500; }
+  .tl-paths { margin-top: 8px; padding: 0; list-style: none; }
+  .tl-path {
+    display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 12px;
+    padding: 13px 0; border-top: 1px solid var(--line-soft);
+  }
+  .tl-path:last-child { border-bottom: 1px solid var(--line-soft); }
+  .tl-path > .tl-mark { margin-top: 9px; justify-self: center; }
+  .tl-head {
+    grid-column: 2; display: flex; flex-wrap: wrap; align-items: baseline;
+    gap: 2px 10px;
+  }
+  .tl-open .tl-head { grid-column: 1 / -1; }
+  .tl-name { font-family: "Source Serif 4", Georgia, serif; font-size: 19px; font-weight: 500; }
+  a.tl-name { color: var(--accent); }
+  a.tl-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .tl-default {
+    font-size: 12px; line-height: 1.5; color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 4px; padding: 0 6px;
+  }
+  .tl-status { font-size: 14px; color: var(--ink-2); }
+  .tl-desc { grid-column: 2; margin-top: 2px; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
+  .tl-open-list {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding: 0; list-style: none;
+  }
+  .tl-open-list li {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15.5px; color: var(--ink-2);
+  }
+
+  .tl-mark { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
+  .tl-mark-validated { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  .tl-mark-validating {
+    border: 1.5px solid var(--accent);
+    background: linear-gradient(90deg, var(--accent) 50%, transparent 50%);
+  }
+  .tl-mark-open { border: 1.5px dashed var(--ink-2); }
+
+  .tl-legend { display: grid; gap: 8px; margin: 24px 0 0; font-size: 14.5px; }
+  .tl-legend div { display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; }
+  .tl-legend dt { display: flex; align-items: center; gap: 9px; font-weight: 500; }
+  .tl-legend dd { margin: 0; color: var(--ink-2); }
+  .tl-drawing { margin-top: 18px; }
+  .tl-drawing a { font-size: 15px; font-weight: 500; color: var(--accent); }
+  .tl-drawing a::after { content: " →"; }
+  .tl-drawing a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  @media (max-width: 860px) {
+    .tree-frame { display: none; }
+    .tree-list { display: block; }
+  }
+  .stack-link { margin-top: 18px; }
+  .stack-link a { font-size: 15px; font-weight: 500; color: var(--accent); }
+  .stack-link a::after { content: " →"; }
+  .stack-link a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---- the index ---- */
+  .docs-index { padding-top: 112px; }
   .doc-list { margin-top: 26px; padding: 0; list-style: none; }
   .doc-list li { border-top: 1px solid var(--line-soft); }
   .doc-list li:last-child { border-bottom: 1px solid var(--line-soft); }
@@ -84,12 +581,22 @@ const docs = (await getCollection('stack')).sort((a, b) => a.data.order - b.data
     transition: background 0.15s ease;
   }
   .doc-list a:hover { background: var(--accent-tint); }
-  .doc-num { font-size: 14px; color: var(--ink-3); }
+  /* --ink-2, not --ink-3: --ink-3 measures 2.8:1 on Studio's ground and
+     3.8:1 on Terminal's, under the 4.5:1 small text needs. */
+  .doc-num { font-size: 14px; color: var(--ink-2); }
   .doc-title { font-size: 20px; font-weight: 500; }
-  .doc-desc { font-size: 14.5px; color: var(--ink-3); }
+  .doc-desc { font-size: 14.5px; color: var(--ink-2); }
 
+  @media (max-width: 860px) {
+    .uses, .stack, .docs-index { padding-top: 84px; }
+  }
   @media (max-width: 720px) {
-    .hero { padding-top: 56px; }
+    .hero { padding-top: 44px; }
+    .hero-lede { font-size: 17px; }
+    .cmd { font-size: 12.5px; }
+    .install-line { gap: 10px; padding-left: 14px; padding-right: 8px; }
+    .panel { padding: 12px 14px; font-size: 13px; }
+    .panel-output { font-size: 12px; }
     .doc-list a { grid-template-columns: 24px 1fr; }
     .doc-desc { grid-column: 2; }
   }
