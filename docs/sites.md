@@ -1,7 +1,7 @@
 ---
 title: Sites
 description: Astro for the public, static surfaces
-order: 6
+order: 7
 ---
 
 # Sites

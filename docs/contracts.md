@@ -1,7 +1,7 @@
 ---
 title: Contracts
 description: The protobuf layer, Buf toolchain, and proto conventions
-order: 2
+order: 3
 ---
 
 # Contracts

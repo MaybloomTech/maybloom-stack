@@ -1,7 +1,7 @@
 ---
 title: "Backend: Go"
 description: The connect-go + sqlc + goose blueprint, as two services walked it
-order: 4
+order: 5
 ---
 
 # Backend: Go

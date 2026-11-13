@@ -1,7 +1,7 @@
 ---
 title: Choosing a runtime
 description: When Fastify, when Go, when Astro
-order: 7
+order: 8
 ---
 
 # Choosing a runtime

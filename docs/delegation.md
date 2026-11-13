@@ -1,7 +1,7 @@
 ---
 title: Delegation
 description: How work on the stack is split between roles and model tiers, and why
-order: 9
+order: 10
 ---
 
 # Delegation
@@ -56,7 +56,8 @@ the take, moving the chosen pass into the app. The critic is a new
 context every round for the same reason the reviewer is: it judges the
 captures, not the designer's intent, and it runs at most two rounds before
 the owner's look. Both need Chrome and a served
-board, so for now they run on a laptop, not on the review runner.
+board, so for now they run on a laptop, not on the review runner. How
+to launch them is on [Design loop](./design-loop.md).
 
 The architect is deliberately not an agent. The paths where a mistake is
 silent are the ones no subagent edits, and the brief is written by
@@ -177,9 +178,9 @@ next session resumes from the item alone. A fresh session beats
 compaction because compaction keeps going on a lossy summary of what the
 session knew. The status line shows the number and leaves it in a
 per-session file, and a prompt hook in every scaffolded project reads
-that file and says when the budget is crossed, once per step. It speaks
-only when a prompt arrives, so a session that runs long on one prompt
-reads its own number from that file at each round boundary.
+that file and says when the budget is crossed, once per step. The
+thresholds, the file and the switch that silences the hook are on
+[Running a loop](./running-a-loop.md#the-session-budget).
 
 ## What a repo supplies
 
@@ -195,5 +196,6 @@ agents are namespaced (`maybloom-stack:builder`), so a project agent sits
 beside them rather than replacing them. The report shape stays, so the
 review does not learn a second format.
 
-The full rules, the brief template and the `AGENTS.md` section are in the
+How to start each role, with a prompt to paste, is on
+[Running a loop](./running-a-loop.md). The full rules, the brief template and the `AGENTS.md` section are in the
 [skill itself](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md).

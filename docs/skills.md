@@ -1,7 +1,7 @@
 ---
 title: Skills
 description: How the stack ships as agent skills
-order: 8
+order: 9
 ---
 
 # Skills
@@ -58,13 +58,8 @@ One skill is tooling rather than a task on the stack. The delegation
 model budgets work by model tier, and the status line is how a person
 watches that budget spend: the 5-hour and weekly windows, and the
 weekly limit scoped to the strongest model, which is the one that binds
-first. Claude Code pipes only the first two into a status-line command,
-so the script reads the scoped one from the usage endpoint the `/usage`
-command uses, cached and refreshed off the render path. A plugin cannot
-set a user's status line, so the skill ships the script and installs it
-by copying it to a stable path and setting the `statusLine` key in
-`~/.claude/settings.json` (the command, and a `refreshInterval` so the
-countdowns tick while idle), once per machine.
+first. [Status line](./status-line.md) has the segments, the install, the
+check and the troubleshooting.
 
 Three of the other skills split the work add-resource is the wrong shape for.
 Extend-resource changes a resource that already exists, where the RPC
