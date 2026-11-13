@@ -136,7 +136,10 @@ card in your tracker, and its id starts the branch: `PROJ-123/short-slug`.
    for the head and you start that session, or you launch it by hand.
    **A draft gets no round**: a builder whose fix takes several commits
    sets the PR back to draft, pushes once, whole, and marks it ready
-   again.
+   again. To hand-run the rounds yourself on a repo a runner watches,
+   put the `hands-on` label on the item first and remove it when you
+   hand the run back; a builder waiting on the tool then hands back
+   instead of waiting.
 5. **A fresh reviewer posts findings.** Each round is a new reviewer
    session. In round 1 it first compares the builder's reading with the
    brief, then the acceptance list, then the code. It posts

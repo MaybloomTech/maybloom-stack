@@ -131,6 +131,13 @@ commit: the approval's listed items, if any, and the learning line.
 On `HOLD` from any role, or a decision filed for the owner, stop and
 wait on that item until the owner's answer appears there.
 
+Before you hand-run a run's rounds on a repo a runner watches, put the
+`hands-on` label on the item, and remove it when you hand the run back.
+A draft pull request means "not ready", not "worked by hand". A builder
+that finds the dispatch paused, the item hands-on or three empty
+checks in a row hands back instead of waiting; the round is then yours
+to run.
+
 ## Starting sessions
 
 A builder session (a slice over ~500 lines) and every reviewer round are

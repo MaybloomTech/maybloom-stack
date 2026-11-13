@@ -119,7 +119,9 @@ once so the round reads it. The pull request opens as a draft and is
 marked ready for round 1; a draft gets no round, which is how the
 builder pauses the loop while a fix spans several commits. A builder
 session then waits for the next round in a `/loop` of its own, until the
-series diverges or a round approves its head.
+series diverges or a round approves its head, or the review-loop tool
+says no round will run (dispatch paused, the item marked `hands-on`, or
+three empty checks), when it hands back to its caller.
 
 The PR body opens with the builder's reading of the brief, written
 before any code. Before the PR opens, the builder goes through the

@@ -193,7 +193,8 @@ the loop. Each check:
    <number> at <sha>`, as a review on the pull request where that is
    the channel; a reviewer session `[reviewer] Round <n> at
    <sha>`). None yet, or only a note that the round did not finish:
-   schedule the next check and stop there.
+   go to the check for a round that will not run below; if it does not
+   end the wait, schedule the next check and stop there.
 3. Read its findings and series state wherever the round came from: the
    series block at its end (`Series of PR
    <n>: <state>` and a `Next:` line; where an orchestrator keeps the
@@ -206,6 +207,25 @@ the loop. Each check:
 4. Run the builder checks, push the fixes as new commits in one push,
    post the Ready header for the next round right after it, then
    schedule the next check.
+
+A round that will not run ends the wait. Where the review-loop tool
+reports it on its series or ready output, read that on every check:
+
+- the runner's dispatch is paused, so no round will run until it
+  resumes;
+- the item is worked by hand (the `hands-on` label), so the runner
+  queues nothing for its pull request and the caller runs the round;
+- no round is queued or running for your head on three checks in a row
+  (the cap, whatever else the tool reports).
+
+On any of these, do not schedule another check: end the loop and hand
+back to your caller (post the hand-off on the channel, or return it as
+the `Agent` call's report). The hand-back names the state (paused,
+hands-on, or the empty polls) and the head the next round waits on, and
+says that the caller runs the reviewer round by hand. A round the
+tool reports as running (started) is still waited for, whatever else it
+reports. A queued round is not, while the dispatch is paused or the
+item is hands-on. The loop's other ends are unchanged.
 
 The loop ends, with `ScheduleWakeup` and `stop: true`, when the series
 block says `diverging` (the owner decides the run from there; post the

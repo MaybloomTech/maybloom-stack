@@ -36,7 +36,9 @@ of it.
    addressed` lines in the channel's `[builder]` comments, or in the
    review-loop tool the project's `AGENTS.md` names (rule 9 of
    `maybloom-stack-delegate`). A finding with no line is not addressed;
-   check a fixed one against the code before you confirm it.
+   check a fixed one against the code before you confirm it. A round you
+   are asked to run by hand on a repo a runner watches belongs to an item
+   marked `hands-on`; if it is not, say so in the round.
 
 ## Standing rules (`maybloom-stack-delegate`)
 
@@ -83,7 +85,8 @@ Post the round on the run's channel: one comment (the item, or the pull
 request where the runner that watches the forge posts its rounds there),
 or, where the project's `AGENTS.md` names a review-loop tool, through
 that tool; either way a round that the runner runs is posted by it, not
-by you. Start it with `[reviewer]`:
+by you. A round you run by hand is posted the same way, on an item
+marked `hands-on`. Start it with `[reviewer]`:
 `Round <n> at <sha>`, then each finding as `R<n>-<i> <severity> <kind>
 <file:line> — <what breaks, how to see it> — <the least-change fix>`
 (`R<n>-<i>`, the round and the finding's number in it, is the id the
