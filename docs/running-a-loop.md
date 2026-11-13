@@ -363,6 +363,27 @@ HANDOFF
 - Next step: <the one thing the next session does first>
 ```
 
+## Which forge and tracker
+
+The agents reach the pull request through the forge's own command-line
+client: `gh` on GitHub (signed in with `gh auth login`), and on Forgejo
+`fjo`, which the forgejo skill provides. Install that skill from its own
+marketplace:
+
+```
+/plugin marketplace add MaybloomTech/forgejo-skill
+/plugin install forgejo@forgejo-skill
+```
+
+Then connect `fjo` to your Forgejo instance with `fjo init --url <your
+instance URL> --token-file <path>`, using an access token generated for the
+account the agent will act as; the skill's README has the token scopes.
+
+The agents reach the item through the tracker's skill, which names the
+tracker's CLI; load the skill for whichever you use. A project's
+`AGENTS.md` says which channel the roles post on, the item or the pull
+request.
+
 ## Review-loop tools and the comment fallback
 
 A review-loop tool is a command the project provides for the round

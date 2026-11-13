@@ -31,6 +31,61 @@ You use skills by describing what you want in a session: a skill's
 description lists the phrases it answers to. You use agents by launching
 them, as the pages below show.
 
+## What you need
+
+Every use needs [Claude Code](https://code.claude.com/docs) and the plugin
+above. The rest depends on which use you want; each block is a checklist,
+and the page it links to has the detail.
+
+**The template.** The scaffold builds and runs on your machine, so it needs:
+
+- Python 3, which runs the skill's scaffold script, and git, for the
+  `git init -b main` the checklist ends with.
+- Node 24 (the scaffold's `.nvmrc`) and pnpm 10 (its `packageManager` pin,
+  `pnpm@10.26.2`). `pnpm install` brings `buf` with it as an npm package;
+  there is nothing else to install for the contract.
+- Docker, for the Postgres the Go backend develops against
+  (`docker compose up -d db`) and for `scripts/go`, which runs the pinned
+  Go toolchain in a container. With Go 1.26.9 installed you can run `go`
+  directly instead; with the TypeScript backend there is no database to
+  start, because it uses PGlite.
+- Decisions the skill asks you for, among them the display name, the slug,
+  the npm scope, where to put the project, public or private, and the
+  licence with its copyright holder. It scaffolds Go unless you name
+  TypeScript ([Choosing a runtime](./choosing.md)).
+
+The skill's checklist, and [Skills](./skills.md), have the rest.
+
+**Agents and the review loop.** These work through your project's pull
+requests and its tracker, so decide these first:
+
+- A forge and its command-line client. The agents are written for GitHub
+  with `gh` (signed in, `gh auth login`) and for Forgejo with the forgejo
+  skill's `fjo`, which installs as its own plugin
+  ([how](./running-a-loop.md#which-forge-and-tracker)).
+- A tracker, whose skill the agents load to read and comment on the item;
+  the branch is named for the item's id (`PROJ-123/short-slug`). The agents
+  assume one; their files do not describe a run without it.
+- A `## Delegation` section in the project's `AGENTS.md`: the protected
+  paths, where commands run from and the checks a builder runs. The
+  scaffold writes it; a project that did not start from the template
+  writes its own.
+- A permission mode for each launch: `acceptEdits` for the orchestrator and
+  the builder, `default` for the reviewer.
+- The status line below, because the budget hook reads its numbers.
+
+[Running a loop](./running-a-loop.md) has the launch commands, the
+[forge and tracker](./running-a-loop.md#which-forge-and-tracker) notes and
+the budget.
+
+**The design loop.** A laptop with Chrome, and a scaffolded interface with
+its design board. [Design loop](./design-loop.md#what-they-need) lists
+what each role needs.
+
+**The status line.** `jq`, `curl` and `git`, a signed-in claude.ai session
+for the usage segments, and Claude Code 2.1.251 or later for the cache
+countdown. [Status line](./status-line.md#what-you-need) has the full list.
+
 ## A new project from the template
 
 Use this when you are starting a service and want the stack's shape from
