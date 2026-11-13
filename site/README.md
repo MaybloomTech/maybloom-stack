@@ -24,7 +24,9 @@ pnpm typecheck  # astro check
 ```
 
 Frontmatter contract for `docs/*.md`: `title`, `description`, and `order`
-(drives the sidebar and prev/next). See `src/content.config.ts`.
+(drives the sidebar and prev/next). See `src/content.config.ts`. The four
+start pages (`quick-start`, `running-a-loop`, `design-loop`, `status-line`)
+are ordinary files in that collection, served at `/docs/<slug>` like the rest.
 
 ## Analytics
 
