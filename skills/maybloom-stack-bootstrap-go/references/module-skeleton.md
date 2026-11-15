@@ -32,8 +32,11 @@ Placeholders: `__GO_MODULE__`, `__APP_SLUG__` (also the binary and the
 
 The service needs:
 
-- `connectrpc.com/connect` — the RPC runtime
-- `connectrpc.com/validate` — the protovalidate interceptor
+- `connectrpc.com/connect/v2` — the RPC runtime (connect-go v2: the module
+  path carries the `/v2`, and so does the generator's,
+  `connectrpc.com/connect/v2/cmd/protoc-gen-connect-go`)
+- `connectrpc.com/validate` — the protovalidate interceptor (v0.9.0; its
+  `NewServerInterceptor` is the v2 one, `NewInterceptor` the v1 one)
 - `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` — the Go
   types for the `buf.validate` options the generated messages import
 - `github.com/jackc/pgx/v5` — driver and pool (Postgres)
@@ -154,9 +157,18 @@ reads the caller. The scaffold ships one implementation,
 in production and refuses to start without one otherwise, so a production
 deploy fails loudly, at config time, until the project wires a real one:
 an OIDC client against the deployment's identity provider, or bearer
-tokens the service mints (the stack's Go document, Auth, has both shapes). That first
-auth decision lives in this package beside the seam, with its config rule
-in `Validate`.
+tokens the service mints (the stack's Go document, Auth, has both shapes).
+That first auth decision lives in this package beside the seam, with its
+config rule in `Validate`.
+
+Under connect-go v2 `Authenticate(ctx, header *connect.Header)` takes the
+headers as a `*connect.Header` (the same `Get` and `Values` as `http.Header`,
+with no HTTP behind it). Two helpers in the package bridge to HTTP:
+`auth.Cookie(header, name)` reads a session cookie off that header, and
+`auth.FromHTTP(r.Header)` converts an `http.Header`, so a plain
+`http.Handler` (a blob route, a login callback) calls the same
+`Authenticator` as the RPCs: `a.Authenticate(r.Context(),
+auth.FromHTTP(r.Header))`.
 
 The gating shape fits a service where most RPCs need a user and the
 exceptions fit in a list. A service whose anonymous RPCs are a feature
@@ -164,49 +176,66 @@ exceptions fit in a list. A service whose anonymous RPCs are a feature
 
 ## Server and interceptors
 
-`internal/server/mux.go`. Build the mux, register the generated handler,
-and declare cross-cutting behaviour **once** as interceptors rather than
-per route — that is what makes a new RPC arrive with recovery, a request
-id, logging, auth and validation already attached. The order is the
-design:
+`internal/server/mux.go`. `NewServer` builds the `connect.Server` (the
+interceptor chain, then the generated `Register...Handler`); `NewMux` mounts
+it on the mux with `connecthttp.Mount`. Cross-cutting behaviour is declared
+**once**, as the server's interceptors, rather than per route — that is what
+makes a new RPC arrive with recovery, a request id, logging, auth and
+validation already attached. The split is also what the tests use: they
+give the generated client `connectinprocess.New(NewServer(deps))`, so a
+test runs the real chain with no listener. The order is the design:
 
 1. `RequestID` — outermost: the caller's `X-Request-ID` when it matches
    `[A-Za-z0-9_-]{1,64}`, a fresh one otherwise, on the context for every
-   log line below and on the response (or the error) for the caller.
+   log line below and on the response headers for the caller, set before
+   the rest of the chain runs so that a refusal carries it too.
 2. `Recover` — a panic becomes `CodeInternal` instead of a dropped
-   connection, logged with the request id and carrying it in the error's
-   `Meta` because `RequestID` is outside it.
+   connection, logged with the request id; the id is on the response
+   headers because `RequestID` is outside it.
 3. `Logging` — one line per RPC, outside auth so a refused request is
    still logged. Internal-class codes log at Error with the cause chain;
    refusals at Warn with the code only.
 4. `auth.Interceptor` — gates, `Health` open.
-5. `validate.NewInterceptor()` — innermost: the contract's `buf.validate`
-   rules, so a bad request never reaches a handler.
+5. `validate.NewServerInterceptor()` — innermost: the contract's
+   `buf.validate` rules, so a bad request never reaches a handler.
 
 An audit interceptor, when a service wants one, goes between auth and
 validate; it is opt-in, and there is no marker in the contract to drive
 it, so it keeps its own list of the RPCs it records.
 
+The order was re-checked for connect-go v2's whole-call interceptors and
+holds. An interceptor is `func(next connect.ServerFunc) connect.ServerFunc`
+and runs before the request body is decompressed or unmarshalled (the
+generated handler does that, with `stream.Receive`, inside `next`), so auth
+refuses an anonymous caller before any of the body is read, and a body that
+does not decode fails inside the chain, where the request id and the
+logging interceptors see it (under v1 it failed before them and left no log
+line). Validation, innermost, wraps the stream and checks each message as
+the handler receives it.
+
 Two rules the interceptors impose on the rest of the module:
 
-- **Every interceptor is a full `connect.Interceptor`** (`WrapUnary`,
-  `WrapStreamingHandler`, and `WrapStreamingClient` as the identity),
-  never a `connect.UnaryInterceptorFunc`. A `UnaryInterceptorFunc` is
-  skipped for streaming RPCs, so the first stream added to the contract
-  would arrive without recovery, a request id or a log line, and would be
-  open to the anonymous. The shared logic sits in one method per
-  interceptor (`authenticate`, `logRPC`, `recover`) that both wrappers
-  call. An audit interceptor follows the same shape.
-- **Errors are made per call, never kept in a package variable.**
-  `RequestID` writes the id into the error's `Meta()` on a refusal, so a
-  shared `var errNotFound = connect.NewError(...)` would be one header map
-  written by every request that misses at once, a concurrent map write.
-  The store's `noteNotFound()` is a function for that reason; so is every
-  `connect.NewError` in `auth` and `paging.go`.
+- **An interceptor is one function over the whole call**, so it covers unary
+  and streaming RPCs alike; there is no `WrapUnary` and
+  `WrapStreamingHandler` pair, and no unary-only variant for a stream to
+  slip past. An interceptor reads the request headers from
+  `connect.CallInfoForServerContext(ctx)` and the procedure from
+  `spec.Procedure`, sets response headers on the same `CallInfo`, and
+  wraps the `connect.ServerStream` it passes to `next` only when it needs the
+  messages. An audit interceptor follows the same shape.
+- **Only a `*connect.Error` you create sends its message.**
+  `connect.NewError(code, "message")` takes a string, which is public;
+  anything else a handler returns goes to the client as a bare `CodeUnknown`
+  with no message, and its text stays in the log. A cause behind a public
+  message rides on `WithCause` (`rpcerr.Internal`). There is no `Meta()`
+  on an error any more: the request id goes on the response headers, so a
+  package-level error is no longer a shared header map (the store's
+  `noteNotFound()` and the others stay functions all the same).
 
 The `Service` struct (`service.go`) must satisfy the generated
-`__APP_NAME__ServiceHandler` interface; one file per resource holds its
-methods (`notes.go`). Do not embed the generated `Unimplemented...` type
+`__APP_NAME__ServiceHandler` interface, whose methods take the request
+message and return the response message, plain; one file per resource holds
+its methods (`notes.go`). Do not embed the generated `Unimplemented...` type
 in the real server: a partial implementation would compile, and losing
 that build failure loses the exhaustiveness guarantee that justifies the
 whole approach. Embed it in tests only.
@@ -338,14 +367,14 @@ process, so Ctrl-C on `pnpm dev:backend` stops it; piped runs get neither.
 Store and server tests run against a real database and skip without one
 (`TEST_DATABASE_URL` unset), so `go test ./...` stays green on a machine
 with no database while the interceptor tests (`server_test.go`, through
-the generated client against `httptest.NewServer(NewMux(deps))`) still
+the generated client over `connectinprocess.New(NewServer(deps))`) still
 run: `Health` open, the gate refusing the anonymous, validate refusing an
 empty title and a `page_size` over the cap, the request id on the
 response. With the database, the store tests walk the Note loop and the
-paging, and the server test walks it over the wire. The streaming halves
-of the interceptors are exercised directly with a fake
-`StreamingHandlerConn` (`TestStreamingInterceptors`), since the contract
-has no streaming RPC to drive them through.
+paging, and the server test walks it through the client. Since the
+contract has no streaming RPC yet, `TestStreamingRPCGetsTheChain`
+registers a bidirectional method on a bare `connect.Server` and runs it
+through the same interceptors.
 
 The store and server packages share `TEST_DATABASE_URL` and each migrates
 it on open, so with the database set they run one package at a time:
@@ -358,9 +387,13 @@ throwaway `postgres:17-alpine` container (the compose image) on a Docker network
 runs the same database with `DEV_USER`. embedded-postgres, the in-process
 option, has not been walked.
 
-RPC tests go through the generated connect-go client; a hand-built
-`connect.NewRequest` carries an empty `Spec()`, so an interceptor that
-reads the procedure cannot be unit-tested that way.
+RPC tests go through the generated connect-go client over
+`connectinprocess.New(NewServer(deps))`: the real interceptor chain and
+handlers, no listener, no port (headers are read off the call's `CallInfo`,
+`connect.NewClientContext`). The few assertions about HTTP itself, the
+mount, the status code an anonymous caller gets, the response headers, use
+an `httptest.Server` over `NewMux` and `connecthttp.NewTransport`. The
+handler methods are never called by hand: that skips the chain.
 
 ## What to check as you go
 

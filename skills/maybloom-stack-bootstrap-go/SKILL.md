@@ -142,7 +142,8 @@ Copy `go.mod.tmpl` (as `go.mod`, with `<GO_MODULE>` in place of
 `__GO_MODULE__`), `go.sum`, `buf.gen.yaml`, `sqlc.yaml`, `generate.go` and
 `.gitignore` from `../maybloom-stack-bootstrap/templates/backend-go/` into
 `go/`, and `templates/root-go/go.work.tmpl` to the repo root as `go.work`.
-That pins buf, `protoc-gen-go`, `protoc-gen-connect-go` and sqlc as
+That pins buf, `protoc-gen-go`, `protoc-gen-connect-go` (connect-go v2's,
+`connectrpc.com/connect/v2/cmd/protoc-gen-connect-go`) and sqlc as
 `go tool` dependencies and gitignores `gen/` and `internal/store/storedb/`:
 generated code is never committed on any path. If the protos lack a
 `go_package` option (a repo that predates the Go-first scaffold), add one
@@ -171,13 +172,28 @@ Create the tree from the path reference's layout section: `cmd/<SERVICE>/`,
 Read [`references/module-skeleton.md`](./references/module-skeleton.md)
 and copy the rest of `templates/backend-go/` into `go/`, dropping `.tmpl`:
 config, the embedded migrations and the pool wiring, `run()`, the identity
-seam, `rpcerr`, the server and its interceptor chain (validation
-included), health endpoints, the lint config, the Dockerfile, the README.
+seam, `rpcerr`, the server (a connect-go v2 `connect.Server` with its
+interceptor chain, validation included, mounted on the mux) and the tests
+that run it over the in-process transport, health endpoints, the lint
+config, the Dockerfile, the README.
 `cmd/__APP_SLUG__/` becomes `cmd/<SERVICE>/`. Leave out the Note example
 (`db/migrations/00001_notes.sql`, `db/queries/notes.sql`,
 `internal/store/notes*.go`, `internal/server/notes*.go`) unless the
 service wants it as a specimen; step 5 writes the real first resource in
 its place.
+
+`internal/server/server_test.go` calls the Note RPCs (`ListNotes`,
+`CreateNote`, `ListNotesProcedure`, the `resourcesv1.Note` message), so
+without the Note example it does not compile. Copy it anyway, and do not
+leave it broken: until step 5 lands the first resource, keep only the tests
+that need no Note (`TestStreamingRPCGetsTheChain`, `TestWithRequestID`, the
+helpers, and `Health` through `newClient`), and when step 5 lands, put the
+new service's RPCs in place of the Note ones in `TestInterceptors`,
+`TestRequestIDOnRefusal`, `TestOverHTTP`, `TestMalformedBodyIsLogged`,
+`TestJSONOverHTTP`, `TestErrorsLeakNothing` and `TestNoteLoop` (any unary RPC
+off the open list will do for the refusal tests; an RPC with `buf.validate`
+rules for the validation ones). `go vet ./...` and `go test ./...` must pass
+at the end of step 4, so trim before checking.
 
 Then substitute, in this order (the binary's spellings before the proto
 root's, the service package before the bare slug):

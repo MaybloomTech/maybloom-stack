@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -36,11 +36,10 @@ type NotePage struct {
 	NextPageToken string
 }
 
-// noteNotFound is made per call, never kept in a package variable: the
-// RequestID interceptor writes into an error's Meta, so one shared error
-// would be one header map written by every request that misses at once.
+// noteNotFound is the refusal for an id with no row. Its message is public
+// (connect.NewError sends it), so it says nothing a caller should not read.
 func noteNotFound() error {
-	return connect.NewError(connect.CodeNotFound, errors.New("note not found"))
+	return connect.NewError(connect.CodeNotFound, "note not found")
 }
 
 // CreateNote writes a note for createdBy (the caller: handlers take it from

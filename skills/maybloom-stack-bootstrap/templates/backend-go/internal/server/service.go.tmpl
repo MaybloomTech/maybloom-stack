@@ -6,8 +6,6 @@ import (
 	"context"
 	"log/slog"
 
-	"connectrpc.com/connect"
-
 	servicev1 "__GO_MODULE__/gen/__APP_SLUG__/service/v1"
 	"__GO_MODULE__/gen/__APP_SLUG__/service/v1/servicev1connect"
 	"__GO_MODULE__/internal/store"
@@ -15,10 +13,12 @@ import (
 )
 
 // Service implements servicev1connect.__APP_NAME__ServiceHandler, one method
-// per RPC, in one file per resource (notes.go). The generated interface is
-// the exhaustiveness check: a declared RPC without a method is a build
-// failure. Never embed the generated Unimplemented handler here; a partial
-// implementation would compile.
+// per RPC, in one file per resource (notes.go). A method takes the request
+// message and returns the response message, plain, with no wrapper: the
+// headers and the peer are on connect.CallInfoForServerContext when one is
+// needed. The generated interface is the exhaustiveness check: a declared
+// RPC without a method is a build failure. Never embed the generated
+// Unimplemented handler here; a partial implementation would compile.
 type Service struct {
 	store *store.Store
 	log   *slog.Logger
@@ -35,6 +35,6 @@ func NewService(st *store.Store, log *slog.Logger) *Service {
 
 // Health answers without touching the store or the identity: the one open
 // procedure, and where a client reads which build is serving.
-func (s *Service) Health(context.Context, *connect.Request[servicev1.HealthRequest]) (*connect.Response[servicev1.HealthResponse], error) {
-	return connect.NewResponse(&servicev1.HealthResponse{Ok: true, Version: version.Version}), nil
+func (s *Service) Health(context.Context, *servicev1.HealthRequest) (*servicev1.HealthResponse, error) {
+	return &servicev1.HealthResponse{Ok: true, Version: version.Version}, nil
 }

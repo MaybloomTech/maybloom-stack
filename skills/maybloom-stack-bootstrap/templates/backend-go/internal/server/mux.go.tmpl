@@ -4,7 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/validate"
 
 	"__GO_MODULE__/gen/__APP_SLUG__/service/v1/servicev1connect"
@@ -21,17 +22,15 @@ type Deps struct {
 	Log         *slog.Logger
 }
 
-// NewMux wires everything the one process serves:
-//
-//	/__APP_SLUG__.service.v1.__APP_NAME__Service/*   the Connect API
-//	/healthz                                  liveness: answers if the process is up
-//	/readyz                                   readiness: pings the database
-func NewMux(d Deps) http.Handler {
+// NewServer is the RPC side without HTTP: the connect.Server with the
+// interceptor chain and the service registered. NewMux mounts it on the
+// process's HTTP mux, and the tests run it behind a connectinprocess
+// transport, so what a test calls is the chain a request goes through in
+// production.
+func NewServer(d Deps) *connect.Server {
 	if d.Log == nil {
 		d.Log = slog.Default()
 	}
-	mux := http.NewServeMux()
-
 	// Outermost first. RequestID first so everything below, the panic log
 	// line and the error Recover makes of it included, carries the id;
 	// Recover so a panic is a CodeInternal, not a dropped connection; Logging
@@ -39,15 +38,28 @@ func NewMux(d Deps) http.Handler {
 	// identity, Health being the one open procedure; validate innermost, so a
 	// request that breaks the contract's buf.validate rules never reaches a
 	// handler. An audit interceptor, when a service wants one, goes between
-	// auth and validate.
-	interceptors := connect.WithInterceptors(
+	// auth and validate. The order holds under connect-go v2's whole-call
+	// interceptors (see interceptors.go): auth still runs before validate
+	// reads, and now before the body is decoded at all.
+	srv := connect.NewServer(
 		RequestID(),
 		Recover(d.Log),
 		Logging(d.Log),
 		auth.Interceptor(d.Authenticator, servicev1connect.__APP_NAME__ServiceHealthProcedure),
-		validate.NewInterceptor(),
+		validate.NewServerInterceptor(),
 	)
-	mux.Handle(servicev1connect.New__APP_NAME__ServiceHandler(NewService(d.Store, d.Log), interceptors))
+	servicev1connect.Register__APP_NAME__ServiceHandler(srv, NewService(d.Store, d.Log))
+	return srv
+}
+
+// NewMux wires everything the one process serves:
+//
+//	/__APP_SLUG__.service.v1.__APP_NAME__Service/*   the Connect API
+//	/healthz                                  liveness: answers if the process is up
+//	/readyz                                   readiness: pings the database
+func NewMux(d Deps) http.Handler {
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, NewServer(d))
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")

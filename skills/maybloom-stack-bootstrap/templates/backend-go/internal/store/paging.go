@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -39,7 +39,7 @@ func newPageWindow(pageSize int, token string, defaultSize, maxSize int) (pageWi
 	if token != "" {
 		at, id, err := decodePageToken(token)
 		if err != nil {
-			return w, connect.NewError(connect.CodeInvalidArgument, errors.New("page_token is not one this service issued"))
+			return w, connect.NewError(connect.CodeInvalidArgument, "page_token is not one this service issued")
 		}
 		w.before, w.beforeID = pgtype.Timestamptz{Time: at, Valid: true}, id
 	}

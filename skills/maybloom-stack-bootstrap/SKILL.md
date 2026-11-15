@@ -337,8 +337,9 @@ These are the patterns embedded in the templates. When the user asks
   (sqlc). TypeScript: `src/handlers/`, `src/core/<resource>/store.ts`,
   `src/core/<resource>/adapter.ts`, `src/db/schema.ts` (Drizzle).
 - **Cross-cutting behaviour is interceptors, declared once** (Go:
-  `internal/server/mux.go`): RequestID, Recover, Logging, auth, validate,
-  in that order. A new RPC gets all of them.
+  `internal/server/mux.go`, on connect-go v2's `connect.Server`): RequestID,
+  Recover, Logging, auth, validate, in that order. A new RPC gets all of
+  them, unary or streaming: a v2 interceptor wraps the whole call.
 - **Identity is a seam.** `internal/auth` ships the `Authenticator`
   interface, the gating interceptor with `Health` on its open list, and
   `DevAuthenticator` (`DEV_USER`). Production refuses `DEV_USER` and will

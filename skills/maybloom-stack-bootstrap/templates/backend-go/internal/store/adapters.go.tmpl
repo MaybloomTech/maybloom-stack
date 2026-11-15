@@ -1,10 +1,9 @@
 package store
 
 import (
-	"errors"
 	"fmt"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -45,7 +44,7 @@ func parseUUID(s string) (pgtype.UUID, error) {
 func argUUID(s string) (pgtype.UUID, error) {
 	u, err := parseUUID(s)
 	if err != nil {
-		return u, connect.NewError(connect.CodeInvalidArgument, errors.New("id is not a uuid"))
+		return u, connect.NewError(connect.CodeInvalidArgument, "id is not a uuid")
 	}
 	return u, nil
 }

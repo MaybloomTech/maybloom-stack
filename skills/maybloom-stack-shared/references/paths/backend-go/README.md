@@ -1,11 +1,12 @@
 # The Go backend path
 
 The stack allows a service to be implemented in Go instead of TypeScript:
-connect-go on stdlib `net/http`, sqlc-generated queries over pgx/v5, goose
-migrations, slog. The contract, the layer vocabulary (handler → store →
-adapter), and the interface are identical — a generated client cannot tell
-the two backends apart. This file defines the per-layer patterns so the
-skills that walk the pipeline (add-resource, add-rpc, extend-resource,
+connect-go v2 (`connectrpc.com/connect/v2`: a `connect.Server`, mounted on
+stdlib `net/http` with `connecthttp.Mount`), sqlc-generated queries over
+pgx/v5, goose migrations, slog. The contract, the layer vocabulary (handler →
+store → adapter), and the interface are identical — a generated client
+cannot tell the two backends apart. This file defines the per-layer patterns
+so the skills that walk the pipeline (add-resource, add-rpc, extend-resource,
 bootstrap-go) can do so on a Go service without reading any external
 codebase. The patterns below are the ones a production service runs.
 
@@ -103,7 +104,7 @@ the Go build (and the Dockerfile) runs the `go tool buf` form.
 
 For proto package `<APP_SLUG>.service.v1` this generates
 `servicev1` (messages) and `servicev1connect` (the handler interface and
-`New<APP_NAME>ServiceHandler`), imported as
+`Register<APP_NAME>ServiceHandler`), imported as
 `<GO_MODULE>/gen/<APP_SLUG>/service/v1/servicev1connect`. Every proto
 file needs a `go_package` option of the form
 `<GO_MODULE>/gen/<APP_SLUG>/service/v1;servicev1`. Never edit generated
@@ -253,7 +254,7 @@ func (s *Store) Get<Resource>(ctx context.Context, id string) (*resourcesv1.<Res
     }
     row, err := s.q.Get<Resource>(ctx, s.pool, uid)
     if errors.Is(err, pgx.ErrNoRows) {
-        return nil, connect.NewError(connect.CodeNotFound, errors.New("<resource> not found"))
+        return nil, connect.NewError(connect.CodeNotFound, "<resource> not found")
     }
     if err != nil {
         return nil, internalError("could not read the <resource>", err)
@@ -301,18 +302,30 @@ Conventions:
   well-formed request the current state forbids, `CodeInvalidArgument`
   only for what protovalidate cannot express (a page token the service
   did not issue, an id that does not parse).
-- **connect-go sends `err.Error()` to the client.** A plain wrapped error
-  returned from a handler reaches the wire as `CodeUnknown` with the full
-  message, and `connect.NewError(CodeInternal, fmt.Errorf("...: %w", err))`
-  sends the driver's text too. The scaffold's `rpcerr.Internal(public,
-  cause)` (`internalError` inside the store) is the answer: `Error()` is the public text, `Unwrap()` the
-  cause, and the logging interceptor logs the cause. The message the
-  client sees is part of the contract; the cause never is.
-- **Make errors per call, never in a package variable.** The `RequestID`
-  interceptor writes the id into the error's `Meta()`, so a shared
-  `var errNotFound = connect.NewError(...)` is one header map every
-  missing request writes at once. `func noteNotFound() error` is the
-  shape.
+- **In connect-go v2 only a `*connect.Error` you create sends its
+  message.** `connect.NewError(code, "message")` and `connect.Errorf` take a
+  string and serialize it, so it is public: never put a driver's text, an
+  address or a token in one. Any other error a handler returns reaches the
+  wire as a bare code (`CodeUnknown` with no message) and its text stays in
+  the log; a refusal the client should read is therefore always built with
+  `connect.NewError`. (Under v1 the wire carried `err.Error()` of anything,
+  which is why a `connect.NewError(CodeInternal, fmt.Errorf("...: %w", err))`
+  leaked the driver's text there.) The scaffold's `rpcerr.Internal(public,
+  cause)` (`internalError` inside the store) is `connect.NewError(CodeInternal,
+  public).WithCause(cause)`: the message is public, the cause is available to
+  `errors.Is`, `errors.As` and the logging interceptor and is never sent. The
+  message the client sees is part of the contract; the cause never is.
+- **A `*connect.Error` is immutable** (`WithCause` and `WithDetail` return a
+  clone), and carries no header map: v1's `Meta()` is gone, so a header an
+  error response needs (the request id) is set on the call's response
+  headers before the handler runs, with
+  `connect.CallInfoForServerContext(ctx)`, and an error response carries it.
+  A shared sentinel `var errNotFound = connect.NewError(...)` is therefore
+  safe in v2 (the scaffold's `noteNotFound()` is a function all the same, so
+  an error that grows a cause or a detail later is already made per call).
+  The scaffold's `internal/rpcerr/rpcerr_test.go`
+  (`TestWithCauseLeavesTheSentinelAlone`, under `-race`) pins the clone
+  behaviour, so a connect-go upgrade that changed it fails there.
 - Multi-table mutations go through `RunInTx(ctx, func(ctx, tx) error)`
   (added to `store.go` with the first one; the shape is in the module
   skeleton, Transactions)
@@ -337,33 +350,47 @@ build fails until every declared RPC has a method.
 ```go
 func (s *Service) Create<Resource>(
     ctx context.Context,
-    req *connect.Request[servicev1.Create<Resource>Request],
-) (*connect.Response[servicev1.Create<Resource>Response], error) {
+    req *servicev1.Create<Resource>Request,
+) (*servicev1.Create<Resource>Response, error) {
     id := auth.IdentityFrom(ctx) // set by the auth interceptor
     if id == nil {
-        return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
+        return nil, connect.NewError(connect.CodeUnauthenticated, "sign in first")
     }
-    created, err := s.store.Create<Resource>(ctx, id.UserID, req.Msg.Get<Resource>())
+    created, err := s.store.Create<Resource>(ctx, id.UserID, req.Get<Resource>())
     if err != nil {
         return nil, err
     }
-    return connect.NewResponse(&servicev1.Create<Resource>Response{<Resource>: created}), nil
+    return &servicev1.Create<Resource>Response{<Resource>: created}, nil
 }
 ```
 
-Handlers read identity from the context the auth interceptor populated,
-call the store, wrap in `connect.NewResponse`. The twenty-line rule
-applies: more logic than that belongs in the store. Recovery, the request
-id, logging, auth and validation are interceptors declared once at
-handler construction — a new RPC gets all of them for free, no per-route
-wiring. There is no `nil` check on the request's resource: the field is
-`required` in the contract and the validate interceptor is the nil guard.
+In v2 a handler takes the request message and returns the response message,
+plain: there is no `connect.Request` or `connect.Response`, and the request
+headers and peer, when one is needed, are on
+`connect.CallInfoForServerContext(ctx)`. Handlers read identity from the
+context the auth interceptor populated, call the store, return the response
+message. The twenty-line rule applies: more logic than that belongs in the
+store. Recovery, the request id, logging, auth and validation are
+interceptors declared once on the `connect.Server` — a new RPC gets all of
+them for free, no per-route wiring. There is no `nil` check on the request's
+resource: the field is `required` in the contract and the validate
+interceptor is the nil guard.
+
+The identity seam takes a `*connect.Header`:
+`Authenticator.Authenticate(ctx, header *connect.Header)`, with the same
+`Get` and `Values` as `http.Header` and no HTTP behind it. An Authenticator
+that checks a session cookie reads it with `auth.Cookie(header, "session")`
+(`http.ErrNoCookie` when absent). A plain `http.Handler` (a blob route, a
+login callback) calls the same Authenticator as the RPCs by converting its
+headers: `a.Authenticate(r.Context(), auth.FromHTTP(r.Header))`. Both
+helpers ship in `internal/auth`.
 
 ## Validation
 
 Input rules live in the contract as `buf.validate` options and are
-enforced by the `connectrpc.com/validate` interceptor, innermost in the
-chain, so a bad request never reaches the handler:
+enforced by the `connectrpc.com/validate` interceptor (v0.9.0 serves
+connect-go v2; `NewServerInterceptor`), innermost in the chain, so a bad
+request never reaches the handler:
 
 ```proto
 import "buf/validate/validate.proto";
@@ -378,9 +405,9 @@ message List<Resources>Request {
 ```
 
 ```go
-interceptors := connect.WithInterceptors(
+srv := connect.NewServer( // the first is the outermost
     RequestID(), Recover(log), Logging(log), auth.Interceptor(...),
-    validate.NewInterceptor(), // last = innermost; single return value
+    validate.NewServerInterceptor(), // last = innermost
 )
 ```
 
@@ -388,20 +415,29 @@ That order is the stack's: the request id outermost so every line and
 every error carries it, recovery inside it so a panic is logged with the
 id and the error it becomes carries the header, logging outside auth so a
 refused request is logged, an audit interceptor (opt-in) between auth and
-validate when a service wants one. Each is a full `connect.Interceptor`
-with `WrapStreamingHandler`, never a `UnaryInterceptorFunc`, which
-streaming RPCs would bypass. Rules: a message-typed request field
-the handler dereferences is `required` (getters are nil-safe, field
-access on a nil message is not, and the recovery interceptor would turn
-that panic into a 500 any client can trigger); always-valid invariants
-(lengths, enum membership) go on the resource message, presence goes on
-the request envelopes; list reads carry a bounded `page_size` from the
-first version.
+validate when a service wants one. Each is a `connect.ServerInterceptor`,
+`func(next connect.ServerFunc) connect.ServerFunc`, which wraps the whole
+call: the one function covers unary and streaming RPCs alike (there is no
+unary-only variant to bypass a stream, as v1's `UnaryInterceptorFunc` was),
+and it runs before the request body is decompressed or unmarshalled, which
+the generated handler does inside `next`, with `stream.Receive`. The
+order holds under that: auth refuses an anonymous caller before the body
+is decompressed or unmarshalled, a body that fails to decode fails inside
+the chain and is seen by the request id and logging interceptors, and
+validation, innermost, checks each message as the handler receives it. The
+request's headers are on `connect.CallInfoForServerContext(ctx)`, the
+procedure is `spec.Procedure`. Rules: a message-typed request field the
+handler dereferences is `required` (getters are nil-safe, field access on a
+nil message is not, and the recovery interceptor would turn that panic into
+a 500 any client can trigger); always-valid invariants (lengths, enum
+membership) go on the resource message, presence goes on the request
+envelopes; list reads carry a bounded `page_size` from the first version.
 
 ## Wiring
 
-None, usually. `mux.Handle(servicev1connect.New<APP_NAME>ServiceHandler(...))`
-already exists in `run()`; adding RPCs to the proto service changes the
+None, usually. `servicev1connect.Register<APP_NAME>ServiceHandler(srv, ...)`
+and `connecthttp.Mount(mux, srv)` already exist in `internal/server`
+(`NewServer` and `NewMux`); adding RPCs to the proto service changes the
 generated interface, and the compiler lists every missing method by name.
 Use `go build ./...` as the checklist the way the TypeScript path uses
 `pnpm typecheck`.
@@ -448,9 +484,16 @@ Use `go build ./...` as the checklist the way the TypeScript path uses
 - **Go 1.22 method patterns answer `OPTIONS` with 405 before middleware
   runs.** A service that enables CORS for a development client must
   register one `OPTIONS /prefix/` route, or every preflight fails.
-- **A hand-built `connect.NewRequest` has an empty `Spec()`**, so an
-  interceptor that branches on the method's idempotency level cannot be
-  unit-tested that way; drive it through the generated handler.
+- **Test an interceptor through a `connect.Server`**, not by calling the
+  handler methods: a call made by hand skips the chain. The scaffold's
+  tests build the real server with `NewServer(deps)`, give the generated
+  client `connectinprocess.New(server)` as its transport (no listener, no
+  network), and read headers off the call's `CallInfo`
+  (`connect.NewClientContext`). A refused server-streaming call over the
+  in-process transport returns a bare `io.EOF` from `CallServerStream`
+  (the HTTP transport delivers the error on `Receive`), so test a streaming
+  refusal through `CallClientStream`, treating `io.EOF` from `Send` as
+  "already ended" and reading the code from `Receive`.
 - **On MariaDB, `UPDATE` reports changed rows, not matched rows** by
   default, so "rows affected == 0 means not found" is wrong when the
   update is a no-op; pre-read the row. Its DDL is also non-transactional,

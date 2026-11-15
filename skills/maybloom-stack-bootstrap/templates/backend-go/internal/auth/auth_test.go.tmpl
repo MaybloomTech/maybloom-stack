@@ -1,0 +1,40 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+	"testing"
+)
+
+// A plain HTTP handler reaches the Authenticator through FromHTTP, and an
+// Authenticator reads a session cookie off the *connect.Header with Cookie.
+func TestFromHTTPAndCookie(t *testing.T) {
+	t.Parallel()
+	h := http.Header{}
+	h.Set("Authorization", "Bearer abc")
+	h.Add("Cookie", "theme=dark; session=s3cret")
+
+	got := FromHTTP(h)
+	if got.Get("authorization") != "Bearer abc" {
+		t.Fatalf("authorization: got %q", got.Get("authorization"))
+	}
+	c, err := Cookie(got, "session")
+	if err != nil || c.Value != "s3cret" {
+		t.Fatalf("session cookie: %v %v", c, err)
+	}
+	if _, err := Cookie(got, "missing"); !errors.Is(err, http.ErrNoCookie) {
+		t.Fatalf("missing cookie: want http.ErrNoCookie, got %v", err)
+	}
+
+	// The copy is the caller's own: changing it leaves the request alone.
+	got.Set("Authorization", "changed")
+	if h.Get("Authorization") != "Bearer abc" {
+		t.Fatal("FromHTTP must copy the headers")
+	}
+
+	// An Authenticator is called the same way from a handler.
+	id, err := DevAuthenticator{UserID: "tester"}.Authenticate(t.Context(), FromHTTP(h))
+	if err != nil || id == nil || id.UserID != "tester" {
+		t.Fatalf("authenticate from an http.Header: %v %v", id, err)
+	}
+}

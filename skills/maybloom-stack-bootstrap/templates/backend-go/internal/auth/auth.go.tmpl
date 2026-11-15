@@ -7,10 +7,10 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"net/http"
+	"slices"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 
 	"__GO_MODULE__/internal/rpcerr"
 )
@@ -21,11 +21,13 @@ type Identity struct {
 	Name   string
 }
 
-// Authenticator resolves the caller from the request headers. nil, nil means
+// Authenticator resolves the caller from the request headers (a
+// *connect.Header: the same Get and Values as net/http's, with no HTTP
+// behind it, so the call may come from any transport). nil, nil means
 // anonymous; an error means the check itself failed (CodeInternal), not that
 // the caller is unknown.
 type Authenticator interface {
-	Authenticate(ctx context.Context, header http.Header) (*Identity, error)
+	Authenticate(ctx context.Context, header *connect.Header) (*Identity, error)
 }
 
 // DevAuthenticator makes every request the named user. Development only; the
@@ -34,8 +36,28 @@ type DevAuthenticator struct {
 	UserID string
 }
 
-func (d DevAuthenticator) Authenticate(context.Context, http.Header) (*Identity, error) {
+func (d DevAuthenticator) Authenticate(context.Context, *connect.Header) (*Identity, error) {
 	return &Identity{UserID: d.UserID, Name: d.UserID}, nil
+}
+
+// FromHTTP is how a plain http.Handler (an upload, a login callback, a media
+// proxy) calls the same seam the RPCs go through: the request's headers as
+// the *connect.Header Authenticate takes, so one Authenticator serves both.
+//
+//	id, err := a.Authenticate(r.Context(), auth.FromHTTP(r.Header))
+func FromHTTP(h http.Header) *connect.Header {
+	out := new(connect.Header)
+	for key, values := range h {
+		out.SetValues(key, slices.Clone(values))
+	}
+	return out
+}
+
+// Cookie reads one cookie from the headers an Authenticator is given: an
+// Authenticator that checks a session cookie asks here, the way an HTTP
+// handler would ask the request. http.ErrNoCookie when there is none.
+func Cookie(h *connect.Header, name string) (*http.Cookie, error) {
+	return (&http.Request{Header: http.Header{"Cookie": h.Values("Cookie")}}).Cookie(name)
 }
 
 type identityKey struct{}
@@ -52,65 +74,49 @@ func IdentityFrom(ctx context.Context) *Identity {
 	return id
 }
 
-// Interceptor gates: it resolves the caller on every RPC, unary and
-// streaming, and rejects anonymous calls with CodeUnauthenticated, except for
-// the procedures in open (the health check). The alternative shape, which
-// populates and lets each handler assert, fits a service whose anonymous
-// RPCs are a feature.
+// Interceptor gates: it resolves the caller on every RPC and rejects
+// anonymous calls with CodeUnauthenticated, except for the procedures in
+// open (the health check). The alternative shape, which populates and lets
+// each handler assert, fits a service whose anonymous RPCs are a feature.
 //
-// It is a full connect.Interceptor on purpose: a UnaryInterceptorFunc is not
-// applied to streaming RPCs, so the first stream in the contract would be
-// open to everyone.
-func Interceptor(a Authenticator, open ...string) connect.Interceptor {
+// A connect-go v2 server interceptor wraps the whole call, whatever its
+// shape: one function covers unary and streaming RPCs alike, so there is no
+// second half to forget. It also runs before the request body is read, so an
+// anonymous caller is refused before the server has decompressed or
+// unmarshalled a byte of what it sent.
+func Interceptor(a Authenticator, open ...string) connect.ServerInterceptor {
 	openSet := make(map[string]bool, len(open))
 	for _, p := range open {
 		openSet[p] = true
 	}
-	return interceptor{a: a, open: openSet}
-}
-
-type interceptor struct {
-	a    Authenticator
-	open map[string]bool
-}
-
-func (i interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		ctx, err := i.authenticate(ctx, req.Header(), req.Spec().Procedure)
-		if err != nil {
-			return nil, err
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			// The headers ride on the call's CallInfo, which Server.Call attaches
+			// before any interceptor runs. The zero Header is a valid empty one.
+			header := new(connect.Header)
+			if info, ok := connect.CallInfoForServerContext(ctx); ok {
+				header = info.RequestHeader()
+			}
+			ctx, err := authenticate(ctx, a, header, openSet[spec.Procedure])
+			if err != nil {
+				return err
+			}
+			return next(ctx, spec, stream)
 		}
-		return next(ctx, req)
 	}
 }
 
-func (i interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		ctx, err := i.authenticate(ctx, conn.RequestHeader(), conn.Spec().Procedure)
-		if err != nil {
-			return err
-		}
-		return next(ctx, conn)
-	}
-}
-
-// WrapStreamingClient is the identity: the server makes no outbound RPCs.
-func (interceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next
-}
-
-// authenticate is the gate itself, shared by both RPC shapes: the identity on
-// the context, or the error that refuses the call. Errors are made here, per
-// call, because the RequestID interceptor writes into an error's Meta.
-func (i interceptor) authenticate(ctx context.Context, header http.Header, procedure string) (context.Context, error) {
-	id, err := i.a.Authenticate(ctx, header)
+// authenticate is the gate itself: the identity on the context, or the error
+// that refuses the call. Errors are made here, per call, never shared.
+func authenticate(ctx context.Context, a Authenticator, header *connect.Header, open bool) (context.Context, error) {
+	id, err := a.Authenticate(ctx, header)
 	if err != nil {
 		// The provider's message (a token endpoint's body, a network error)
-		// is for the log, never for the caller.
+		// is for the log, never for the caller: it rides as the cause.
 		return ctx, rpcerr.Internal("could not resolve the caller", err)
 	}
-	if id == nil && !i.open[procedure] {
-		return ctx, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first"))
+	if id == nil && !open {
+		return ctx, connect.NewError(connect.CodeUnauthenticated, "sign in first")
 	}
 	if id != nil {
 		ctx = WithIdentity(ctx, id)

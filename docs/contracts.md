@@ -39,7 +39,8 @@ its own proto package. RPCs are grouped with comment headers inside that one
 service rather than split across services, because both backends key their
 exhaustiveness checks off a single service type: TypeScript types the
 implementation map as `ServiceImpl<typeof AppService>`, and connect-go
-generates one handler constructor per service.
+generates one handler interface and one `Register...Handler` function per
+service.
 
 When a second backend joins the repo, it gets a second service package (for
 example `proto/<slug>/ingest/v1` with `IngestService`) and shares
