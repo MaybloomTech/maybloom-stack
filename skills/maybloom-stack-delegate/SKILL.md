@@ -128,8 +128,7 @@ Decides alone: anything inside the chore. Files (by stopping): a chore
 that turns out to need product code or a protected path. Starts with: the
 chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent.
 
-**Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode
-default`, a fresh session every round). Decides alone: findings, their
+**Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a fresh session every round). Decides alone: findings, their
 severity, the verdict; in round 1 it checks the builder's reading of the
 brief against the brief first; approval at a head only in the deep
 review the orchestrator names as the gate. Files: a decision that stops

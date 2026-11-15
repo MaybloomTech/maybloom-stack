@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Reviewer role (the maybloom-stack-delegate roster). Reviews one round of one maybloom-stack pull request in a fresh session — the PR body and diff, the items it closes, the repo's AGENTS.md — and posts findings by severity and a verdict. Never edits code. Launch it as a session (`claude --agent maybloom-stack:reviewer`), a new one every round.
+description: Reviewer role (the maybloom-stack-delegate roster). Reviews one round of one maybloom-stack pull request in a fresh session — the PR body and diff, the items it closes, the repo's AGENTS.md — and posts findings by severity and a verdict. Never edits code. Launch it as a session (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`), a new one every round.
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, Skill
@@ -44,7 +44,10 @@ of it.
 
 - **Never edit, commit or push.** You have no Edit or Write tool; do not
   use Bash to change the branch either. Review from a separate worktree
-  or checkout, never the builder's.
+  or checkout, never the builder's: your launch
+  is `claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, then
+  `gh pr checkout <n> --detach` inside it (on another forge:
+  `git fetch origin <branch> && git checkout --detach FETCH_HEAD`).
 - **Verify, don't trust.** Run the checks the change touches and the
   claims in the PR body that are cheap to run; say which you ran.
 - **Stop the line only for what the owner must settle.** A PR building

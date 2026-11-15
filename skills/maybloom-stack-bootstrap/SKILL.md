@@ -70,7 +70,8 @@ and PR conventions, the session budget and the hand-off format),
 `CLAUDE.md` as a pointer that imports it, `.claude/settings.json` (the
 plugin marketplaces, a permission allowlist for the checks, the
 session-budget prompt hook in `.claude/hooks/`), and `docs/context.md` to
-fill in; a private repo also gets the plan format in `docs/plans/`.
+fill in and `docs/solutions/README.md`, the learnings file the
+orchestrator's run-ending line is appended to; a private repo also gets the plan format in `docs/plans/`.
 Record the user's choices in `AGENTS.md` so later sessions inherit them.
 
 ## Interview
@@ -275,7 +276,23 @@ start dev servers.
    since it goes to main rather than through a pull request, but it is the
    first line of the history the rest of it follows.
 
-8. **Wire CI on the forge.** The workflows run once the repo is on
+8. **Put it on GitHub.** Every later step (CI, the builder's branches,
+   pull requests) needs an `origin`, and the scaffolder creates none.
+   Offer the user the one command, run from the project root after the
+   first commit, with `--private` or `--public` matching the answer to
+   the public-or-private question:
+
+   ```bash
+   gh repo create <owner>/<slug> --private --source . --push
+   ```
+
+   `--source .` makes the new repository from the local one and `--push`
+   sends `main` to it. It needs `gh` signed in (`gh auth login`). Check
+   it with `git remote -v` and `gh repo view`. Don't run it for them:
+   it creates something under their account, and they own the first
+   commit and where it goes.
+
+9. **Wire CI on GitHub.** The workflows run once the repo is on
    GitHub; nothing in them names a registry, a host or an account. Tell
    the user what is theirs to set, in the repository's settings:
 
@@ -294,13 +311,21 @@ start dev servers.
      report under names that change with what a pull request touches, so
      a required one waits forever on a PR that leaves its area alone.
      `CI passed` always reports and fails if any of them failed.
+     Protected branches, which hold required status checks, are
+     available on GitHub Free for public repositories only; a private
+     repository needs GitHub Pro, Team or Enterprise
+     ([About protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)).
+     Tell a user with a private repo on a Free plan so: the checks still
+     run and show on every pull request, but nothing enforces them, so
+     they merge only when green by habit, or they upgrade, or they make
+     the repo public.
    - **Squash merging** with the pull request title as the commit
      message, which is why the title is linted.
 
    Don't do any of this for them: it is account-level configuration, and
    the stack carries the shape of the deploy, never the site.
 
-9. **The agent setup.** Ask the user to fill in `docs/context.md`; until
+10. **The agent setup.** Ask the user to fill in `docs/context.md`; until
    it says what the project is for, every session guesses. The
    session-budget hook in `.claude/settings.json` reads the numbers the
    `maybloom-stack-statusline` status line writes, so suggest installing
@@ -457,6 +482,7 @@ Point the user there once they're past the initial scaffold.
 ├── .claude/settings.json        # marketplaces, permission allowlist, the prompt hook
 ├── .claude/hooks/session-budget.sh   # warns at the context budget and near the usage limits
 ├── docs/context.md              # purpose, principles, systems of record, who acts, scope
+├── docs/solutions/README.md     # the learnings file: one line per run
 ├── docs/plans/README.md         # --visibility private: the plan format
 ├── go.work, scripts/go, scripts/golangci-lint   # Go path: workspace file, Docker wrappers
 ├── third_party/protovalidate/buf/validate/validate.proto   # vendored, lint-ignored

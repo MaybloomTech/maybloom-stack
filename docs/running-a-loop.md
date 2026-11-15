@@ -98,10 +98,25 @@ subagent receives.
 | **Orchestrator** | `claude --agent maybloom-stack:orchestrator --permission-mode acceptEdits`, always a session, never an `Agent` call |
 | **Builder** | `claude --agent maybloom-stack:builder --permission-mode acceptEdits`, or an `Agent` call with `subagent_type: maybloom-stack:builder` and `isolation: worktree` for a slice under about 500 lines |
 | **Mechanic** | An `Agent` call, `subagent_type: maybloom-stack:mechanic` |
-| **Reviewer** | `claude --agent maybloom-stack:reviewer --permission-mode default`, a new session every round |
+| **Reviewer** | `claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a new session every round, in its own worktree (below) |
 | **Researcher** | An `Agent` call, `subagent_type: maybloom-stack:researcher`; never a session |
 | **Designer** | `claude --agent maybloom-stack:designer`, or an `Agent` call with `subagent_type: maybloom-stack:designer` and `isolation: worktree`; see [Design loop](./design-loop.md) |
 | **Critic** | An `Agent` call, `subagent_type: maybloom-stack:critic`, a new call every round; see [Design loop](./design-loop.md) |
+
+The reviewer's `-w review-<pr>-r<n>` (`claude --help`: `-w, --worktree
+[name]`) starts the session in a new git worktree of its own, so it never
+reads the builder's checkout. Inside it, check out the pull request
+detached: `gh pr checkout <n> --detach` (with `fjo`: `git fetch origin
+<branch> && git checkout --detach FETCH_HEAD`). Detached matters: the
+builder usually has the branch checked out in another worktree on the
+same machine, and git refuses to check a branch out twice. After the
+round, whoever launched the session removes the worktree: a headless
+session leaves it locked, with a `worktree-review-<pr>-r<n>` branch, so
+run:
+
+```
+git worktree remove --force --force .claude/worktrees/review-<pr>-r<n> && git branch -D worktree-review-<pr>-r<n>
+```
 
 The permission mode is a launch flag because a plugin's agents cannot set
 one themselves. The orchestrator runs in `acceptEdits` so that the small
@@ -222,6 +237,10 @@ and the earlier rounds' findings and the builder's dispositions.
 Post the round on the channel. Put your session id
 ($CLAUDE_CODE_SESSION_ID) in the comment.
 ```
+
+Start it with its own worktree,
+`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`,
+and have it run `gh pr checkout <n> --detach` before it reads the diff.
 
 For the deep review, add `This round is the gate: the deep review.`
 

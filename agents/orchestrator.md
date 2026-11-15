@@ -150,8 +150,7 @@ sessions of their own, never your subagents: a reviewer must start
 fresh, and a large slice does not fit a call. Until a runner starts
 them, post the launch on the run's channel (the item while no PR
 exists) and ask the project owner to
-start it: the command from the skill (`claude --agent
-maybloom-stack:reviewer --permission-mode default`, or
+start it: the command from the skill (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, or
 `maybloom-stack:builder` with
 `acceptEdits`) and the prompt it starts with (the round, the PR and its
 head, or the brief). The prompt also asks the session to put its id

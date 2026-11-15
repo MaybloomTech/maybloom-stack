@@ -40,11 +40,26 @@ and the page it links to has the detail.
 **The template.** The scaffold builds and runs on your machine, so it needs:
 
 - Python 3, which runs the skill's scaffold script, and git, for the
-  `git init -b main` the checklist ends with.
-- Node 24 (the scaffold's `.nvmrc`) and pnpm 10 (its `packageManager` pin,
-  `pnpm@10.26.2`). `pnpm install` brings `buf` with it as an npm package;
-  there is nothing else to install for the contract.
-- Docker, for the Postgres the Go backend develops against
+  `git init -b main` the checklist has you run for the first commit. Both come with macOS's
+  developer tools (`xcode-select --install`) and most Linux
+  distributions; on Windows, install them from python.org and
+  git-scm.com.
+- Node 24 (the scaffold's `.nvmrc`). Get it with a version manager that
+  reads that file: `nvm install` or `fnm use --install-if-missing` from the project root.
+- pnpm 10 (its `packageManager` pin, `pnpm@10.26.2`). With Node
+  installed, `corepack enable` makes the `pnpm` command follow the pin.
+  `pnpm install` brings `buf` with it as an npm package; there is nothing
+  else to install for the contract.
+- A GitHub account and `gh` signed in (`gh auth login`), for the checklist's
+  push step: `gh repo create <owner>/<slug> --private --source . --push`
+  (`--public` if you chose a public repo) puts the first commit on GitHub,
+  where the CI workflows run. Required checks and branch protection on a
+  private repository need a paid GitHub plan; on a Free private repository
+  the checks still run and show on every pull request, they are just not
+  enforced. On a public repository they are free
+  ([About protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)).
+- Docker (Docker Desktop, or another engine such as Colima or Podman with
+  the `docker` command), for the Postgres the Go backend develops against
   (`docker compose up -d db`) and for `scripts/go`, which runs the pinned
   Go toolchain in a container. With Go 1.26.9 installed you can run `go`
   directly instead; with the TypeScript backend there is no database to

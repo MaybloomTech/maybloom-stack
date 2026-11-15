@@ -106,7 +106,7 @@ carries `[orchestrator]` comments), it posts the learning after the
 gate, on a first line of `[orchestrator] action: learning: <file> —
 <line>` or `[orchestrator] action: learning: none`. Before your last
 commit, wait for that comment, newer than the approving round. Append
-`<line>`, as written, to `<file>` in that same commit, whether you merge
+`<line>`, as written, to `<file>` (the file the line names; a repo that names none uses `docs/solutions/README.md`) in that same commit, whether you merge
 or the owner does. If nothing else is listed, the learning is that
 commit on its own. `learning: none` adds nothing. Where the owner
 merges, this commit is the only one after the approved head. On either
