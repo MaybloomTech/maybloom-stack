@@ -1,6 +1,6 @@
 ---
 name: maybloom-stack-delegate
-description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, orchestrator, builder, mechanic, reviewer, researcher, designer, critic), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries", "is this still maintained", "design this screen", "run the design loop", "start a critic". The builder, mechanic, reviewer, orchestrator, researcher, designer and critic agents it describes ship with this plugin (namespaced `maybloom-stack:<role>`); the architect is the interactive session, never an agent.
+description: Use when planning, briefing, reviewing or delegating work on a maybloom stack repo (a proto + Connect-RPC monorepo, from `maybloom-stack-bootstrap` or following its conventions) — deciding which role owns a task (architect, builder, mechanic, reviewer, researcher, designer, critic), writing a slice brief for a builder, choosing between an `Agent` call and a fresh session, sizing a run to the session budget, writing the hand-off, running the review loop, setting the review effort for a PR, or answering "who should do this". Triggers on "write a brief", "delegate this slice", "spawn a builder", "which tier", "which role", "is this a mechanic job", "how do we review this", "start a reviewer", "drive this run", "write the hand-off", "what are the delegation rules", "research the prior art", "compare libraries", "is this still maintained", "design this screen", "run the design loop", "start a critic", "item N is ready", "run it through the delegation loop", "plan this run". Load it before stating any plan for an item or a run. The builder, mechanic, reviewer, researcher, designer and critic agents it describes ship with this plugin (namespaced `maybloom-stack:<role>`); the architect is the interactive session, never an agent.
 ---
 
 # maybloom-stack-delegate
@@ -14,21 +14,20 @@ per session or `Agent` call; a task takes the lowest tier that can own it.
 
 ## The roster
 
-Eight roles, all answering to the **project owner**: the person who owns
+Seven roles, all answering to the **project owner**: the person who owns
 the decisions, plans with the architect and answers the questions the
 roles file. The owner is not a role and no agent fills it; write "the
 project owner" (or "the owner"), never a name. The architect is the
-session reading this skill when it plans; the other seven are agents this
+session reading this skill when it plans; the other six are agents this
 plugin ships. A repo may pin other models in its `AGENTS.md`, outside
 `## Delegation`.
 
 | Role | Model | Owns |
 |---|---|---|
-| **Architect** | The interactive session. Opus-class for architect work; the top tier (Fable-class) for the slice briefs and for anything touching auth, session or privacy | Planning with the owner; shaping open items into ready ones with briefs, sized to the budget; the foundations (transport, session, data layer, stream client, error model); **every server slice** (the proto is the contract, and the contract is architect work); anything touching authn / authz / privacy; the protected paths. |
-| **Orchestrator** | Sonnet-class (`maybloom-stack:orchestrator`), a session | One run: a PR closing one item or a bundle. Dispatches the builder, requests each review round, keeps the round series on the item, applies the stop rule, files the owner's questions. |
+| **Architect** | The interactive session. The top tier (Fable-class) for architect work, Opus-class when the top tier is unavailable | Planning with the owner; shaping open items into ready ones with briefs, sized to the budget; the foundations (transport, session, data layer, stream client, error model); **every server slice** (the proto is the contract, and the contract is architect work); anything touching authn / authz / privacy; the protected paths. |
 | **Builder** | Sonnet-class (`maybloom-stack:builder`) | Screen and feature slices against a fixed brief, and their tests; the PR on the item's branch. |
 | **Mechanic** | Haiku-class (`maybloom-stack:mechanic`) | CI, Docker, compose, the proxy, `app.json` / `eas.json`, biome / tsconfig, dependency bumps, lint fixes, rename sweeps, inventories, README and changelog chores. Never product code. |
-| **Reviewer** | Opus-class (`maybloom-stack:reviewer`), a fresh session per round | One review round of one PR: findings by severity and a verdict. Never edits code. |
+| **Reviewer** | Opus-class (`maybloom-stack:reviewer`), a fresh reviewer per round: a session, or an `Agent` call from the architect | One review round of one PR: findings by severity and a verdict. Never edits code. |
 | **Researcher** | Opus-class (`maybloom-stack:researcher`), an `Agent` call | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained, what a neighbour does better. A fixed-shape report with sources, the claims it verified marked. Never edits the repo; files nothing. |
 | **Designer** | Opus-class (`maybloom-stack:designer`), an `Agent` call in a worktree, or a session | One design change before it is built: `design.md` if it changes, two or three sketches, one design pass under `src/design/` from the real primitives and fixtures, and the board captures. Never hooks, data, the contract, the primitives or the tokens module. |
 | **Critic** | Opus-class (`maybloom-stack:critic`), an `Agent` call, fresh each round | One round of critique on a designer's pass, from the captures and probes against `design.md` and the rubric, before the owner looks. Never edits. |
@@ -37,8 +36,13 @@ A project may add roles above these in its own `AGENTS.md`; it does not
 remove any. A design change follows [the design
 loop](../maybloom-stack-shared/references/design/loop.md), and the
 architect's design brief is its § 1 (the builder brief template below
-stays as it is). Until a runner automates the orchestrator, the owner or
-an architect session does its job by hand, by the same rules.
+stays as it is).
+
+The owner always talks to the architect. With no runner, the architect
+drives a run by [Driving a run](#driving-a-run), and a run for an
+architect-written PR (a server slice, a foundation, a protected path)
+does not go through builder rounds: architect PR, then `/code-review
+high`, then the owner.
 
 ## Each role
 
@@ -61,47 +65,6 @@ each on the card; a contradiction the card and plan cannot settle is the
 owner's question, never a guess in the brief. Starts with: `AGENTS.md`,
 `docs/context.md`, the item and the plan it belongs to. Tools: all.
 Mode: `default`; the owner is in the session.
-
-**Orchestrator** (`claude --agent maybloom-stack:orchestrator
---permission-mode acceptEdits`: it has no Edit or Write of its own, and
-the builders and mechanics it dispatches through `Agent` inherit its
-mode, so they can edit unattended. The mode also auto-approves the
-orchestrator's own filesystem commands in Bash (`sed -i`, `mv`, `rm`),
-and a dispatched builder still asks at `git commit`, `git push` and `gh
-pr create`). Decides alone: when to start the next round (where no
-runner watches the forge), the round series and its state (converging /
-diverging / ready), which reviewer effort a round gets, whether a
-deferral goes to a new item, the run's learning. Files: a diverging
-series (with the series attached), the merge, a reviewer's stop-the-line
-decision, a run that will not fit its budget, an item another run has
-claimed, an escalated finding, a session that stalls twice. Starts with:
-the run's item(s), the PR if one exists, `AGENTS.md` § Delegation. Then
-it claims the item. It posts `[orchestrator] action: claimed` and adds
-itself as an assignee, or the label the tracker names (see The tracker).
-The item counts as held while its newest `[orchestrator]` comment is not
-a `handoff`, because roles may share one account and an assignment to
-the owner is no claim. It releases the item at the hand-off, so that two
-runs never pick up the same one. A run that dies before its `handoff`
-leaves a stale claim. The owner releases it by posting `[orchestrator]
-handoff: released by owner` on the item. It reads the item and the PR
-again before every round, and keeps each round's builder and reviewer
-session ids in the series row. A launched session that has posted
-nothing 30 minutes after the launch comment is re-posted once, not
-waited on. Once the deep review passes, it posts `[orchestrator] action:
-learning: <file> — <line>` (or `learning: none`). The builder waits for
-that line and commits it before the merge; for an `Agent` builder, which
-has already returned, the orchestrator dispatches one more for that
-commit. Tools: Read, Bash (search, the tracker CLI, the forge's CLI,
-`git`), Agent (to launch a mechanic or a small builder), Skill (a named
-tracker's skill, the forge's where the channel is the pull request, and
-this one); no Edit or Write. It is the only role that reaches the owner
-outside the tracker. It is always a main session, never an `Agent` call:
-a run outlives any one call (it waits on review rounds), it needs the
-per-session numbers the status line writes and the budget hook, which
-only a main session has, and nested launches are capped in depth. It
-does not start sessions itself: until a runner does, it posts the launch
-command and the starting prompt on the channel (the item while no PR
-exists) and asks the owner to start the builder or reviewer session.
 
 **Builder** (`claude --agent maybloom-stack:builder --permission-mode
 acceptEdits`, or `Agent` with `subagent_type: maybloom-stack:builder`).
@@ -128,10 +91,10 @@ Decides alone: anything inside the chore. Files (by stopping): a chore
 that turns out to need product code or a protected path. Starts with: the
 chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent.
 
-**Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a fresh session every round). Decides alone: findings, their
+**Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a fresh session every round; the architect may instead run a round as an `Agent` call with `subagent_type: maybloom-stack:reviewer`, a new reviewer every round, in its own checkout, a detached worktree at the PR head, never the builder's). Decides alone: findings, their
 severity, the verdict; in round 1 it checks the builder's reading of the
 brief against the brief first; approval at a head only in the deep
-review the orchestrator names as the gate. Files: a decision that stops
+review the driver names as the gate. Files: a decision that stops
 the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
@@ -179,6 +142,185 @@ captures itself on a port of its own. Tools: Read, Grep, Glob, Bash, Skill;
 no Edit or Write, no Agent. It posts one `[critic]` comment on the PR with
 findings numbered `C<n>-<i>`, and never edits, pushes or marks the PR
 ready. Laptop only, like the designer.
+
+## Driving a run
+
+A run is one PR on the item's branch (`PROJ-123/short-slug`) closing the
+run's item and any bundled with it. Whoever drives it moves it through
+the loop; the driver does not write its code and does not run its review
+rounds (they stay the reviewer's). With
+no runner, **the architect session drives the run**, as the normal mode.
+Where a runner drives the cycle (it starts the rounds and keeps the
+series), it follows the same rules; the repo says so in one line of its
+`AGENTS.md` `## Delegation` section, and the runner is then the driver:
+the architect reads its rounds and does not launch them, and does not
+claim the item, keep the series, apply the stop rule or post the
+learning line. An architect that
+drives switches its session to the Opus tier (`/model`) once the brief is
+written, so the build does not spend top-tier usage.
+
+Decides alone: when to start the next round (where no runner watches the
+forge), the round series and its state (converging / diverging / ready),
+which reviewer effort a round gets, whether a deferral goes to a new
+item, the run's learning. Files: a diverging series (with the series
+attached), the merge, a reviewer's stop-the-line decision, a run that
+will not fit its budget, an item another run has claimed, an escalated
+finding, a session that stalls twice. Only the architect reaches the
+project owner outside the tracker, in its session; every other role, and
+a runner that drives, files what the owner must answer on the item. An
+architect that drives brings the owner only a question it cannot settle
+from the series. Code changes in a run are the builder's, chores a mechanic's; a
+run that needs a protected path goes back to the architect as a question.
+
+**Starts with:** the run's item(s), with their newest comments and the
+last hand-off; the PR if one exists; the project's `AGENTS.md`, its
+`## Delegation` section in particular.
+
+**Claim.** Then claim the run's item, so that two runs never pick up the
+same one. The item is held when its newest typed comment (a first line
+`[<label>] <kind>:` with one of the four kinds below, `[architect]` or a
+runner's own label) is anything but a `handoff`. Every
+role may post from the same account, so who the item is assigned to does
+not tell runs apart. An assignment to the owner is not a claim either.
+If the item is held, do not start: post a `question` and stop. Otherwise
+claim it in one step. Post `[architect] action: claimed`, and add the
+account you post from as an assignee, or the claim label the tracker
+names (see The tracker). Release the item when the run hands off or
+ends: post the `handoff` comment and, in the same step, remove that
+assignee or label. A run that dies before its `handoff` leaves a stale
+claim. The `question` posted on a held item tells the owner how to
+release it: post `[architect] handoff: released by owner` on the item.
+
+**The channel.** The driver talks through comments on the run's channel
+(rule 8) and pushes to the PR; where the channel is the pull request,
+load the forge's skill. Each comment's first line is
+`[architect] <kind>: <one line>` (a runner posts under its own label),
+and the kind is one of four: `action` (what was started or done: a round,
+a dispatch, a re-post, the learning), `question` (something the owner
+must answer before the run continues), `handoff` (the run stops here:
+budget, diverging, end of run), or `error` (a step that failed: a
+dispatch, a CLI, a push). A runner reads the state of the run from the
+kind alone. The claim, the series rows and the hand-off stay on the item.
+
+**Reviewers start fresh.** Each round is a new reviewer: an `Agent` call
+from the architect, or a session the owner starts by hand with the launch
+line above. Where the repo's `AGENTS.md` `## Delegation` says a runner
+drives the cycle, the runner starts the rounds and the architect reads
+them instead.
+
+**The round series.** Before every round, and before every decision the
+series makes, read the item and the PR again: the newest comments, the
+head, the review state. Do not trust what you read at the start, because
+the owner, the builder or a reviewer may have moved since.
+
+Keep one row per round on the item: findings by severity and kind,
+recurrences, the builder's dispositions (fixed, disputed, deferred,
+escalated, not addressed), the next round's confirmation of those fixes,
+wall time, and the session id of each role in the round (`builder <id>,
+reviewer <id>`). For an `Agent` builder, that is the agent id the call
+returns. For a session, it is the id the session posted. Write `unknown`
+where none was posted. The ids let the cost roll up per item and per
+role from the session logs.
+
+A reviewer round that crashed or left a report the series cannot read is
+**not run**: it gets no row in the series and counts toward neither
+`ready` nor `converging`. Request it once more at the same head; a
+second failure is an `error` comment and a wait for the owner. A
+reviewer session that posts nothing is the stall rule's case, below.
+
+An `escalated` line is a `question` to the owner, with the finding and
+the builder's question attached. The finding stays open until the answer
+is on the item.
+
+The series decides the state:
+
+- **converging**: blocking count not rising over two rounds, kinds
+  moving outward (contract → behaviour → operations → style), fixes
+  confirmed, few disputes. Start the next round; ask nobody.
+- **diverging**: blocking findings return after a round without them;
+  the same finding returns, or the same step, function or file region
+  draws should-fix or worse three rounds running (polish-grade guard gaps
+  do not count); a new contract or design finding late in the series;
+  most of a round disputed, escalated or not addressed; or six rounds.
+  Stop and file a decision for the owner with the series attached and
+  the least-change option among the choices.
+- **ready**: zero blocking this round and at most two the round before.
+  Run one deep review, and say in the request that it is the gate; zero
+  blocking from it is the merge question for the owner (or the builder
+  merges on the deep review's approval, where the owner has allowed
+  that in a comment on the run's item). Should-fix findings still open
+  at the gate are fixed first, put on the approval's list if small and
+  local, or deferred to a named item. Blocking from it is back to
+  converging.
+
+**The run's learning.** As soon as you read the gate's approval, post
+the run's learning. The first line has a fixed form:
+`[architect] action: learning: <file> — <line>`. `<line>` is at most
+two sentences on what would have made the run faster to know up front:
+a convention, a trap, a check worth running early. `<file>` is the
+learnings file or the `AGENTS.md` section the repo names, else
+`docs/solutions/README.md`. Where nothing was learned, post
+`[architect] action: learning: none` rather than inventing one. A
+builder session waits for this line before its last commit and appends
+it there, so it ships in the PR and future briefs cite it. Where the
+builder was an `Agent` call, it has already returned: resume it, or,
+when it cannot be resumed, dispatch one more (`isolation: worktree`, on
+the PR's branch). Either way, its whole brief is that commit: the
+approval's listed items, if any, and the learning line.
+
+On `HOLD` from any role, or a decision filed for the owner, stop and
+wait on that item until the owner's answer appears there.
+
+Before you hand-run a run's rounds on a repo a runner watches, put the
+`hands-on` label on the item, and remove it when you hand the run back.
+A draft pull request means "not ready", not "worked by hand". A builder
+that finds the dispatch paused, the item hands-on or three empty
+checks in a row hands back instead of waiting; the round is then yours
+to run.
+
+**Starting sessions.** A builder session (a slice over ~500 lines) is a
+session of its own, never a subagent of the driver: a large slice does
+not fit a call. The owner starts it where no runner does: post the
+launch on the run's channel (the item while no PR exists), the command
+from this skill (`maybloom-stack:builder` with `acceptEdits`) and the
+prompt it starts with (the brief). The owner may likewise start a
+reviewer session by hand with the launch line above, for the round and
+the PR head. Each prompt also asks the session to put its id
+(`$CLAUDE_CODE_SESSION_ID`) in its first comment on the channel. Then
+wait on the channel.
+
+**Stall rule.** If a launched session has posted nothing on the channel 30
+minutes after your launch comment, it has stalled. Do not keep waiting:
+post the launch again as an `action` that says it is a re-post. If it
+stalls a second time, post a `question` to the owner. A builder or
+reviewer that has posted and is working does not count as stalled. For
+a reviewer round, the second stall is the not-run rule's second failure,
+posted as an `error`. One event, one kind.
+
+**Budget.** The driver is a session, so the session budget applies: at
+the budget, post the hand-off on the run's item in the format this skill
+fixes and stop, unless the owner has said to continue this session. The
+hand-off is a `handoff` comment and releases the item. The prompt hook
+warns only when a prompt arrives, and the driver works for long
+stretches from one, so read your number at every round boundary:
+
+```bash
+jq .ctx_pct "${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/sessions/$CLAUDE_CODE_SESSION_ID.json"
+```
+
+At or over the budget, hand off and stop as above; no file (no status
+line on this machine) means say so in the hand-off and keep rounds short.
+A `null`, or an empty `CLAUDE_CODE_SESSION_ID`, means no number yet:
+check again at the next boundary and say so in the hand-off. The
+variable is not in Claude Code's documentation, so confirm it on your
+build.
+
+**Report.** Each round comment (an `action`) carries the round row, the
+state, what happens next, and the `HANDOFF` block in this skill's fixed
+format (branch and head, open findings, verified, known limits, next
+step). The run's last comment is a `handoff`: the series with its session
+ids, the merge (or why not), the items closed and the learning. Post it
+in the same step as the release of the item.
 
 ## The tracker
 
@@ -249,12 +391,17 @@ steps and the roles load it.
    slice the plan marks under ~500 lines, the brief as the whole prompt.
    A larger slice may still be an `Agent` call, but only where the owner
    allows it for that run (in the architect's session, or in a comment on
-   the run's item for an orchestrator). Add the model override
+   the run's item). Add the model override
    `model: opus` where the owner asks for it because of the slice's
    weight. Each allowance covers one run, never a standing default.
    `maxTurns` still binds. Every `Agent` builder gets
    `isolation: worktree`, dispatched after a `git fetch`, so that
    parallel slices never share a checkout.
+   A builder that has returned and is owed a round's findings is resumed
+   (`SendMessage` to that same builder), so it keeps its context; a new
+   builder call given the findings only when the first cannot be
+   resumed. It answers with its Ready comment and disposition lines as
+   usual.
    Mechanic chores are `Agent` with `subagent_type: maybloom-stack:mechanic`.
    A question about the world outside the repo (prior art, a library or
    service choice, whether something is still maintained) is `Agent`
@@ -297,9 +444,10 @@ steps and the roles load it.
    decisions, and the project's `AGENTS.md` names the channel. Each
    comment starts with the author's role in brackets (`[builder]`,
    `[reviewer]`) until each role posts from its own account; a watcher
-   skips its own role's comments. The orchestrator also types every
+   skips its own role's comments. The driver also types every
    comment, with a first line
-   of `[orchestrator] <kind>: <one line>`. The kind is `action`,
+   of `[architect] <kind>: <one line>` (a runner posts under its own
+   label). The kind is `action`,
    `question`, `handoff` or `error`, so that a runner can read the run's
    state without reading prose.
 9. **A round is answered in lines a runner reads.** Where the project's
@@ -390,7 +538,7 @@ The same hook warns once per window when the 5-hour usage reaches
 installed the hook has no numbers and stays silent.
 
 The hook speaks only when a prompt arrives, so a session that works for
-long from one prompt (an orchestrator between rounds, a builder session
+long from one prompt (a driver between rounds, a builder session
 on a brief, a reviewer's round) hears nothing in between. Such a session
 reads its own number at each round or step boundary, from the file the
 status line writes for it. This is for sessions only: an `Agent`
@@ -480,7 +628,8 @@ The agents are generic; the repo supplies what they cannot know, in a
 `## Delegation` section of its `AGENTS.md` (the primary guidance file;
 `CLAUDE.md` points to it). `maybloom-stack-bootstrap` writes the section;
 a repo that predates it adds one by hand, and the agents fall back to a
-`## Delegation` section in `CLAUDE.md`. Four items, nothing else:
+`## Delegation` section in `CLAUDE.md`. Four items, nothing else, plus the
+runner line where a runner drives the cycle ([Driving a run](#driving-a-run)):
 
 ```markdown
 ## Delegation (the `maybloom-stack-delegate` skill has the roles and rules)
@@ -492,7 +641,7 @@ a repo that predates it adds one by hand, and the agents fall back to a
 ```
 
 A repo that needs a different builder, mechanic, reviewer,
-orchestrator, researcher, designer or critic ships its own `.claude/agents/<name>.md` and launches it by
+researcher, designer or critic ships its own `.claude/agents/<name>.md` and launches it by
 that name (`claude --agent reviewer`, `subagent_type: builder`): the
 plugin's agents are namespaced (`maybloom-stack:reviewer`), so a project
 agent never replaces them under the launches this skill documents. Keep

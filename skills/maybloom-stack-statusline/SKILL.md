@@ -191,9 +191,10 @@ yet, so there step 3 is repeated once.
 
 ## Troubleshooting
 
-- **No second line at all:** the payload had no `rate_limits`, which
+- **No 5h or weekly segment:** the payload had no `rate_limits`, which
   happens outside a signed-in claude.ai session (API-key sessions have no
-  usage buckets). Nothing to fix.
+  usage buckets). The second line still prints, with `ctx` and the cache
+  countdown. Nothing to fix.
 - **The scoped segment is missing, the others show:** the cache is stale
   or absent. The normal refresh runs in the background with its output
   discarded, so ask the script itself:

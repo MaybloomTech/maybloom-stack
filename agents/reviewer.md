@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Reviewer role (the maybloom-stack-delegate roster). Reviews one round of one maybloom-stack pull request in a fresh session — the PR body and diff, the items it closes, the repo's AGENTS.md — and posts findings by severity and a verdict. Never edits code. Launch it as a session (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`), a new one every round.
+description: Reviewer role (the maybloom-stack-delegate roster). Reviews one round of one maybloom-stack pull request as a fresh reviewer each round — the PR body and diff, the items it closes, the repo's AGENTS.md — and posts findings by severity and a verdict. Never edits code. Launch it as a session (`claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`), a new one every round; the architect may instead run a round as an `Agent` call (`subagent_type: maybloom-stack:reviewer`), a new reviewer every round, in its own checkout, a detached worktree at the PR head, never the builder's.
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, Skill
@@ -101,8 +101,8 @@ marked `hands-on`. Start it with `[reviewer]`:
 builder's disposition lines answer, rule 9 of `maybloom-stack-delegate`),
 then what you ran, then the verdict. An ordinary round ends `changes
 requested` or `no blocking findings`; it never grants a merge, because
-the orchestrator decides from the series when the run is ready. Only
-the deep review (the round the orchestrator names as the gate) may end
+the driver of the run decides from the series when it is ready. Only
+the deep review (the round the driver names as the gate) may end
 `APPROVED at <sha>. Merge allowed.`, listing the polish items the
 builder may fix before merging (open should-fix findings are fixed
 first, which means the deep review ends `changes requested` and another

@@ -17,26 +17,36 @@ be spending its context on a dependency bump.
 
 ## The roles
 
-Eight roles do the work, and all of them answer to one party that is not
+Seven roles do the work, and all of them answer to one party that is not
 a role: the **project owner**, the person who owns the decisions, plans
 with the architect and answers the questions the roles file. No agent
 fills that part, and the skills never name a person for it.
 
 | Role | Job | Launched as |
 |---|---|---|
-| **Architect** | Plans with the owner; turns open work into ready, well-scoped items with briefs; owns the contract, the foundations and every protected path; reviews builder PRs | The interactive session, never an agent |
-| **Orchestrator** | Drives one run (a PR closing one item or a bundle) through the review loop: dispatches the builder, requests each review round, keeps the round series, applies the stop rule, files the questions the owner must answer | `maybloom-stack:orchestrator`, a session |
+| **Architect** | Plans with the owner; turns open work into ready, well-scoped items with briefs; owns the contract, the foundations and every protected path; reads the round series and makes the merge call (the rounds stay the reviewer's) | The interactive session, never an agent. The top tier for architect work, Opus-class when the top tier is unavailable |
 | **Builder** | One slice against a fixed brief, with its tests; checks the brief's acceptance criteria in the PR body; opens the PR on the item's branch | `maybloom-stack:builder`, a session or an `Agent` call in its own worktree |
 | **Mechanic** | One chore: CI, Docker, config, dependencies, renames; never product code | `maybloom-stack:mechanic`, an `Agent` call |
-| **Reviewer** | A fresh session per round: reads the PR body, the items it closes, the repo's guidance and the rubric, posts findings and a verdict; never edits code | `maybloom-stack:reviewer`, a session |
+| **Reviewer** | A fresh reviewer per round: reads the PR body, the items it closes, the repo's guidance and the rubric, posts findings and a verdict; never edits code | `maybloom-stack:reviewer`, a session, or an `Agent` call from the architect (a new reviewer every round, in its own checkout, a detached worktree at the PR head, never the builder's) |
 | **Researcher** | One question about what exists outside the repo: prior art, a library or service choice, whether a dependency is still maintained; returns a fixed-shape report with sources, the claims it verified marked; never edits the repo, files nothing | `maybloom-stack:researcher`, an `Agent` call |
 | **Designer** | One design change before it is built: the sketches, one design pass under `src/design/` from the real primitives and fixtures, the board captures; never hooks, data, the contract, the primitives or the tokens module | `maybloom-stack:designer`, an `Agent` call in its own worktree or a session |
 | **Critic** | A fresh context per round: reviews the designer's captures and probes against `design.md` and the rubric, before the owner looks; never edits | `maybloom-stack:critic`, an `Agent` call |
 
-The orchestrator is the only role that reaches the owner outside the
-tracker, and only with a question it cannot settle from the series. Until
-a runner automates it, the owner (or an architect session) does the
-orchestrator's job by hand; the agent definition is the same either way.
+The owner always talks to the architect. With no runner, the architect
+session drives the run, as the normal mode, by the rules in [Driving a
+run](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md#driving-a-run) (the round
+series, the stop rule, what is filed for the owner). Where a runner drives
+the cycle, it follows the same rules and is then the driver: the architect
+reads its rounds and does not launch them. Only the architect
+reaches the owner outside the tracker, in its session; every other role,
+and a runner that drives, files what the owner must answer on the item.
+An architect that drives brings the owner only a question it cannot
+settle from the series.
+An architect that drives switches its session to the Opus tier
+(`/model`) once the brief is written, so the build does not spend
+top-tier usage. A PR the architect writes itself (a server slice, a
+foundation, a protected path) does not go through builder rounds:
+architect PR, then `/code-review high`, then the owner.
 
 The researcher is the mechanic's counterpart for the world outside the
 repo: it reads and reports, never edits. Research used to
@@ -134,22 +144,22 @@ saves a quality review of the wrong thing. Builders dispatched as
 `Agent` calls each get a worktree of their own, so parallel slices never
 share a checkout.
 
-The orchestrator types every comment it posts as `action`, `question`,
-`handoff` or `error`, so a runner reads the state of the run from the
-item without reading prose. It claims the item at the start and releases
-it at the hand-off, so two runs never pick up the same one, and it reads
-the item again before every round instead of trusting what it read at
-the start. Each round's row records the builder's and the reviewer's
+Whoever drives the run types every comment it posts as `action`,
+`question`, `handoff` or `error`, so a runner reads the state of the run
+from the item without reading prose. It claims the item at the start and
+releases it at the hand-off, so two runs never pick up the same one, and
+it reads the item again before every round instead of trusting what it
+read at the start. Each round's row records the builder's and the reviewer's
 session ids, so the cost rolls up per item and per role from the
 session logs. A launched session that stays silent past a fixed time is
-re-posted, not waited on. When the deep review passes, the orchestrator
+re-posted, not waited on. When the deep review passes, the driver
 writes one short learning for the repo's learnings file, on a fixed
-line (`[orchestrator] action: learning: <file> — <line>`, or `learning:
+line (`[architect] action: learning: <file> — <line>`, or `learning:
 none`). A builder session waits for that line and commits it before the
 merge, so the next brief can cite it. A builder dispatched as an `Agent`
-call has already returned by then, so the orchestrator dispatches one
-more for that commit. A run that dies before its hand-off leaves the
-item claimed. The owner releases it with an `[orchestrator] handoff:
+call has already returned by then, so the driver resumes it, or
+dispatches one more when it cannot be resumed, for that commit. A run that dies before its hand-off leaves the
+item claimed. The owner releases it with an `[architect] handoff:
 released by owner` comment.
 
 ## Budgets are enforced, not requested
@@ -167,8 +177,7 @@ such call has built a slice of about 700 lines inside its turn limit.
 Starting a session would have meant the owner launching it by hand.
 Every agent has the
 Skill tool, so a session can load a tracker's skill and the delegation
-skill itself; the orchestrator launches with `acceptEdits`, so the small
-builders it dispatches can edit unattended.
+skill itself.
 Splitting a slice in halves does not make it agent-sized: each half
 still replays the plan, the conventions and the codebase it touches, and
 in practice each half runs as long as the whole would have.

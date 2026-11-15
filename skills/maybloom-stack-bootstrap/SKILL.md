@@ -71,7 +71,7 @@ and PR conventions, the session budget and the hand-off format),
 plugin marketplaces, a permission allowlist for the checks, the
 session-budget prompt hook in `.claude/hooks/`), and `docs/context.md` to
 fill in and `docs/solutions/README.md`, the learnings file the
-orchestrator's run-ending line is appended to; a private repo also gets the plan format in `docs/plans/`.
+run driver's run-ending line is appended to; a private repo also gets the plan format in `docs/plans/`.
 Record the user's choices in `AGENTS.md` so later sessions inherit them.
 
 ## Interview

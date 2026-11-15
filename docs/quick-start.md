@@ -86,8 +86,8 @@ requests and its tracker, so decide these first:
   paths, where commands run from and the checks a builder runs. The
   scaffold writes it; a project that did not start from the template
   writes its own.
-- A permission mode for each launch: `acceptEdits` for the orchestrator and
-  the builder, `default` for the reviewer.
+- A permission mode for each launch: `acceptEdits` for the builder,
+  `default` for the reviewer.
 - The status line below, because the budget hook reads its numbers.
 
 [Running a loop](./running-a-loop.md) has the launch commands, the
@@ -141,7 +141,7 @@ only for a decision.
 ```
 
 [Running a loop](./running-a-loop.md#the-short-way) has this prompt in
-full, and two more: one that hands the run to an orchestrator, one that
+full, and two more: one that has the session drive a larger slice, one that
 starts with the design loop. To launch the builder yourself, the brief is
 its whole prompt:
 

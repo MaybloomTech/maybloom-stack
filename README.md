@@ -97,8 +97,8 @@ per validated path. Skills are tasks and references are paths, so a new leaf
 on the tree costs one directory, and a CI check keeps the picture from claiming
 coverage the references do not have.
 
-Seven agents run the delegation model: `builder`, `mechanic`, `reviewer`,
-`orchestrator`, `researcher`, `designer` and `critic`. The architect is the
+Six agents run the delegation model: `builder`, `mechanic`, `reviewer`,
+`researcher`, `designer` and `critic`. The architect is the
 interactive session, not an agent.
 
 ## Documents
@@ -152,7 +152,7 @@ and skills rely on travels with them.
 | `docs/` | The canonical definition. Source of truth for everything else. |
 | `site/` | The Astro site that renders `docs/` unchanged. |
 | `skills/` | Agent skills that apply the conventions to a real codebase. |
-| `agents/` | The builder, mechanic, reviewer, orchestrator, researcher, designer and critic agents the delegation model runs on. |
+| `agents/` | The builder, mechanic, reviewer, researcher, designer and critic agents the delegation model runs on. |
 | `.claude-plugin/` | Marketplace + plugin manifests that make the skills installable via `/plugin`. |
 
 ## Running the site

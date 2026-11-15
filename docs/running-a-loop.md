@@ -8,8 +8,8 @@ order: 11
 
 A loop is one piece of work moving from a written brief to a merged pull
 request: a builder builds it, a fresh reviewer reviews it round by round,
-and an orchestrator (or you, by hand) keeps the rounds going until a
-review approves. This page is the practical side of
+and whoever drives the run (your architect session, or a runner) keeps
+the rounds going until a review approves. This page is the practical side of
 [Delegation](./delegation.md), which says why the work is split: how each
 role is started, what to paste into it, what a brief looks like, how one
 run goes, and how the session budget stops a session in time. You need the
@@ -44,28 +44,33 @@ accept edits before the dispatch if you want only the commit, push and
 pull-request prompts. The builder works to the brief, opens a draft pull
 request and marks it ready. The skill's review rule for a builder's pull
 request is reviewer rounds, or the architect's own `/code-review medium`;
-the session reviews with the latter and passes the findings on. You decide
-the merge, and anything the builder or the review escalates: a contract
-gap, a wrong brief, a protected path.
+the session reviews with the latter and passes the findings on, or runs
+reviewer rounds as `Agent` calls (a new reviewer every round, in a
+detached worktree at the PR head). A builder that has returned gets a
+round's findings by being resumed (`SendMessage` to that same builder), so
+it keeps its context; a new builder call given the findings only when the
+first cannot be resumed. You decide the merge, and anything the builder or
+the review escalates: a contract gap, a wrong brief, a protected path.
 
-**A run handed to an orchestrator.** For a larger slice, or when you want
-the rounds driven without your session in the middle:
+**A larger slice, with the rounds driven.** For a slice over about 500
+lines, or when you want the rounds driven without you in the middle:
 
 ```
-Write the brief for PROJ-123, post it on the item, and give me the launch
-command and starting prompt for an orchestrator to drive this run.
+Write the brief for PROJ-123, post it on the item, and drive this run:
+give me the launch command and starting prompt for the builder session,
+run each review round yourself, and come back to me only for a decision.
 ```
 
-The session writes and posts the brief, then prints
-`claude --agent maybloom-stack:orchestrator --permission-mode acceptEdits`
-and the starting prompt from [A prompt for each role](#a-prompt-for-each-role).
-You start that session yourself: an architect session does not start the
-orchestrator. The orchestrator claims the item and dispatches a builder
-call, or, for a large slice and for every review round, posts the launch
-command and prompt of a builder or reviewer session on the item and waits
-for you to start it. It reads the series after each round and comes to you
-only with a question it cannot settle: a diverging series, the merge, an
-escalated finding, a run that will not fit its budget.
+The session writes and posts the brief, then claims the item and drives
+the run by [Driving a run](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md#driving-a-run).
+A builder session is yours to start: it posts the launch command
+(`claude --agent maybloom-stack:builder --permission-mode acceptEdits`)
+and the starting prompt from [A prompt for each role](#a-prompt-for-each-role)
+on the item and waits. It runs each review round as a reviewer `Agent`
+call, or you may start a reviewer session by hand with the launch line
+below. It reads the series after each round and comes to you only with a
+question it cannot settle: a diverging series, the merge, an escalated
+finding, a run that will not fit its budget.
 
 **A design first, then the build.** For an item whose look is the open
 question:
@@ -95,10 +100,9 @@ subagent receives.
 | Role | How it is started |
 |---|---|
 | **Architect** | No command: your own interactive session. It plans with you and writes the briefs |
-| **Orchestrator** | `claude --agent maybloom-stack:orchestrator --permission-mode acceptEdits`, always a session, never an `Agent` call |
 | **Builder** | `claude --agent maybloom-stack:builder --permission-mode acceptEdits`, or an `Agent` call with `subagent_type: maybloom-stack:builder` and `isolation: worktree` for a slice under about 500 lines |
 | **Mechanic** | An `Agent` call, `subagent_type: maybloom-stack:mechanic` |
-| **Reviewer** | `claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a new session every round, in its own worktree (below) |
+| **Reviewer** | `claude --agent maybloom-stack:reviewer --permission-mode default -w review-<pr>-r<n>`, a new session every round, in its own worktree (below); or, from the architect, an `Agent` call with `subagent_type: maybloom-stack:reviewer`, a new reviewer every round, in its own checkout (a detached worktree at the PR head), never the builder's |
 | **Researcher** | An `Agent` call, `subagent_type: maybloom-stack:researcher`; never a session |
 | **Designer** | `claude --agent maybloom-stack:designer`, or an `Agent` call with `subagent_type: maybloom-stack:designer` and `isolation: worktree`; see [Design loop](./design-loop.md) |
 | **Critic** | An `Agent` call, `subagent_type: maybloom-stack:critic`, a new call every round; see [Design loop](./design-loop.md) |
@@ -119,10 +123,7 @@ git worktree remove --force --force .claude/worktrees/review-<pr>-r<n> && git br
 ```
 
 The permission mode is a launch flag because a plugin's agents cannot set
-one themselves. The orchestrator runs in `acceptEdits` so that the small
-builders and mechanics it dispatches, which inherit its mode, can edit
-without asking; a dispatched builder still asks at `git commit`, `git push`
-and the pull-request command. An `Agent` call inherits its parent's mode.
+one themselves. An `Agent` call inherits its parent's mode.
 
 ## One run, from a card to a merged pull request
 
@@ -136,11 +137,16 @@ ids.
    budget. A slice that will not fit is two slices. The brief names the
    branch, the acceptance criteria, the files to touch and what is out of
    scope.
-2. **Someone drives the run.** An orchestrator session does it; until a
-   runner automates that, you do the orchestrator's job by hand under the
-   same rules. The orchestrator reads the item and `AGENTS.md`, claims the
-   item (a first comment `[orchestrator] action: claimed`, so two runs never
-   pick up the same one) and dispatches the builder. It never edits code.
+2. **Someone drives the run.** With no runner, your architect session
+   drives it, as the normal mode, by [Driving a run](https://github.com/MaybloomTech/maybloom-stack/blob/main/skills/maybloom-stack-delegate/SKILL.md#driving-a-run);
+   switch it to the Opus tier (`/model`) once the brief is written, so the
+   build does not spend top-tier usage. Where a runner drives the cycle,
+   it follows the same rules and is then the driver: the architect does
+   not launch rounds, claim the item or keep the series. The driver reads
+   the item and `AGENTS.md`, claims the item (a first comment
+   `[architect] action: claimed` where the architect drives, so two runs
+   never pick up the same one) and dispatches the builder. It never edits
+   code.
 3. **The builder builds and pushes.** It cuts the branch from an
    up-to-date `origin/main`, writes its reading of the brief into the PR
    body before any code, builds the slice with its tests, runs the checks
@@ -150,8 +156,9 @@ ids.
 4. **The push starts the round.** Where a runner watches the forge, the
    head marked ready starts round 1, and every later push before the final
    approval starts another, after a short settle window. Where no runner
-   watches, the orchestrator posts the reviewer's launch command and prompt
-   for the head and you start that session, or you launch it by hand.
+   watches, the architect runs the round as a reviewer `Agent` call (a new
+   reviewer, in a detached worktree at the head), or you start a reviewer
+   session by hand with the launch line above.
    **A draft gets no round**: a builder whose fix takes several commits
    sets the PR back to draft, pushes once, whole, and marks it ready
    again. To hand-run the rounds yourself on a repo a runner watches,
@@ -159,12 +166,15 @@ ids.
    hand the run back; a builder waiting on the tool then hands back
    instead of waiting.
 5. **A fresh reviewer posts findings.** Each round is a new reviewer
-   session. In round 1 it first compares the builder's reading with the
+   (a session, or an `Agent` call from the architect). In round 1 it first compares the builder's reading with the
    brief, then the acceptance list, then the code. It posts
    `Round <n> at <sha>`, each finding as an id (`R<n>-<i>`), a severity,
    `file:line`, what breaks and the least-change fix, and a verdict.
-6. **The builder answers every finding.** One line per finding, pushed
-   first, then posted at once with a header:
+6. **The builder answers every finding.** A builder `Agent` call that
+   has returned is resumed with the round's findings (`SendMessage` to
+   that same builder); a new call given the findings only when it cannot
+   be resumed. One line per finding, pushed first, then posted at once
+   with a header:
 
    ```
    [builder] Ready for round 2, head <sha>
@@ -177,7 +187,7 @@ ids.
 
    A finding with no line counts as not addressed. A dispute needs evidence
    the reviewer could have read; without it the finding is `escalated`.
-7. **The series decides when to stop.** The orchestrator keeps a row per
+7. **The series decides when to stop.** The driver keeps a row per
    round and reads the state from it:
    - **converging**: blocking findings not rising, fixes confirmed. Start
      the next round and ask nobody.
@@ -187,11 +197,11 @@ ids.
      The run stops and files a decision for you, with the series and the
      least-change option.
    - **ready**: zero blocking this round and at most two the round before.
-     The orchestrator requests one deep review and says it is the gate.
+     The driver requests one deep review and says it is the gate.
 8. **The gate and the merge.** Only the deep review can end `APPROVED at
    <sha>. Merge allowed.` (where you have allowed the builder to merge, in
    a comment on the run's item) or `ready for the owner's merge at <sha>`.
-   The orchestrator then posts the run's learning, `[orchestrator] action:
+   The driver then posts the run's learning, `[architect] action:
    learning: <file> — <line>` or `learning: none`; the builder commits that
    line before the merge and the push starts no new round. Then the pull
    request is squash-merged.
@@ -206,19 +216,8 @@ Each prompt is written to the input its agent file says it starts with.
 Replace what is in angle brackets. Paste it as the first message after
 launching the session, or as the prompt of the `Agent` call.
 
-**Orchestrator** (starts with the item, the PR if one exists, and the
-`## Delegation` section of `AGENTS.md`):
-
-```
-Drive the run for PROJ-123. There is no PR yet; the brief is on the item.
-(Or: the PR is <n>, head <sha>.)
-Read the item and its newest comments, the PR if there is one, and
-AGENTS.md section Delegation. Then claim the item.
-Put your session id ($CLAUDE_CODE_SESSION_ID) in your first comment.
-```
-
 **Builder** (the brief is the whole prompt; when a session, it also puts
-its id on the channel, which is what the orchestrator asks it to do):
+its id on the channel, which is what the driver asks it to do):
 
 ```
 <paste the whole brief here>
@@ -359,7 +358,7 @@ touch ${XDG_CACHE_HOME:-~/.cache}/claude-budget/<session_id>.ok
 ```
 
 The hook speaks only when a prompt arrives, so a session that works for a
-long time from one prompt (an orchestrator between rounds, a builder on a
+long time from one prompt (a driver between rounds, a builder on a
 brief) reads its own number at each round boundary:
 
 ```
@@ -413,7 +412,7 @@ nothing more. The item's id is the issue number: the branch is
 `123/short-slug`, and the PR body says `Closes #123` so the merge closes
 it. Issues must be switched on for the repo, and it needs a `decision`
 label (the roles file a question for the owner under it) and, if the
-orchestrator is to find work, a `ready` label for the issues the owner
+driver is to find work, a `ready` label for the issues the owner
 has cleared to start.
 
 To use another tracker, name it in one of two places. Which one wins is
@@ -479,6 +478,15 @@ a short paragraph of its own, for example:
 Answer each round with `<tool> answer ...` and read the round with
 `<tool> series`. A comment on the pull request is prose; nothing reads
 its lines.
+```
+
+A repo where a runner drives the cycle says so in one line of its
+`## Delegation` section; the runner is then the driver, and the architect
+reads the rounds and does not launch them:
+
+```markdown
+A runner drives the cycle: it starts the review rounds and keeps the
+series. The architect reads the rounds and does not launch them.
 ```
 
 Without a tool the fallback is the run's channel: the tracker item, or the

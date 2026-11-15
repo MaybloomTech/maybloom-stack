@@ -101,10 +101,13 @@ only where the project owner has allowed builder merges on the run's
 item: fix only the listed items, push them as one commit, wait for the
 required checks, and squash-merge at the approved head plus that commit.
 
-**The run's learning.** Where the run has an orchestrator (the channel
-carries `[orchestrator]` comments), it posts the learning after the
-gate, on a first line of `[orchestrator] action: learning: <file> —
-<line>` or `[orchestrator] action: learning: none`. Before your last
+**The run's learning.** Where the channel carries typed driver comments (a first line
+`[architect] <kind>:`, or a runner's label with one of the four kinds
+`action`, `question`, `handoff`, `error`), the driver posts the learning
+after the gate, on a first line of `[architect] action: learning: <file>
+— <line>` or `[architect] action: learning: none` (a runner posts under
+its own label). Where the channel carries no driver comment of that
+shape, do not wait for a learning line. Before your last
 commit, wait for that comment, newer than the approving round. Append
 `<line>`, as written, to `<file>` (the file the line names; a repo that names none uses `docs/solutions/README.md`) in that same commit, whether you merge
 or the owner does. If nothing else is listed, the learning is that
@@ -172,7 +175,7 @@ The first line is the header of those lines, not what starts the
 round: a runner starts the round from the push (see *Branch and PR*)
 and reads the dispositions when it starts, so the Ready header follows the
 push at once, inside the settle window, never minutes later. Where no
-runner watches, the orchestrator or the owner requests the round, and
+runner watches, the driver of the run or the owner requests the round, and
 the Ready header tells them which head to request it at.
 
 ### Waiting for the next round
@@ -205,7 +208,7 @@ the loop. Each check:
    end the wait, schedule the next check and stop there.
 3. Read its findings and series state wherever the round came from: the
    series block at its end (`Series of PR
-   <n>: <state>` and a `Next:` line; where an orchestrator keeps the
+   <n>: <state>` and a `Next:` line; where the driver keeps the
    series instead, its newest comment on the item). Fix every blocking
    and should-fix finding; for the rest, and for any you dispute, defer
    or escalate, choose the disposition (a dispute needs evidence, else
@@ -240,8 +243,8 @@ block says `diverging` (the owner decides the run from there; post the
 hand-off), or when the round at your head approves it (its verdict, or
 the series block's `Next:` line, says `APPROVED at <sha>` or `ready for
 the owner's merge at <sha>`). On an approval, before you stop the
-loop, keep checking until the orchestrator's learning line is there, if
-the run has an orchestrator. The orchestrator may post a `handoff`
+loop, keep checking until the driver's learning line is there, if
+the channel carries typed driver comments. The driver may post a `handoff`
 after the approval instead, with no learning line. In that case stop
 waiting: push the listed items without the learning, and name the
 missing learning in your hand-off. Otherwise push the listed items and

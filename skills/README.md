@@ -11,7 +11,7 @@ The maybloom stack's agent skills. This directory is their source of truth;
 | `maybloom-stack-extend-resource/` | Change a resource that already exists: fields, child tables, links |
 | `maybloom-stack-add-rpc/` | Add one non-CRUD operation |
 | `maybloom-stack-delegate/` | Who does what: the model tiers, the rules, the brief template. The agents it describes live in `../agents/` |
-| `maybloom-stack-statusline/` | Install the team's Claude Code status line (usage windows, the model-scoped weekly limit, context) from the script it ships; tooling for the people working on stack repos, not a path |
+| `maybloom-stack-statusline/` | Install the team's Claude Code status line (usage windows, the model-scoped weekly limit, context) from the script it ships; tooling for the people working on stack repos, not a path; [the guide](../docs/status-line.md) |
 | `maybloom-stack-shared/` | References loaded by the others: cross-cutting files (the language-neutral core, proto conventions, gotchas, tx patterns) and one directory per path under `references/paths/` |
 
 The directories must stay siblings: they reference each other by
@@ -69,12 +69,13 @@ Claude Code:
 ```
 
 That installs the whole family in one step — the triggering skills, the
-`builder`, `mechanic`, `reviewer`, `orchestrator`, `researcher`,
+`builder`, `mechanic`, `reviewer`, `researcher`,
 `designer` and `critic` agents from `../agents/`, plus
 `maybloom-stack-shared`, which has no `SKILL.md` and ships as plain
 files, so the `../maybloom-stack-shared/references/...` links keep
 resolving on the installed copy. Installed skills are namespaced
 (`maybloom-stack:maybloom-stack-bootstrap`).
+The first prompts to type are in [Quick start](../docs/quick-start.md).
 
 ### Updating
 

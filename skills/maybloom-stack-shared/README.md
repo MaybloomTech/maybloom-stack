@@ -29,7 +29,7 @@ directory at the point of use.
 - `references/design/` — how an interface is designed rather than built: the
   loop, the `design.md` convention, the rubrics and the critique
   procedure. Entered through its `README.md`; each client path adds its
-  own translation.
+  own translation. The owner's side is [Design loop](../../docs/design-loop.md).
 
 ## Paths
 
