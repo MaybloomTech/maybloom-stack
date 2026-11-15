@@ -22,7 +22,8 @@ You do not have to launch every role yourself. You type one prompt into
 your own interactive session, the architect, and it starts the loop for a
 card. The prompts below use the phrases the delegation skill answers to
 (`write a brief`, `delegate this slice`, `drive this run`, `run the design
-loop`). Replace `PROJ-123` with the item's id as your tracker prints it.
+loop`). Replace `PROJ-123` with the item's id as your tracker prints it (the issue number, if the forge's issues are
+your tracker).
 
 **A small slice the session runs itself.** For a slice the plan marks
 under about 500 lines:
@@ -111,7 +112,9 @@ and the pull-request command. An `Agent` call inherits its parent's mode.
 ## One run, from a card to a merged pull request
 
 A run is one pull request closing one item (or a bundle). The item is the
-card in your tracker, and its id starts the branch: `PROJ-123/short-slug`.
+card in your tracker, and its id starts the branch: `123/short-slug` for
+the forge's own issues, `PROJ-123/short-slug` for a tracker with prefixed
+ids.
 
 1. **The architect writes the brief.** In your own session, you and the
    architect turn the card into a brief (below) that fits a session's
@@ -382,10 +385,56 @@ Then connect `fjo` to your Forgejo instance with `fjo init --url <your
 instance URL> --token-file <path>`, using an access token generated for the
 account the agent will act as; the skill's README has the token scopes.
 
-The agents reach the item through the tracker's skill, which names the
-tracker's CLI; load the skill for whichever you use. A project's
-`AGENTS.md` says which channel the roles post on, the item or the pull
-request.
+### The tracker
+
+The tracker is where a run's item lives: the brief, the comments, the
+claim. By default it is the forge's own issues, reached with `gh issue`
+on GitHub and `fjo issue` on Forgejo, so a project with only `gh` needs
+nothing more. The item's id is the issue number: the branch is
+`123/short-slug`, and the PR body says `Closes #123` so the merge closes
+it. Issues must be switched on for the repo, and it needs a `decision`
+label (the roles file a question for the owner under it) and, if the
+orchestrator is to find work, a `ready` label for the issues the owner
+has cleared to start.
+
+To use another tracker, name it in one of two places. Which one wins is
+fixed:
+
+1. **The repo's `AGENTS.md`**, a line that starts `Tracker:`, such as
+   `Tracker: Vikunja, through the vikunja:vikunja skill`. The scaffold
+   has a commented slot for it. Only that line counts; another mention of
+   issues in `AGENTS.md` is not an override. It wins over everything
+   else, and it is the only way for one repo to differ, because the
+   plugin's option is read from your user settings and ignored in a
+   project's settings files.
+2. **The plugin's `tracker` option**, for every repo on your machine.
+   Set it with `/plugin configure maybloom-stack@maybloom-stack`, or at
+   install with `claude plugin install maybloom-stack@maybloom-stack
+   --config tracker="Vikunja, through the vikunja:vikunja skill"`. A
+   plain `claude plugin install` or `update` never asks for it.
+
+With neither, or an empty option, the roles use the forge's issues. A
+named tracker needs a skill that gives the roles its commands; the
+[vikunja-skill](https://github.com/MaybloomTech/vikunja-skill) is a
+full example for one.
+
+What a tracker has to provide, with the forge command for each, is the
+table in the `maybloom-stack-delegate` skill; the same table:
+
+| The roles need | GitHub (`gh`) | Forgejo (`fjo`) |
+|---|---|---|
+| The item as the brief | `gh issue view N --comments` | `fjo issue show N --full` |
+| Comment: Ready lines, round summaries, questions | `gh issue comment N --body-file note.md` | `fjo issue comment N @note.md` |
+| Claim it | `gh issue edit N --add-assignee @me` | `fjo issue edit N --assignee USER` (or `--add-label`) |
+| Release it | `gh issue edit N --remove-assignee @me` | `fjo issue edit N --unassign USER` |
+| List open items | `gh issue list --state open` | `fjo issue ls` |
+| List the items the owner marked ready | `gh issue list --label ready` | `fjo issue ls -l ready` |
+| File a decision for the owner | `gh issue create --title T --body-file body.md --label decision` | `fjo issue create -t T -b @body.md -l decision` |
+| Close it with a note | `gh issue close N --comment "note"` | `fjo issue close N -c "note"` |
+| Labels that exist | `gh label list` | `fjo labels` |
+
+A project's `AGENTS.md` also says which channel the roles post on, the
+item or the pull request; the scaffold's default is the pull request.
 
 ## Review-loop tools and the comment fallback
 

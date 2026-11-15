@@ -93,8 +93,9 @@ polish with a doc line, not a blocker.
 ## One item, one branch, one PR
 
 A run's branch starts with the tracker id of the item it closes, a slash
-and a short slug (`PROJ-123/short-slug`, the id as the tracker prints it,
-no `#`), and the PR body names every item it closes. A runner joins PR
+and a short slug (the id as the tracker prints it, no `#`: `123/short-slug`
+for the forge's own issues, `PROJ-123/short-slug` for a tracker with
+prefixed ids), and the PR body names every item it closes. A runner joins PR
 and item by that id, so it is the one convention the roles cannot vary.
 
 The roles talk on the run's channel: the tracker item, or the pull
@@ -165,7 +166,7 @@ the slice needs it. This allowance raises the line limit, never
 such call has built a slice of about 700 lines inside its turn limit.
 Starting a session would have meant the owner launching it by hand.
 Every agent has the
-Skill tool, so a session loads the tracker's skill and the delegation
+Skill tool, so a session can load a tracker's skill and the delegation
 skill itself; the orchestrator launches with `acceptEdits`, so the small
 builders it dispatches can edit unattended.
 Splitting a slice in halves does not make it agent-sized: each half

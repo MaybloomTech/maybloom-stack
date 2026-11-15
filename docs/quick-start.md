@@ -63,9 +63,10 @@ requests and its tracker, so decide these first:
   with `gh` (signed in, `gh auth login`) and for Forgejo with the forgejo
   skill's `fjo`, which installs as its own plugin
   ([how](./running-a-loop.md#which-forge-and-tracker)).
-- A tracker, whose skill the agents load to read and comment on the item;
-  the branch is named for the item's id (`PROJ-123/short-slug`). The agents
-  assume one; their files do not describe a run without it.
+- A tracker is optional. The agents use the forge's own issues (`gh issue`,
+  or `fjo issue` on Forgejo) unless you name another; the branch is named
+  for the item's id (`123/short-slug`).
+  [How to name another](./running-a-loop.md#which-forge-and-tracker).
 - A `## Delegation` section in the project's `AGENTS.md`: the protected
   paths, where commands run from and the checks a builder runs. The
   scaffold writes it; a project that did not start from the template

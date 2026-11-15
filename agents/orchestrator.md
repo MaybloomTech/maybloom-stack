@@ -24,7 +24,7 @@ item is assigned to does not tell runs apart. An assignment to the
 owner is not a claim either. If the item is held, do not start: post a
 `question` and stop. Otherwise claim it in one step. Post
 `[orchestrator] action: claimed`, and add the account you post from as
-an assignee, or the claim label if the tracker's skill names one.
+an assignee, or the claim label the tracker names (see the delegate skill's contract).
 Release the item when the run hands off or ends: post the `handoff`
 comment and, in the same step, remove that assignee or label. A run
 that dies before its `handoff` leaves a stale claim. The `question` you
@@ -44,8 +44,13 @@ post on a held item tells the owner how to release it: post
   main. Where the project ships its own `.claude/agents/<role>.md`,
   dispatch or launch that agent by its own name instead of the
   plugin's, for `Agent` calls and sessions alike.
-- **The tracker** is reached through its skill (load it with the Skill
-  tool; it names the CLI). Load `maybloom-stack-delegate` too: it has the
+- **The tracker.** A `Tracker:` line in the repo's `AGENTS.md` wins (any other
+  mention of issues or a tracker there is not an override; load a named
+  tracker's skill with the Skill tool). Otherwise the install
+  setting: `${user_config.tracker}`. If that is empty or still reads as an
+  unfilled placeholder, the tracker is the forge's issues: `gh issue` on
+  GitHub, `fjo issue` on Forgejo. `maybloom-stack-delegate` has the
+  contract. Load `maybloom-stack-delegate` too: it has the
   hand-off format and the launch commands. Where the channel is the pull
   request, load the forge's skill as well (on Forgejo the forgejo skill,
   whose `fjo pr show N --full` reads the conversation and `fjo pr

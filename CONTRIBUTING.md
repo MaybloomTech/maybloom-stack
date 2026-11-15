@@ -193,6 +193,19 @@ The check lists the shipped directories (`SHIPPED` in
 such as `hooks/`, `commands/`, `output-styles/` or `.mcp.json`, add it
 to `SHIPPED` in the same pull request.
 
+## Testing the plugin's options
+
+The plugin has one user option, `tracker` (see `userConfig` in
+`.claude-plugin/plugin.json`). A plugin loaded with `--plugin-dir` has the
+id `maybloom-stack@inline`, so a setting saved for
+`maybloom-stack@maybloom-stack` does not reach it: such a run uses the
+forge default. To test an option, install the branch from a local
+marketplace into a scratch `CLAUDE_CONFIG_DIR` and pass
+`--config tracker=...` to `claude plugin install`. The manifest's
+`default` is not applied (Claude Code 2.1.325), so an option nobody saved
+shows its `${user_config.<key>}` placeholder text in agent and skill
+text; role text that uses an option has to say what to do then.
+
 ## Maintainers' chores
 
 Some pins in the bootstrap templates are floors a new project starts

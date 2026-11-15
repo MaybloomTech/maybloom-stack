@@ -54,7 +54,8 @@ order, the review effort, anything a card already decided. Files:
 product direction, a change to a decided point, a new dependency or an
 architectural shift, anything that trades one of the owner's stated
 priorities against another. *Reconcile before Next:* before a card moves
-to Next, it lists where the brief contradicts the card or the plan it
+to Next (a board column where the tracker has one, else the open issues
+the owner has marked ready, with a label such as `ready`), it lists where the brief contradicts the card or the plan it
 came from, and any addition that changes the architecture, and resolves
 each on the card; a contradiction the card and plan cannot settle is the
 owner's question, never a guess in the brief. Starts with: `AGENTS.md`,
@@ -76,10 +77,10 @@ decision, a run that will not fit its budget, an item another run has
 claimed, an escalated finding, a session that stalls twice. Starts with:
 the run's item(s), the PR if one exists, `AGENTS.md` § Delegation. Then
 it claims the item. It posts `[orchestrator] action: claimed` and adds
-itself as an assignee, or the label the tracker's skill names. The item
-counts as held while its newest `[orchestrator]` comment is not a
-`handoff`, because roles may share one account and an assignment to the
-owner is no claim. It releases the item at the hand-off, so that two
+itself as an assignee, or the label the tracker names (see The tracker).
+The item counts as held while its newest `[orchestrator]` comment is not
+a `handoff`, because roles may share one account and an assignment to
+the owner is no claim. It releases the item at the hand-off, so that two
 runs never pick up the same one. A run that dies before its `handoff`
 leaves a stale claim. The owner releases it by posting `[orchestrator]
 handoff: released by owner` on the item. It reads the item and the PR
@@ -91,7 +92,7 @@ learning: <file> — <line>` (or `learning: none`). The builder waits for
 that line and commits it before the merge; for an `Agent` builder, which
 has already returned, the orchestrator dispatches one more for that
 commit. Tools: Read, Bash (search, the tracker CLI, the forge's CLI,
-`git`), Agent (to launch a mechanic or a small builder), Skill (the
+`git`), Agent (to launch a mechanic or a small builder), Skill (a named
 tracker's skill, the forge's where the channel is the pull request, and
 this one); no Edit or Write. It is the only role that reaches the owner
 outside the tracker. It is always a main session, never an `Agent` call:
@@ -129,31 +130,31 @@ chore, `AGENTS.md`. Tools: Read, Edit, Write, Bash, Skill; no Agent.
 
 **Reviewer** (`claude --agent maybloom-stack:reviewer --permission-mode
 default`, a fresh session every round). Decides alone: findings, their
-severity, the verdict; in round 1 it checks the builder's reading of
-the brief against the brief first; approval at a head only in the deep
+severity, the verdict; in round 1 it checks the builder's reading of the
+brief against the brief first; approval at a head only in the deep
 review the orchestrator names as the gate. Files: a decision that stops
 the line (the PR is building the wrong thing, or a finding only the
 owner can settle). Starts with: the PR body and diff, the items it
 closes, `AGENTS.md`, the previous rounds' findings and dispositions, its
-rubric. Tools: Read, Bash (to search, run checks and post), Skill (the
-tracker's skill, the forge's where the channel is the pull request, and
-this one); no Edit or Write, and it never pushes.
+rubric. Tools: Read, Bash (to search, run checks and post), Skill (a
+named tracker's skill, the forge's where the channel is the pull
+request, and this one); no Edit or Write, and it never pushes.
 
-**Researcher** (`Agent` with `subagent_type: maybloom-stack:researcher`).
-Decides alone: which sources to read, how to rank what it finds, what
-counts as verified (read from a primary source in its run) against
-secondhand. Files: nothing; it lists what deserves a card and the
-caller files it, and a question that turns out to need a decision goes
-back in the summary with the least-change option. Starts with: the
-question, and the part of the repo it is about (`AGENTS.md`, the docs
-page or skill the prompt names), so the comparison is against what the
-repo does rather than a generic stack. Tools: Read, Grep, Glob, Bash,
-WebSearch, WebFetch, Write (the report file only, never the repo),
-Skill (the tracker's skill, to post its summary on the item the prompt
-names); no Edit, no Agent. Never a session: a question fits one call,
-and the summary has to come back to the session that asked. It runs on
-the Opus tier, not the cheapest, because a sloppy survey misleads a
-decision.
+**Researcher** (`Agent` with `subagent_type:
+maybloom-stack:researcher`). Decides alone: which sources to read, how
+to rank what it finds, what counts as verified (read from a primary
+source in its run) against secondhand. Files: nothing; it lists what
+deserves a card and the caller files it, and a question that turns out
+to need a decision goes back in the summary with the least-change
+option. Starts with: the question, and the part of the repo it is about
+(`AGENTS.md`, the docs page or skill the prompt names), so the
+comparison is against what the repo does rather than a generic stack.
+Tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, Write (the report
+file only, never the repo), Skill (a named tracker's skill, to post its
+summary on the item the prompt names); no Edit, no Agent. Never a
+session: a question fits one call, and the summary has to come back to
+the session that asked. It runs on the Opus tier, not the cheapest,
+because a sloppy survey misleads a decision.
 
 **Designer** (`Agent` with `subagent_type: maybloom-stack:designer` and
 `isolation: worktree`, or `claude --agent maybloom-stack:designer`).
@@ -179,6 +180,48 @@ captures itself on a port of its own. Tools: Read, Grep, Glob, Bash, Skill;
 no Edit or Write, no Agent. It posts one `[critic]` comment on the PR with
 findings numbered `C<n>-<i>`, and never edits, pushes or marks the PR
 ready. Laptop only, like the designer.
+
+## The tracker
+
+The roles read the work item, comment on it and close it through a
+tracker. Which one:
+
+1. A `Tracker:` line in the repo's `AGENTS.md` (the tracker, and the
+   skill that reaches it) wins. Any other mention of issues or a tracker
+   in `AGENTS.md` is not an override; only that line is. A repo cannot
+   override through Claude Code settings files, which plugin options
+   ignore at project scope, so `AGENTS.md` is the repo's lever.
+2. Otherwise the install setting, `${user_config.tracker}`. It is set
+   with `/plugin configure maybloom-stack@maybloom-stack` or `claude
+   plugin install maybloom-stack@maybloom-stack --config tracker=...`.
+3. If that is empty, or still reads as an unfilled placeholder (an
+   install that never saved the option shows the placeholder text, not
+   an empty string), the tracker is the forge's own issues: `gh issue` on
+   GitHub, `fjo issue` on Forgejo.
+
+What any tracker has to give the roles, and the forge-issue command for
+each (`N` is the issue number; `@path` is a file, as `fjo` takes it):
+
+| The roles need | GitHub (`gh`) | Forgejo (`fjo`) |
+|---|---|---|
+| The item as the brief | `gh issue view N --comments` | `fjo issue show N --full` |
+| Comment: Ready lines, round summaries, questions | `gh issue comment N --body-file note.md` | `fjo issue comment N @note.md` |
+| Claim it | `gh issue edit N --add-assignee @me` | `fjo issue edit N --assignee USER` (or `--add-label`) |
+| Release it | `gh issue edit N --remove-assignee @me` | `fjo issue edit N --unassign USER` |
+| List open items | `gh issue list --state open` | `fjo issue ls` |
+| List the items the owner marked ready | `gh issue list --label ready` | `fjo issue ls -l ready` |
+| File a decision for the owner | `gh issue create --title T --body-file body.md --label decision` | `fjo issue create -t T -b @body.md -l decision` |
+| Close it with a note | `gh issue close N --comment "note"` | `fjo issue close N -c "note"` |
+| Labels that exist | `gh label list` | `fjo labels` |
+
+Both forges need the issue feature switched on for the repo, and the
+`decision` and `ready` labels created once (`gh label create decision`;
+`fjo` never creates a label, so make it in the web UI). With forge
+issues the id is the bare number: the branch is `123/short-slug`, and
+the PR body says `Closes #123` so the merge closes the item. A tracker
+with prefixed ids keeps its own form (`PROJ-123/short-slug`). Where the
+tracker is not the forge's, its skill names the commands for the same
+steps and the roles load it.
 
 ## The rules
 
@@ -242,7 +285,7 @@ ready. Laptop only, like the designer.
    replays the plan, the conventions and the codebase it touches.
 7. **One item, one branch, one PR.** The branch is the tracker id, a
    slash and a short slug (`PROJ-123/short-slug`, the id as the tracker
-   prints it, no `#`); the PR body opens with the builder's reading of
+   prints it, no `#`; `123/short-slug` for forge issues); the PR body opens with the builder's reading of
    the brief, then the acceptance list, and names every item the PR
    closes. A runner joins PR and item by that id. A bundle is one PR on
    the lead item's branch.

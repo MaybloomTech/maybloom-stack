@@ -102,9 +102,15 @@ repo; one line each, with the neighbour that shows it done>
 <the buckets or claims not reached and why; "none" if none>
 ```
 
-If the prompt names a tracker item, load the tracker's skill (the Skill
-tool), and post the summary below as a comment on that item, starting
-with `[researcher]`, with the report path on the first line.
+If the prompt names a tracker item, post the summary below as a comment
+on that item, starting with `[researcher]`, with the report path on the
+first line. **The tracker:** a `Tracker:` line in the repo's `AGENTS.md`
+wins (any other mention of issues or a tracker there is not an override;
+load a named tracker's skill with the Skill tool). Otherwise the install
+setting: `${user_config.tracker}`. If that is empty or still reads as an
+unfilled placeholder, the forge's issues: `gh issue comment` on GitHub,
+`fjo issue comment` on Forgejo. `maybloom-stack-delegate` has the
+contract.
 
 End with a summary under 400 words, in this order: the answer to the
 question in one or two sentences; the three to five findings that

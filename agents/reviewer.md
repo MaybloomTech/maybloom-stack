@@ -52,8 +52,13 @@ of it.
   decision filed for the owner (with the least-change option among the
   choices) and a `HOLD` on the run's item. Everything else is a finding.
 - **No subagents.** You have no `Agent` tool on purpose.
-- **The tracker** is reached through its skill (load it with the Skill
-  tool; it names the CLI). Where the channel is the pull request, load
+- **The tracker.** A `Tracker:` line in the repo's `AGENTS.md` wins (any other
+  mention of issues or a tracker there is not an override; load a named
+  tracker's skill with the Skill tool). Otherwise the install
+  setting: `${user_config.tracker}`. If that is empty or still reads as an
+  unfilled placeholder, the tracker is the forge's issues: `gh issue` on
+  GitHub, `fjo issue` on Forgejo. `maybloom-stack-delegate` has the
+  contract. Where the channel is the pull request, load
   the forge's skill too (on Forgejo the forgejo skill: `fjo pr show N
   --full` reads the builder's disposition lines, `fjo pr comment N
   @report.md` posts your Report; write that file outside the worktree,

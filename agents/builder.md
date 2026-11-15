@@ -115,6 +115,13 @@ series the deep review approved (`APPROVED at <sha>` or `ready for the
 owner's merge at <sha>`) takes no more automatic rounds, and the
 commit is merged as it is.
 
+**The tracker.** A `Tracker:` line in the repo's `AGENTS.md` wins; any
+other mention of issues or a tracker there is not an override. Otherwise
+the install setting: `${user_config.tracker}`. If that is empty or still
+reads as an unfilled placeholder, the tracker is the forge's issues: `gh
+issue` on GitHub, `fjo issue` on Forgejo. `maybloom-stack-delegate` has
+the contract, with the command for each step.
+
 ## As a session
 
 Launched as a session (`claude --agent maybloom-stack:builder`) rather
@@ -122,8 +129,9 @@ than an `Agent` call, you report on the run's channel, not to a parent.
 The channel is the run's item, or the pull request's own conversation
 where the runner that watches the forge posts its rounds there (rule 8
 of `maybloom-stack-delegate`; the project's `AGENTS.md` names it, and
-the item then keeps one line per round). Load the tracker's skill (the
-Skill tool) for its CLI, and the forge's where the channel is the pull
+the item then keeps one line per round). Reach the item as the tracker
+paragraph above says (a named tracker's skill, loaded with the Skill
+tool, gives its CLI), and use the forge's where the channel is the pull
 request (`gh` on GitHub; on Forgejo the forgejo skill: `fjo pr comment
 N @note.md` posts, `fjo pr show N --full` reads the conversation). Start
 every comment with `[builder]`, and post your plan before code on the
