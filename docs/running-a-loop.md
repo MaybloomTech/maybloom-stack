@@ -441,7 +441,7 @@ table in the `maybloom-stack-delegate` skill; the same table:
 
 | The roles need | GitHub (`gh`) | Forgejo (`fjo`) |
 |---|---|---|
-| The item as the brief | `gh issue view N --comments` | `fjo issue show N --full` |
+| The item as the brief | `gh issue view N`, then `gh issue view N --comments` | `fjo issue show N --full` |
 | Comment: Ready lines, round summaries, questions | `gh issue comment N --body-file note.md` | `fjo issue comment N @note.md` |
 | Claim it | `gh issue edit N --add-assignee @me` | `fjo issue edit N --assignee USER` (or `--add-label`) |
 | Release it | `gh issue edit N --remove-assignee @me` | `fjo issue edit N --unassign USER` |
@@ -450,6 +450,11 @@ table in the `maybloom-stack-delegate` skill; the same table:
 | File a decision for the owner | `gh issue create --title T --body-file body.md --label decision` | `fjo issue create -t T -b @body.md -l decision` |
 | Close it with a note | `gh issue close N --comment "note"` | `fjo issue close N -c "note"` |
 | Labels that exist | `gh label list` | `fjo labels` |
+
+`gh issue view N` piped (as an agent's shell runs it) prints the title,
+state, labels and body but no comments, and `gh issue view N --comments`
+piped prints only the comments (nothing at all on an issue without any), so
+a role reads the item with both. `fjo issue show N --full` prints the lot in one.
 
 A project's `AGENTS.md` also says which channel the roles post on, the
 item or the pull request; the scaffold's default is the pull request.
