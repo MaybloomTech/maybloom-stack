@@ -61,7 +61,7 @@ and the page it links to has the detail.
 - Docker (Docker Desktop, or another engine such as Colima or Podman with
   the `docker` command), for the Postgres the Go backend develops against
   (`docker compose up -d db`) and for `scripts/go`, which runs the pinned
-  Go toolchain in a container. With Go 1.26.9 installed you can run `go`
+  Go toolchain in a container. With Go 1.26.11 installed you can run `go`
   directly instead; with the TypeScript backend there is no database to
   start, because it uses PGlite.
 - Decisions the skill asks you for, among them the display name, the slug,

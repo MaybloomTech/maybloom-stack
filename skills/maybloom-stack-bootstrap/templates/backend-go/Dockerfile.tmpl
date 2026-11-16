@@ -16,7 +16,7 @@
 # GOTOOLCHAIN=local refuses to download another toolchain, so a go line
 # ahead of the image fails here instead of fetching one silently. Raise the
 # four together.
-FROM golang:1.26.9-alpine AS build
+FROM golang:1.26.11-alpine AS build
 ENV GOTOOLCHAIN=local
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./

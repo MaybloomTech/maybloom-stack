@@ -867,7 +867,7 @@ trimmed:
 
 ```dockerfile
 # The patch matches go.mod and scripts/go; GOTOOLCHAIN=local.
-FROM golang:1.26.9-alpine AS build
+FROM golang:1.26.11-alpine AS build
 WORKDIR /src/go
 COPY go/go.mod go/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -935,7 +935,7 @@ second run is fast:
 docker run --rm -i --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/gohome -e GOCACHE=/tmp/gocache -e GOFLAGS=-buildvcs=false \
   -v <repo>-gomodcache:/go/pkg -v <repo>-gocache:/tmp/gocache -v <repo>-gohome:/tmp/gohome \
-  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.9-alpine go "$@"   # the same pinned patch
+  -v "${REPO_ROOT}:/src" -w /src/go golang:1.26.11-alpine go "$@"   # the same pinned patch
 ```
 
 `scripts/go build ./...`, `scripts/go test -p 1 ./...` (packages that
