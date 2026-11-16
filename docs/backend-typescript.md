@@ -1,7 +1,7 @@
 ---
 title: "Backend: TypeScript"
 description: The Fastify + Connect-RPC + Drizzle blueprint
-order: 4
+order: 5
 ---
 
 # Backend: TypeScript

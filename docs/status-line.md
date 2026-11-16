@@ -1,7 +1,7 @@
 ---
 title: Status line
 description: The two-line Claude Code status line, what it shows, how to install it and why the budget hook needs it
-order: 13
+order: 14
 ---
 
 # Status line

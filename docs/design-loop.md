@@ -1,7 +1,7 @@
 ---
 title: Design loop
 description: How a screen's look is decided before it is built, by a designer, a critic and the owner
-order: 12
+order: 13
 ---
 
 # Design loop

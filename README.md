@@ -18,6 +18,9 @@ That installs every skill and every agent, namespaced under
 `maybloom-stack`. Updating, and pinning a team to the plugin, are covered in
 [Updating](./skills/README.md#updating) in `skills/README.md`.
 
+New to the loop? [Start here](./docs/start-here.md) takes you from Claude Code,
+`gh` and a GitHub account to one merged change.
+
 Each use below needs something in place first; [What you need](./docs/quick-start.md#what-you-need) lists it.
 
 ## Four uses
@@ -106,20 +109,21 @@ interactive session, not an agent.
 In reading order. The same pages are on the site.
 
 1. [Overview](./docs/overview.md), what the stack is and the principles behind it
-2. [Quick start](./docs/quick-start.md), installing the plugin and the first prompt for each use
-3. [Contracts](./docs/contracts.md), the protobuf layer that everything hangs off
-4. [Backend: TypeScript](./docs/backend-typescript.md), the Fastify blueprint
-5. [Backend: Go](./docs/backend-go.md), the Go blueprint
-6. [Interface](./docs/interface.md), the Expo Router client blueprint
-7. [Sites](./docs/sites.md), Astro for the public, static surfaces
-8. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
-9. [Skills](./docs/skills.md), how the stack ships as agent skills
-10. [Delegation](./docs/delegation.md), how work on the stack is split between roles and model tiers
-11. [Running a loop](./docs/running-a-loop.md), launching the roles and one run from card to merged pull request
-12. [Design loop](./docs/design-loop.md), how a screen's look is decided before it is built
-13. [Status line](./docs/status-line.md), what each segment shows and how to install it
-14. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
-15. [Prior art](./docs/prior-art.md), how the stack compares to what exists
+2. [Start here](./docs/start-here.md), from Claude Code, `gh` and a GitHub account to one merged change through the loop
+3. [Quick start](./docs/quick-start.md), installing the plugin and the first prompt for each use
+4. [Contracts](./docs/contracts.md), the protobuf layer that everything hangs off
+5. [Backend: TypeScript](./docs/backend-typescript.md), the Fastify blueprint
+6. [Backend: Go](./docs/backend-go.md), the Go blueprint
+7. [Interface](./docs/interface.md), the Expo Router client blueprint
+8. [Sites](./docs/sites.md), Astro for the public, static surfaces
+9. [Choosing a runtime](./docs/choosing.md), when Fastify, when Go, when Astro
+10. [Skills](./docs/skills.md), how the stack ships as agent skills
+11. [Delegation](./docs/delegation.md), how work on the stack is split between roles and model tiers
+12. [Running a loop](./docs/running-a-loop.md), launching the roles and one run from card to merged pull request
+13. [Design loop](./docs/design-loop.md), how a screen's look is decided before it is built
+14. [Status line](./docs/status-line.md), what each segment shows and how to install it
+15. [Adopting the stack](./docs/adopting.md), bringing an existing service onto the contract
+16. [Prior art](./docs/prior-art.md), how the stack compares to what exists
 
 ## Contributing
 

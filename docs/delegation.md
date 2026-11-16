@@ -1,7 +1,7 @@
 ---
 title: Delegation
 description: How work on the stack is split between roles and model tiers, and why
-order: 10
+order: 11
 ---
 
 # Delegation

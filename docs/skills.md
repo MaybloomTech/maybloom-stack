@@ -1,7 +1,7 @@
 ---
 title: Skills
 description: How the stack ships as agent skills
-order: 9
+order: 10
 ---
 
 # Skills

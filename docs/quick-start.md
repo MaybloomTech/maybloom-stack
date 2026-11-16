@@ -1,7 +1,7 @@
 ---
 title: Quick start
 description: Install the plugin, then the first thing to type for each of its four uses
-order: 2
+order: 3
 ---
 
 # Quick start

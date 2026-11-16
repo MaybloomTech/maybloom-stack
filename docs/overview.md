@@ -6,6 +6,8 @@ order: 1
 
 # Overview
 
+New to the stack and want a working loop first? [Start here](./start-here.md).
+
 The maybloom stack is a way of building a small product system as a single
 monorepo with a schema-first spine. A Protocol Buffers contract defines every
 type that crosses a boundary. Code generation produces the transport layer in

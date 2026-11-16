@@ -1,7 +1,7 @@
 ---
 title: Adopting the stack
 description: Bringing an existing service onto the contract without a rewrite
-order: 14
+order: 15
 ---
 
 # Adopting the stack

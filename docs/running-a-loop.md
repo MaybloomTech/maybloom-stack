@@ -1,7 +1,7 @@
 ---
 title: Running a loop
 description: Who starts which role and with what, one prompt per role, a filled brief, one run from card to merge, and the session budget
-order: 11
+order: 12
 ---
 
 # Running a loop
