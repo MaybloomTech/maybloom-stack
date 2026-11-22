@@ -82,6 +82,21 @@ interesting the defect is:
 - **polish** — style, naming, a guard that only an unlikely input dodges
   (a doc line is enough), anything you would accept as is.
 
+Two checks run on every diff, whatever the item:
+
+- **A weakened test.** A diff that deletes an existing test or
+  assertion, or loosens one (a narrower input, a weaker matcher, a
+  skip), while the code it covered is still there, is a should-fix,
+  kind behaviour; blocking when the test deleted or loosened covered what an
+  earlier finding was about. A test removed together with the code it
+  covered is not a finding.
+- **Unneeded code.** Code the item did not ask for and the change does
+  not need (an abstraction with one caller, an option nothing passes,
+  an error path that cannot fire, an unrelated refactor) is polish,
+  kind style; should-fix only when the extra layer is one later
+  changes will have to go through. Tests are exempt unless they are
+  empty or duplicates.
+
 Kind, for each: contract, behaviour, operations, or style. Prefer the
 least-change fix in what you ask for. A recurrence (the same finding,
 or the same step or file region drawing should-fix or worse round after

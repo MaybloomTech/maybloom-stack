@@ -84,6 +84,9 @@ with the question, or not addressed and why; the line format is under
 *Answering a round*), list scope beyond the findings separately, and
 never rewrite pushed history.
 
+A finding is never answered by deleting or loosening an existing test;
+a wrong test is disputed, with the evidence.
+
 A finding is disputed only with evidence the reviewer could have read: a
 file and line, or a test. A disagreement without such evidence is
 `escalated` for the owner's or the architect's call, and you go on with
